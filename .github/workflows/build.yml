@@ -1,0 +1,50 @@
+name: IDE Core integration
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: ide-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  presentation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native Linux build prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxkbcommon-dev
+      - name: Native macOS build prerequisites
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Build the real pinned Core and IDE with offline help
+        run: python app/scripts/build.py --fetch
+      - name: Configure opt-in presentation contracts on the CI runner
+        run: cmake -S . -B runtime/build -DBUILD_TESTING=ON
+      - name: Compile the actual migrated presentation contracts
+        run: cmake --build runtime/build --config Release --parallel 4 --target cycode_workflow_ui_tests cycode_template_ui_tests cycode_module_tests cycode_image_tests cycode_extension_ui_tests cycode_recovery_ui_tests cycode_resource_ui_tests
+      - name: Execute presentation contracts with the real Core on the runner
+        run: ctest --test-dir runtime/build -C Release --output-on-failure --no-tests=error -R "^(workflows_ui|templates_ui|ui_modules|images|extension_ui|recovery_ui|resources_ui)$" --output-junit ide-native-results.xml
+      - name: Preserve integration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ide-native-${{ matrix.os }}
+          path: |
+            runtime/build/build.log
+            runtime/build/ide-native-results.xml
+            runtime/build/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+          retention-days: 7
