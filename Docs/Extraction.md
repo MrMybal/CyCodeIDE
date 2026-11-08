@@ -29,31 +29,59 @@ it copies no local workspace, settings, runtime data or credentials.
 
 ## Actual checks on 2026-11-08
 
-- Core d0b1791 passed 63 native cases on Windows/Linux/macOS runners; MSBuild is
-  Windows-only. macOS replay also passed three repetitions, with earlier
-  intermittence still retained for diagnosis:
-  https://github.com/MrMybal/CyCode/actions/runs/42485288416
-- Reader c4a013b passed seven native integrations on those systems, including
-  encodings, data/native plugins, revision/disk conflicts, Git environment handling,
-  actual IPC and EOF cleanup:
-  https://github.com/MrMybal/CyCodeReader/actions/runs/42485861029
-- Semantic benchmarking used actual clangd and both synthetic and real configured
-  Core CMake sources. Source d0b1791 / 121 translation units / 227 owned files:
-  https://github.com/MrMybal/CyCode/actions/runs/42485288360
-  Raw reports and their memory/coverage caveats are retained in Core's architecture
-  guide. No complete-index or CLion/IntelliJ parity is claimed.
-- Windows production CLI, standalone native components, Reader GUI and IDE builds
-  passed without executing their application/helper/test binaries locally.
-- The actual moved IDE view suite is now enabled on three runners. Initial runs
-  exposed session-fold capture, displayed shortcut normalization, an omitted image
-  fixture and alternative-provider review failures. The fixture and shared native
-  keymap are corrected; session/provider diagnostics are being resolved. Follow
-  the exact companion run, rather than treating compilation as acceptance:
-  https://github.com/MrMybal/CyCodeIDE/actions/runs/42486970514
-- The genuine offline CyDoc export passed EN/FR, guide coverage, resources, aliases
-  and moved UI help routes: 612 pages / 6328 routes / 91 guides / 26 topics.
+- Core runtime revision 84e4c7831afeab27406a958a957db23fe005eae8 passed the
+  63-case native suite on Windows x64, Ubuntu x64 and macOS arm64. MSBuild is
+  skipped on POSIX. The existing Core case includes 80 concurrent child ownership
+  probes on POSIX; the formerly failing macOS replay passed and then passed
+  three extra repetitions:
+  https://github.com/MrMybal/CyCode/actions/runs/42492881492
+- Reader runtime revision 671c588b924f9da2655843f64615b6b6bc7076e6 passed all
+  17 service/editor/view cases on those systems plus its separate seven-case
+  headless graph. Actual codecs, plugins, guarded edits, IPC/EOF, comparison,
+  history, syntax, filtering and default/custom completion chords are covered:
+  https://github.com/MrMybal/CyCodeReader/actions/runs/42493128377
+- IDE runtime revision 6d9176c713af50c663667bb2d0837ab5eb7f333b passed all
+  seven view cases on Windows x64, Ubuntu x64 and macOS arm64:
+  https://github.com/MrMybal/CyCodeIDE/actions/runs/42496974728
+  This workflow builds the real Core, editor, IDE and offline help, then runs
+  workflows/session, templates, modules, images, extension/provider reviews,
+  recovery and resource view contracts. All three jobs completed successfully;
+  this is view-test acceptance in addition to the production builds.
+- The extracted image fixture was restored. Shared Keymap accepts displayed and
+  canonical strokes without losing contexts/chords. Session snapshots and
+  restoration use initialized editor state; transient clipping no longer drops
+  valid folds. The provider fixture advertises its real diff capability and
+  produces a genuine unified diff; the capability guards remain enforced.
+- New-window commands launch CyCodeIDE, retaining project/theme/locale/keymap
+  arguments. The IDE has its own product version definition. Build staging
+  derives its actual launch name while preserving Core operations and permissions,
+  includes the logo/fonts/notices, and excludes local settings/project data.
+  Its inert staging regression passed locally. The development update panel
+  points to CyCodeIDE; the old updater executable is not built or staged. Its
+  obsolete generated output was removed from the local build directory.
+- Both final semantic workloads completed on actual clangd/CLI. The real Core
+  CMake project has 121 translation units. Exact observations, raw reports and
+  limits are retained in the Core guide:
+  https://github.com/MrMybal/CyCode/actions/runs/42492881444
+  Short synthetic responses improved after incoming-message wakeup. The real
+  completion/analysis observations do not establish an overall speedup or complete
+  index coverage. No CLion/IntelliJ comparison is claimed.
+- Fresh Windows production builds passed for the CLI, minimal native components,
+  Reader GUI and IDE with tests OFF and no native execution locally. Minimal
+  component configuration builds no Engine/CLI/GUI or unused native libraries.
+- Final offline CyDoc exports passed EN/FR, guide coverage, resources and aliases:
+  Core/IDE 612 pages / 6328 routes / 91 guides / 26 topics; Reader 76 pages /
+  462 routes. Both keep the actual local HTML reader and image/gallery modules.
 - The original CyCode checkout's 154 changed/untracked source files remain
   byte-identical to their preservation snapshot; active Reader sources are untouched.
+
+The current Core source pin 716947280c376b7f291d76f87f9625af67a98094 adds only
+README/CyDoc/source-guide/benchmark-report updates to accepted runtime revision
+84e4c78. The tracked diff was verified to contain no native/build/manifest change.
+This keeps the final accepted manual in default source builds without changing
+the native code validated by that matrix. Reader editor source API 1 is pinned
+to d27e84f1097b68c12630dc4c10fcc406d4628760; its subsequent 671c588 change only
+selects the same fixed Core for the standalone app.
 
 ## Build and validation commands
 
@@ -74,6 +102,8 @@ specific cases; they do not validate OS windows, GPU drivers or multiple monitor
 This separation is a development delivery. No main branch, tag or release has
 been replaced. Before a CyCodeIDE installer is published, migrate its update
 repository/asset identity and validate portable/installed layouts. Historical
-updater code remains disabled in this build. No native application, CLI, helper,
-updater or test binary is run locally while antivirus removals remain unexplained.
+updater code remains disabled in this build; its old CMake target is archived in
+app/legacy/UpdaterHost.cmake.txt and is not included by production configuration.
+No native application, CLI, helper, updater or test binary is run locally while
+antivirus removals remain unexplained.
 No exclusions, quarantine restores or hidden application launches are used.

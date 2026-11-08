@@ -43,14 +43,16 @@ registry, local workspace, user settings or downloaded task data is distributed.
 
 See [extraction and validation](Docs/Extraction.md) and Core's
 [native integration guide](https://github.com/MrMybal/CyCode/blob/codex/core-intelligence/app/Docs/CoreExtraction.md).
-Core and Reader native integrations have passed on Windows, Linux and macOS CI.
+Core and Reader native integrations and the IDE view suite have passed on
+Windows, Linux and macOS CI.
 The separate IDE runner suite exercises actual views without opening OS windows;
-its current failures and exact revisions are recorded in the extraction guide.
+its exact revisions and platform results are recorded in the extraction guide.
 Local native execution remains suspended during the existing antivirus investigation.
 Production compilation and headless view checks do not establish full desktop,
 multi-monitor or installer acceptance.
 
 Before the first CyCodeIDE release, migrate and validate installer/update identity
-and distribution layouts. The historical updater is disabled in this development
-build. Legacy desktop/release workflows are archived in .github/legacy and are
-inactive. The shared GPL-3.0-only license and dependency notices are retained.
+and distribution layouts. The historical updater is disabled and its old helper
+is not built. The IDE product version and launch identity are independent from
+the Core runtime. Legacy desktop/release workflows are archived in .github/legacy
+and are inactive. The shared GPL-3.0-only license and dependency notices are retained.
