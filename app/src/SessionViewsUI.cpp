@@ -80,12 +80,14 @@ void Application::applySessionEditor(const std::shared_ptr<Tab> &tab, bool chang
     ImGuiWindow *child = nullptr;
     for (auto *candidate : ImGui::GetCurrentWindow()->DC.ChildWindows)
         if (candidate->ChildId == childId) { child = candidate; break; }
-    if (!child || child->LastFrameActive != ImGui::GetFrameCount() || child->Hidden || child->SkipItems)
+    // Line geometry proves that this backend has actually rendered. Its folds
+    // remain valid when the child is clipped or decorations replace LastItemData.
+    // Only the on-screen scroll anchor requires a visible child in this frame.
+    if (tab->editor.GetLineHeight() <= 0)
         return;
-    if (tab->editor.GetLineHeight() > 0) {
+    tab->sessionRendered = true;
+    if (child && child->LastFrameActive == ImGui::GetFrameCount() && !child->Hidden && !child->SkipItems)
         tab->sessionAnchorLine = tab->editor.VisPos2DocPos({tab->editor.GetFirstVisibleRow(), 0}).line;
-        tab->sessionRendered = true;
-    }
     if (!tab->pendingSession.is_object())
         return;
     const auto item = std::move(tab->pendingSession);

@@ -473,7 +473,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     refreshBuild(!smoke_, true);
     if (!smoke_ && unreal_.value("available", false)) prepareUnreal();
     if (window_) SDL_SetWindowTitle(window_,
-                       ("CyCode  |  " + (solution_.is_object() ? solution_.at("name").get<std::string>()
+                       ("CyCodeIDE  |  " + (solution_.is_object() ? solution_.at("name").get<std::string>()
                                                                : pathUtf8(engine_->workspace().filename())))
                            .c_str());
 }
@@ -1381,9 +1381,9 @@ void Application::chooseSolution(bool separate) {
 }
 void Application::newWindow(const std::filesystem::path &entry) {
 #ifdef _WIN32
-    auto executable = utf8Path(SDL_GetBasePath()) / "CyCode.exe";
+    auto executable = utf8Path(SDL_GetBasePath()) / "CyCodeIDE.exe";
 #else
-    auto executable = utf8Path(SDL_GetBasePath()) / "CyCode";
+    auto executable = utf8Path(SDL_GetBasePath()) / "CyCodeIDE";
 #endif
     std::vector<std::string> command{pathUtf8(executable), "--workspace", pathUtf8(entry), "--theme", theme_,
                                      "--language",         locale_, "--keymap", keymapProfile_};
