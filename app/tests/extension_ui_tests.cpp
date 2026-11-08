@@ -107,6 +107,11 @@ struct ApplicationExtensionTests {
                     "Custom provider menu action is unavailable");
             app.vcsTask("vcs.diff", {{"path", "main.cpp"}});
             settle();
+            if (!(app.vcsPreviewTitle_ == "vcs.diff" && app.vcsIsDiff_))
+                std::cerr << Json{{"error",app.lastError_},{"operation",app.vcsOperation_},
+                    {"title",app.vcsPreviewTitle_},{"provider",app.provider_},
+                    {"context",app.vcsContext_},{"contextPath",app.vcsContextPath_},
+                    {"requestPath",app.vcsRequestPath()}}.dump() << '\n';
             require(app.vcsPreviewTitle_ == "vcs.diff" && app.vcsIsDiff_,
                     "Alternative provider diff did not reach the shared review view");
             for (const auto *locale : {"en", "fr"})

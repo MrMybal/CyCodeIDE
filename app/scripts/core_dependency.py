@@ -17,6 +17,11 @@ def resolve(explicit=None):
         path = Path(path).resolve()
         if not (path / 'common/CMakeLists.txt').is_file() or (path / 'common/api-version.txt').read_text('utf-8').strip() != '1':
             raise RuntimeError('Expected CyCode common source API 1')
+        contract=json.loads(LOCK.read_text(encoding='utf-8'))
+        if contract.get('nativeSourceApi'):
+            api=path/'api-version.txt'
+            if not api.is_file() or api.read_text(encoding='utf-8').strip()!=str(contract['nativeSourceApi']):
+                raise RuntimeError('Expected the locked native CyCode source API')
         return path
     if supplied:
         return validate(supplied)

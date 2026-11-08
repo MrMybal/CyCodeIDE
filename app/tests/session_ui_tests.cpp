@@ -42,6 +42,10 @@ struct ApplicationSessionTests {
             const auto undo = tab->editor.GetUndoIndex();
             const auto saved = app.workspaceSessionSnapshot();
             const auto item = saved.at("tabs")[0];
+            if (!(item.at("editor").at("wrap") && item.at("editor").at("folds") == Json::array({0})))
+                std::cerr << Json{{"snapshot",item},{"rendered",tab->sessionRendered},
+                    {"revision",tab->revision},{"synchronizedRevision",tab->synchronizedRevision},
+                    {"backendFolded",tab->editor.IsLineFolded(0)}}.dump() << '\n';
             check(item.at("editor").at("wrap") && item.at("editor").at("folds") == Json::array({0}),
                   "Snapshot lost wrap or actual folded lines");
             check(validateWorkspaceSession(saved, saved.at("workspace")).at("tabs") == saved.at("tabs"),
