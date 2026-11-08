@@ -274,6 +274,13 @@ bool Application::finishQuit() {
     }
 }
 void Application::applicationUpdatesContent() {
+#ifndef CYCODE_IDE_ENABLE_UPDATES
+    cyui::textDim("CyCodeIDE %s", CYCODE_VERSION);
+    cyui::textDim("%s",tr("Updates are unavailable in this development build."));
+    if (cyui::button(tr("Open GitHub Releases")))
+        SDL_OpenURL("https://github.com/MrMybal/CyCodeIDE/releases");
+    return;
+#endif
     cyui::textDim("CyCode %s | %s", CYCODE_VERSION, updates::repository);
     const bool pending = applicationUpdatePending();
     {
