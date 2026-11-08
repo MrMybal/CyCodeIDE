@@ -163,16 +163,7 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
 if(WIN32)
   configure_file(resources/Version.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeVersion.rc" @ONLY)
   target_sources(CyCode PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeVersion.rc")
-  add_executable(CyCodeUpdater WIN32 src/updater_main.cpp src/UpdaterRecoveryUI.cpp "${CMAKE_CURRENT_BINARY_DIR}/CyCodeVersion.rc")
-  configure_file(resources/UpdaterManifest.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeUpdaterManifest.rc" @ONLY)
-  set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/CyCodeUpdaterManifest.rc" PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/Updater.manifest")
-  target_sources(CyCodeUpdater PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeUpdaterManifest.rc")
-  if(MSVC)
-    target_link_options(CyCodeUpdater PRIVATE /MANIFEST:NO)
-  endif()
-  target_link_libraries(CyCodeUpdater PRIVATE cycode_updates shell32 comctl32 Threads::Threads)
-  target_compile_definitions(CyCodeUpdater PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN CYCODE_VERSION="${PROJECT_VERSION}")
-  add_dependencies(CyCode CyCodeUpdater)
+  # No legacy updater executable in the development IDE distribution.
   configure_file(resources/Icons.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIcons.rc" @ONLY)
   target_sources(CyCode PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIcons.rc")
 endif()
@@ -181,7 +172,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_custom_command(TARGET CyCode POST_BUILD
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stage_runtime.py"
     --core "${CYCODE_CORE_ROOT}" --ide "${CYCODE_ROOT}" --destination "$<TARGET_FILE_DIR:CyCode>"
-    --cli "$<TARGET_FILE:cycode_cli>"
+    --cli "$<TARGET_FILE:cycode_cli>" --host-executable "$<TARGET_FILE_NAME:CyCode>"
   VERBATIM)
 add_dependencies(CyCode cycode_cli)
 set_target_properties(CyCode PROPERTIES OUTPUT_NAME CyCodeIDE)

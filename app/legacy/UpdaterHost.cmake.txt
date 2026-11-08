@@ -1,0 +1,12 @@
+# Historical CyCode updater target. Not included by the CyCodeIDE build.
+# Migrate and validate repository, assets and executable identity before reintroducing it.
+  add_executable(CyCodeUpdater WIN32 src/updater_main.cpp src/UpdaterRecoveryUI.cpp "${CMAKE_CURRENT_BINARY_DIR}/CyCodeVersion.rc")
+  configure_file(resources/UpdaterManifest.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeUpdaterManifest.rc" @ONLY)
+  set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/CyCodeUpdaterManifest.rc" PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/Updater.manifest")
+  target_sources(CyCodeUpdater PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeUpdaterManifest.rc")
+  if(MSVC)
+    target_link_options(CyCodeUpdater PRIVATE /MANIFEST:NO)
+  endif()
+  target_link_libraries(CyCodeUpdater PRIVATE cycode_updates shell32 comctl32 Threads::Threads)
+  target_compile_definitions(CyCodeUpdater PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN CYCODE_VERSION="${PROJECT_VERSION}")
+  add_dependencies(CyCode CyCodeUpdater)

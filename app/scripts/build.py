@@ -27,7 +27,7 @@ def main():
     args = parser.parse_args()
     if args.plan:
         print(json.dumps({'core': str(args.core_root or 'pinned CyCode'), 'editor': str(args.editor_root or 'pinned Reader'),
-            'documentation': not args.without_documentation, 'builds': ['CyCodeIDE', 'cycode_cli', 'providers', 'Windows updater'],
+            'documentation': not args.without_documentation, 'builds': ['CyCodeIDE', 'cycode_cli', 'providers'],
             'executesApplication': False, 'nativeTests': False}, indent=2))
         return 0
     core = resolve(args.core_root)

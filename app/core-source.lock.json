@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/MrMybal/CyCode",
-  "revision": "7e85a9956e0938f948b52280c724fce834add2a6",
+  "revision": "84e4c7831afeab27406a958a957db23fe005eae8",
   "commonApi": 1,
   "coreProtocol": "cycode-core/1",
   "nativeSourceApi": 1

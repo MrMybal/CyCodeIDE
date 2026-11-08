@@ -11,3 +11,5 @@ executables locally while antivirus removals remain unexplained; no exclusions,
 restores or rebuild/retry loops. Use source checks and production-only builds.
 Do not publish an installer/release until its new identity and updates are migrated.
 Never publish runtime/data, credentials, private sample projects or machine paths.
+
+English UI is the default, French is selectable. Add labels in app/scripts/write_locales.py and regenerate app/locales/ui.json here. Core retains only a compatibility entry for that generator. The IDE derives its catalogue launch metadata at staging; operation IDs, schemas and permissions remain Core-owned.

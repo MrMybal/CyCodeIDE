@@ -1,6 +1,7 @@
 """Exercise the distribution boundary with inert source/data fixtures only."""
 from pathlib import Path
 import tempfile
+import json
 import unittest
 from stage_runtime import stage
 
@@ -12,6 +13,7 @@ class StagingTests(unittest.TestCase):
                 path.parent.mkdir(parents=True,exist_ok=True);path.write_text(value,encoding='utf-8')
             for name in ['CyTool.json','contracts.py','tool.py','requirements.txt','LICENSE-CyToolsCore.txt','THIRD_PARTY_NOTICES.md']:
                 fixture(core/'app'/name)
+            fixture(core/'app/CyTool.json',json.dumps({'id':'cy.code','operations':[{'id':'fixture.operation','permissions':['workspace.read']}]}))
             fixture(ide/'app/locales/ui.json')
             fixture(ide/'app/resources/fonts/font-notice.txt')
             fixture(ide/'icons/CyCode.png')
@@ -21,7 +23,14 @@ class StagingTests(unittest.TestCase):
             fixture(ide/'data/workspaces/session.json','private session')
             fixture(core/'app/secret.env','private environment')
             cli=root/'cli-fixture.txt';fixture(cli)
-            stage(core,ide,dest,cli)
+            stage(core,ide,dest,cli,'CyCodeIDE')
+            source=json.loads((core/'app/CyTool.json').read_text(encoding='utf-8'))
+            host=json.loads((dest/'app/CyTool.json').read_text(encoding='utf-8'))
+            self.assertEqual(host.pop('name'),'CyCodeIDE')
+            self.assertEqual(host.pop('standaloneExecutable'),'CyCodeIDE')
+            self.assertEqual(host,source)
+            with self.assertRaises(ValueError):
+                stage(core,ide,dest,cli,'../other-app')
             files={p.relative_to(dest).as_posix() for p in dest.rglob('*') if p.is_file()}
             self.assertIn('icons/CyCode.png',files)
             self.assertIn('app/locales/ui.json',files)
