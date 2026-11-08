@@ -1469,7 +1469,7 @@ void Application::topBar() {
         cyui::textColoured(cyui::palette().accent, "CYCODE");
     }
     ImGui::SameLine();
-    cyui::badge(CYCODE_VERSION, cyui::Tone::neutral);
+    cyui::badge(CYCODE_IDE_VERSION, cyui::Tone::neutral);
     ImGui::SameLine();
     cyui::toolbarSeparator();
     ImGui::SameLine();

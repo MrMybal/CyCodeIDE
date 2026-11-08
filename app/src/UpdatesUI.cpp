@@ -275,13 +275,13 @@ bool Application::finishQuit() {
 }
 void Application::applicationUpdatesContent() {
 #ifndef CYCODE_IDE_ENABLE_UPDATES
-    cyui::textDim("CyCodeIDE %s", CYCODE_VERSION);
+    cyui::textDim("CyCodeIDE %s", CYCODE_IDE_VERSION);
     cyui::textDim("%s",tr("Updates are unavailable in this development build."));
     if (cyui::button(tr("Open GitHub Releases")))
         SDL_OpenURL("https://github.com/MrMybal/CyCodeIDE/releases");
     return;
 #endif
-    cyui::textDim("CyCode %s | %s", CYCODE_VERSION, updates::repository);
+    cyui::textDim("CyCode %s | %s", CYCODE_IDE_VERSION, updates::repository);
     const bool pending = applicationUpdatePending();
     {
         cyui::ScopedDisabled disabled(pending || smoke_ || testSession_ ||
@@ -397,7 +397,7 @@ void Application::applicationUpdatesContent() {
                                         {"failure", attempt.failure},
                                         {"time", attempt.time},
                                         {"directory", pathUtf8(attempt.directory)}});
-                Json report{{"version", CYCODE_VERSION},
+                Json report{{"version", CYCODE_IDE_VERSION},
                             {"platform", updates::platform()},
                             {"installation", pathUtf8(root_)},
                             {"attempts", attempts},
@@ -459,7 +459,7 @@ void Application::applicationUpdatesContent() {
                          "installed or portable release to enable installation updates."));
     if (preparedUpdate_) {
         cyui::sectionTitle(tr("Verified downloaded update"));
-        cyui::textDim("%s -> %s", CYCODE_VERSION, preparedUpdate_->version.c_str());
+        cyui::textDim("%s -> %s", CYCODE_IDE_VERSION, preparedUpdate_->version.c_str());
         cyui::callout(cyui::Tone::success,
                       tr("Download verified. Installation begins only after the normal save and close flow, "
                          "once all instances of this copy have closed."));
@@ -480,7 +480,7 @@ void Application::applicationUpdatesContent() {
         return;
     }
     cyui::sectionTitle(tr("Update available"));
-    cyui::textDim("%s -> %s", CYCODE_VERSION, latestUpdate_->version.c_str());
+    cyui::textDim("%s -> %s", CYCODE_IDE_VERSION, latestUpdate_->version.c_str());
     if (!latestUpdate_->notes.empty()) {
         ImGui::BeginChild("##release-notes", cyui::dp(-1, 160), ImGuiChildFlags_Borders);
         ImGui::TextWrapped("%s", latestUpdate_->notes.c_str());

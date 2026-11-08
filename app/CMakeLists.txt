@@ -61,6 +61,8 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
     # Bound per-target compilation while allowing the large presentation library to progress in parallel.
     target_compile_options(cycode_ui PRIVATE /MP2)
   endif()
+  # The desktop product version is independent from the linked Core runtime.
+  target_compile_definitions(cycode_ui PUBLIC CYCODE_IDE_VERSION="${PROJECT_VERSION}")
   target_include_directories(cycode_ui PUBLIC include PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/help-routing")
   configure_file("${CYCODE_CORE_ROOT}/app/src/HelpTopics.h" "${CMAKE_CURRENT_BINARY_DIR}/help-routing/HelpTopics.h" COPYONLY)
   target_sources(cycode_ui PRIVATE src/SnippetsUI.cpp)
