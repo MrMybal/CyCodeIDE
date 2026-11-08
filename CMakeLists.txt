@@ -1,3 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
 project(CyCodeIDE VERSION 0.2.3 LANGUAGES C CXX)
+option(BUILD_TESTING "Build explicit native contracts; never run implicitly" OFF)
+include(CTest)
 add_subdirectory(app)

@@ -44,8 +44,12 @@ def resolve(explicit=None):
         git('checkout', '--detach', revision)
     return validate(target)
 
-if __name__ == '__main__':
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', type=Path)
-    args = parser.parse_args()
-    print(resolve(args.source))
+    # CMake explicitly passes an empty optional cache variable. Converting it to
+    # Path here would turn it into '.', incorrectly treating the host as Core.
+    parser.add_argument('--source')
+    args = parser.parse_args(argv)
+    print(resolve(args.source or None))
+
+if __name__ == '__main__':main()
