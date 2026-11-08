@@ -22,6 +22,7 @@ def stage(core, ide, destination, cli):
         for source in source_root.rglob('*'):
             if source.is_file() and not source.is_symlink():
                 copy(source, Path('app') / folder / source.relative_to(source_root))
+    copy(ide / 'icons/CyCode.png', Path('icons/CyCode.png'))
     copy(cli, Path(cli.name))
     suffixes = {'.dll', '.so', '.dylib', '.json'}
     for source in (core / 'runtime/plugins').glob('*'):

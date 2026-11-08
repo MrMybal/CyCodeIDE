@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
             base = base.parent_path();
         }
         if (options.installation.empty())
-            throw std::runtime_error("Cannot locate app/CyTool.json beside the CyCode installation");
+            throw std::runtime_error("Cannot locate app/CyTool.json beside the CyCodeIDE installation");
         installation = options.installation;
         installationLease=cycode::updates::installationUse(installation);
         std::string capture, testReport, capturePanel;
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
         const char *glsl = "#version 330 core";
 #endif
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-        window = SDL_CreateWindow("CyCode", 1536, 960,
+        window = SDL_CreateWindow("CyCodeIDE", 1536, 960,
                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | (options.testHidden ? SDL_WINDOW_HIDDEN : 0));
         if (!window)
             throw std::runtime_error(SDL_GetError());
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
         std::ofstream out(log);
         out << error.what();
         if (!automated)
-            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "CyCode", error.what(), window);
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "CyCodeIDE", error.what(), window);
         if (glContext)
             SDL_GL_DestroyContext(glContext);
         if (window)

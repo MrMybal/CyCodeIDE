@@ -1,6 +1,7 @@
 #include "cycode/Application.h"
 #include "cycode/WorkspaceSession.h"
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 
 namespace cycode {
