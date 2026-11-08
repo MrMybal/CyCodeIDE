@@ -1,0 +1,7 @@
+* text=auto
+*.sh text eol=lf
+# Keep the formatting of upstream license notices, including their trailing spaces.
+app/licenses/** -whitespace
+# Preserve the exact checksummed upstream font resources and notice formatting.
+app/resources/fonts/*.ttf binary
+app/resources/fonts/*.txt -text -whitespace

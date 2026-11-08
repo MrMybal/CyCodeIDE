@@ -1,0 +1,198 @@
+name: Production desktop
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    env:
+      CYCODE_EDITOR_ROOT: ${{ github.workspace }}/runtime/deps/cycode-reader
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve shared editor pin
+        id: editor
+        run: python -c "import json,os; from pathlib import Path; revision=json.loads(Path('app/editor-source.lock.json').read_text())['revision']; Path(os.environ['GITHUB_OUTPUT']).open('a').write('revision='+revision+'\n')"
+      - uses: actions/checkout@v4
+        with:
+          repository: MrMybal/CyCodeReader
+          ref: ${{ steps.editor.outputs.revision }}
+          path: runtime/deps/cycode-reader
+          token: ${{ secrets.CYCODE_READER_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - name: Linux desktop development libraries and software renderer
+        if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          ninja-build ripgrep clangd xvfb xauth libgl1-mesa-dev libegl1-mesa-dev
+          libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev
+          libxfixes-dev libxss-dev libxtst-dev libwayland-dev libxkbcommon-dev
+          libdbus-1-dev libudev-dev libdrm-dev libgbm-dev libasound2-dev libpulse-dev
+      - name: macOS build tools
+        if: runner.os == 'macOS'
+        run: brew install ninja ripgrep llvm
+      - name: Use LLVM language tools on macOS
+        if: runner.os == 'macOS'
+        run: echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+      - name: Fetch pinned build sources
+        run: python app/scripts/fetch_dependencies.py
+      - name: Compile desktop, CLI and bundled providers without native test targets
+        run: python app/scripts/build.py --distribution --no-install
+      - name: Verify full offline help
+        run: python app/scripts/verify_documentation.py app/Documentation
+      - name: Prepare pinned software rendering only in an owned Windows runner fixture
+        if: runner.os == 'Windows'
+        id: windows_graphics
+        run: python app/scripts/prepare_windows_graphics_ci.py --executable runtime/build-vs/Release/CyCode.exe
+      - name: Exercise actual hidden Windows rendering in English and French
+        if: runner.os == 'Windows'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: python app/scripts/verify_graphical_ci.py --executable "${{ steps.windows_graphics.outputs.executable }}"
+      - name: Exercise actual Windows editing and search keyboard workflows
+        if: runner.os == 'Windows'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: python app/scripts/verify_shortcuts.py --ci --hidden --executable "${{ steps.windows_graphics.outputs.executable }}" --output runtime/reports/keyboard-ci
+      - name: Exercise actual Windows documentation and parameter shortcuts
+        if: runner.os == 'Windows'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: python app/scripts/verify_information.py --ci --executable "${{ steps.windows_graphics.outputs.executable }}" --output runtime/reports/information-ci
+      - name: Exercise real Windows detached windows and simultaneous native instances
+        if: runner.os == 'Windows'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: python app/scripts/verify_viewports_ci.py --executable "${{ steps.windows_graphics.outputs.executable }}"
+      - name: Exercise hidden Linux rendering in English and French
+        if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python app/scripts/verify_graphical_ci.py --executable runtime/build/CyCode
+      - name: Exercise actual hidden macOS rendering in English and French
+        if: runner.os == 'macOS'
+        run: python app/scripts/verify_graphical_ci.py --executable runtime/build/CyCode
+      - name: Exercise actual Rider, Visual Studio and VS Code keyboard workflows
+        if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python app/scripts/verify_shortcuts.py --ci --hidden --executable runtime/build/CyCode --output runtime/reports/keyboard-ci
+      - name: Exercise actual macOS primary-modifier editing and search workflows
+        if: runner.os == 'macOS'
+        run: python app/scripts/verify_shortcuts.py --ci --hidden --executable runtime/build/CyCode --output runtime/reports/keyboard-ci
+      - name: Exercise real Linux documentation and parameter shortcuts
+        if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python app/scripts/verify_information.py --ci --executable runtime/build/CyCode --output runtime/reports/information-ci
+      - name: Exercise real macOS documentation and parameter shortcuts
+        if: runner.os == 'macOS'
+        run: python app/scripts/verify_information.py --ci --executable runtime/build/CyCode --output runtime/reports/information-ci
+      - name: Exercise real Linux detached windows and simultaneous native instances
+        if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python app/scripts/verify_viewports_ci.py --executable runtime/build/CyCode
+      - name: Exercise real macOS detached windows and simultaneous native instances
+        if: runner.os == 'macOS'
+        run: python app/scripts/verify_viewports_ci.py --executable runtime/build/CyCode
+      - name: Exercise actual Linux Unicode navigation, semantic colors and transactional refactoring
+        if: runner.os == 'Linux'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          xvfb-run -a python app/scripts/verify_navigation.py --ci --executable runtime/build/CyCode
+          xvfb-run -a python app/scripts/verify_semantic_highlights.py --ci --cpp-only --executable runtime/build/CyCode
+          xvfb-run -a python app/scripts/verify_semantic.py --ci --hidden --executable runtime/build/CyCode
+      - name: Exercise actual macOS Unicode navigation, semantic colors and transactional refactoring
+        if: runner.os == 'macOS'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          python app/scripts/verify_navigation.py --ci --executable runtime/build/CyCode
+          python app/scripts/verify_semantic_highlights.py --ci --cpp-only --executable runtime/build/CyCode
+          python app/scripts/verify_semantic.py --ci --hidden --executable runtime/build/CyCode
+      - name: Exercise actual Windows Unicode navigation, semantic colors and transactional refactoring
+        if: runner.os == 'Windows'
+        env:
+          GALLIUM_DRIVER: llvmpipe
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          python app/scripts/verify_navigation.py --ci --executable "${{ steps.windows_graphics.outputs.executable }}"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python app/scripts/verify_semantic_highlights.py --ci --cpp-only --executable "${{ steps.windows_graphics.outputs.executable }}"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python app/scripts/verify_semantic.py --ci --hidden --executable "${{ steps.windows_graphics.outputs.executable }}"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Locate or install the Windows installer compiler
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $compiler = Get-ChildItem 'C:/Program Files*/Inno Setup*/ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $compiler) { choco install innosetup --no-progress -y; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
+      - name: Resolve the pinned MCP source
+        if: runner.os == 'Windows'
+        id: core
+        run: python -c "import json,os; from pathlib import Path; p=json.loads(Path('app/mcp-runtime.lock.json').read_text()); Path(os.environ['GITHUB_OUTPUT']).open('a').write('revision='+p['sdk']['revision']+'\n')"
+      - uses: actions/checkout@v4
+        if: runner.os == 'Windows'
+        with:
+          repository: MrMybal/CyToolsCore
+          ref: ${{ steps.core.outputs.revision }}
+          path: runtime/deps/cytools-core
+          persist-credentials: false
+      - name: Install exact SDK wheel authoring tools on the runner
+        if: runner.os == 'Windows'
+        run: python -m pip --isolated install --index-url https://pypi.org/simple setuptools==84.0.0 wheel==0.45.1 --disable-pip-version-check
+      - name: Prepare the pinned redistributable MCP environment without executing it
+        if: runner.os == 'Windows'
+        run: python app/scripts/prepare_mcp_runtime.py --core-source runtime/deps/cytools-core
+      - name: Compose the actual Windows distribution
+        if: runner.os == 'Windows'
+        run: python app/scripts/package_windows.py --build runtime/build-vs
+      - name: Exercise installation, ownership guards, repair and uninstall
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (Get-Content app/CyTool.json -Raw | ConvertFrom-Json).version
+          python app/scripts/verify_installer_ci.py --setup "runtime/releases/CyCode-$version-windows-x64-setup.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Retain compilation and graphical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-evidence-${{ matrix.os }}
+          path: |
+            runtime/build*/build.log
+            runtime/reports/graphical-ci/*
+            runtime/reports/installer-ci/*
+            runtime/reports/keyboard-ci/*
+            runtime/reports/viewports-ci/*
+            runtime/reports/information-ci/*
+            runtime/reports/mcp-ci/result.json
+            runtime/reports/navigation-ci/*
+            runtime/reports/semantic-highlights-ci/*
+            runtime/reports/semantic-ci/*
+          if-no-files-found: ignore
+          retention-days: 7

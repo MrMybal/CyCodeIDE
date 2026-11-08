@@ -1,0 +1,118 @@
+name: Windows release packages
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  packages:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check version and sources
+        shell: pwsh
+        run: |
+          $version = (Get-Content app/CyTool.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -cne "v$version") { throw 'Tag must match the application version.' }
+          python app/scripts/verify_sources.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python app/tests/test_release_package.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Fetch pinned dependencies
+        run: python app/scripts/fetch_dependencies.py
+      - name: Compile production application, CLI, helper and providers
+        run: python app/scripts/build.py --distribution --no-install
+      - name: Locate or install Inno Setup
+        shell: pwsh
+        run: |
+          $compiler = Get-ChildItem 'C:/Program Files*/Inno Setup*/ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $compiler) { choco install innosetup --no-progress -y; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
+      - name: Resolve the pinned MCP source
+        id: core
+        run: python -c "import json,os; from pathlib import Path; p=json.loads(Path('app/mcp-runtime.lock.json').read_text()); Path(os.environ['GITHUB_OUTPUT']).open('a').write('revision='+p['sdk']['revision']+'\n')"
+      - uses: actions/checkout@v4
+        with:
+          repository: MrMybal/CyToolsCore
+          ref: ${{ steps.core.outputs.revision }}
+          path: runtime/deps/cytools-core
+          persist-credentials: false
+      - name: Install exact SDK wheel authoring tools on the runner
+        run: python -m pip --isolated install --index-url https://pypi.org/simple setuptools==84.0.0 wheel==0.45.1 --disable-pip-version-check
+      - name: Prepare the pinned redistributable MCP environment without executing it
+        run: python app/scripts/prepare_mcp_runtime.py --core-source runtime/deps/cytools-core
+      - name: Compose installer and shared portable archive
+        run: python app/scripts/package_windows.py --build runtime/build-vs
+      - name: Verify installed MCP, repair and uninstall before retaining release packages
+        shell: pwsh
+        run: |
+          $version = (Get-Content app/CyTool.json -Raw | ConvertFrom-Json).version
+          python app/scripts/verify_installer_ci.py --setup "runtime/releases/CyCode-$version-windows-x64-setup.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Retain installer and MCP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-validation-evidence
+          path: |
+            runtime/reports/installer-ci/*
+            runtime/reports/mcp-ci/result.json
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CyCode-windows-x64
+          path: |
+            runtime/releases/*.exe
+            runtime/releases/*.zip
+            runtime/releases/SHA256SUMS.txt
+          if-no-files-found: error
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: CyCode-windows-x64
+          path: release-assets
+      - name: Publish versioned packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json,os,re,subprocess
+          from pathlib import Path
+          tag=os.environ['RELEASE_TAG']
+          assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+',tag)
+          expected={f'CyCode-{tag[1:]}-windows-x64-setup.exe',f'CyCode-{tag[1:]}-windows-x64.zip','SHA256SUMS.txt'}
+          assert {p.name for p in Path('release-assets').iterdir()}==expected
+          result=subprocess.run(['gh','api',f"repos/{os.environ['GH_REPO']}/releases/tags/{tag}"],capture_output=True,text=True)
+          if result.returncode==0:
+              release=json.loads(result.stdout)
+              assert not release['draft'] and not release['prerelease']
+              assert {a['name'] for a in release['assets']}==expected
+              assert all(a['size']>0 and re.fullmatch('sha256:[0-9a-f]{64}',a.get('digest') or '') for a in release['assets'])
+              print('The complete release is already published; retaining its immutable files.')
+          else:
+              assert 'HTTP 404' in result.stderr
+              subprocess.run(['gh','release','create',tag,*map(str,Path('release-assets').iterdir()),'--verify-tag','--title',f'CyCode {tag[1:]}','--notes-file',f'app/Docs/Releases/{tag}.md'],check=True)
+          PY

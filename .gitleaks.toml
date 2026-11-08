@@ -1,0 +1,12 @@
+# Keep every default detection rule. This exact public source-file digest is
+# mistaken for an API key because its JSON key contains transports/api.py.
+# Provenance: app/mcp-runtime.lock.json pins the published SDK commit and full
+# normalized source inventory. This exception authorizes no token or other hash.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Exact reviewed SHA-256 of published CyToolsCore transports/api.py"
+targetRules = ["generic-api-key"]
+regexTarget = "match"
+regexes = ['''^api\.py":\s*"b83dc02eba031120380f47af285f90776876656fe1714bfd32d20831069daab2"$''']

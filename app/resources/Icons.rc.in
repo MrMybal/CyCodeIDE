@@ -1,0 +1,3 @@
+// Keep resource ordering stable: executable icon index 0, document icon index 1.
+1 ICON "@CYCODE_ROOT@/icons/CyCode.ico"
+2 ICON "@CYCODE_ROOT@/icons/CyCode-document.ico"

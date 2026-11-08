@@ -1,0 +1,12 @@
+{
+  "stb": {
+    "url": "https://codeload.github.com/nothings/stb/tar.gz/d14d46f6b44456eb88beac58cba833a4135d4c89",
+    "revision": "d14d46f6b44456eb88beac58cba833a4135d4c89",
+    "sha256": "1b59a668a789a28a8fd4e01ff1413eec7eaeb28688bafdc66ec7068f4e7095e1"
+  },
+  "webp": {
+    "url": "https://codeload.github.com/webmproject/libwebp/tar.gz/4fa21912338357f89e4fd51cf2368325b59e9bd9",
+    "revision": "4fa21912338357f89e4fd51cf2368325b59e9bd9",
+    "sha256": "923f3382a47a2af185c3240c954cf004428b237bd7317413a95146d01eb4b94b"
+  }
+}
