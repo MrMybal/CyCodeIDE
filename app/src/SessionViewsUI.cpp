@@ -3,6 +3,7 @@
 #include "cycode/Recovery.h"
 #include "cycode/WorkspaceSession.h"
 #include <algorithm>
+#include <imgui_internal.h>
 
 namespace cycode {
 Json Application::editorSessionState(const std::shared_ptr<Tab> &tab, size_t &lineBudget,
@@ -73,7 +74,13 @@ void Application::restoreSessionTab(const std::shared_ptr<Tab> &tab, const Json 
     tab->editor.ScrollToLine(anchor.get<size_t>(), TextEditor::Scroll::alignTop);
 }
 void Application::applySessionEditor(const std::shared_ptr<Tab> &tab, bool changed) {
-    if (!ImGui::IsItemVisible())
+    // Decorations may replace LastItemData after the widget draws. Check the
+    // actual editor child in this frame, not whichever item was submitted last.
+    const auto childId = ImGui::GetID(("##text" + tab->path).c_str());
+    ImGuiWindow *child = nullptr;
+    for (auto *candidate : ImGui::GetCurrentWindow()->DC.ChildWindows)
+        if (candidate->ChildId == childId) { child = candidate; break; }
+    if (!child || child->LastFrameActive != ImGui::GetFrameCount() || child->Hidden || child->SkipItems)
         return;
     if (tab->editor.GetLineHeight() > 0) {
         tab->sessionAnchorLine = tab->editor.VisPos2DocPos({tab->editor.GetFirstVisibleRow(), 0}).line;

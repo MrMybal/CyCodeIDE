@@ -114,6 +114,10 @@ struct ApplicationExtensionTests {
                     {"requestPath",app.vcsRequestPath()}}.dump() << '\n';
             require(app.vcsPreviewTitle_ == "vcs.diff" && app.vcsIsDiff_,
                     "Alternative provider diff did not reach the shared review view");
+            require(!app.vcsDiff_.hunks().empty() &&
+                        std::any_of(app.vcsDiff_.rows().begin(), app.vcsDiff_.rows().end(),
+                                    [](const auto &row) { return row.kind == cyui::DiffKind::added; }),
+                    "Provider review did not contain the actual unified diff");
             for (const auto *locale : {"en", "fr"})
                 for (const auto *theme :
                      {"graphite", "mid-grey", "light-grey", "amber-night", "violet", "navy"})

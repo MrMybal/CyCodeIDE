@@ -57,6 +57,10 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
   target_include_directories(cycode_images PUBLIC include PRIVATE "${CYCODE_DEPS}/stb" "${CYCODE_DEPS}/webp/src")
   target_link_libraries(cycode_images PUBLIC cycode_files Threads::Threads PRIVATE webpdecoder)
   add_library(cycode_ui STATIC src/Application.cpp src/CommandUI.cpp src/SemanticUI.cpp src/InformationUI.cpp src/CodeActionsUI.cpp src/TerminalUI.cpp src/DebugUI.cpp src/VcsUI.cpp src/MsBuildUI.cpp src/ProjectTasksUI.cpp src/HighlightUI.cpp src/ModuleModels.cpp)
+  if(MSVC)
+    # Bound per-target compilation while allowing the large presentation library to progress in parallel.
+    target_compile_options(cycode_ui PRIVATE /MP2)
+  endif()
   target_include_directories(cycode_ui PUBLIC include PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/help-routing")
   configure_file("${CYCODE_CORE_ROOT}/app/src/HelpTopics.h" "${CMAKE_CURRENT_BINARY_DIR}/help-routing/HelpTopics.h" COPYONLY)
   target_sources(cycode_ui PRIVATE src/SnippetsUI.cpp)
