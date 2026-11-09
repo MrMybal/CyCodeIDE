@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 translations = {
+    "Indexing files...": "Indexation des fichiers...",
     "Updates are unavailable in this development build.": "Les mises à jour sont indisponibles dans cette version de développement.",
     'Run':'Executer',
     'Debugger':'Debogueur',

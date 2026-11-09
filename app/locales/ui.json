@@ -1,4 +1,8 @@
 {
+  "Indexing files...": {
+    "en": "Indexing files...",
+    "fr": "Indexation des fichiers..."
+  },
   "Updates are unavailable in this development build.": {
     "en": "Updates are unavailable in this development build.",
     "fr": "Les mises à jour sont indisponibles dans cette version de développement."

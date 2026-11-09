@@ -28,7 +28,7 @@ void Application::updateWorkspace() {
                 extensionsRefreshFuture_ =
                     std::async(std::launch::async, [engine] { return engine->dispatch("plugins.list"); });
             }
-            if (state.at("indexRevision") != workspaceIndexRevision_ && !filesFuture_.valid())
+            if ((filesIndexing_ || state.at("indexRevision") != workspaceIndexRevision_) && !filesFuture_.valid())
                 refreshFiles(false);
         } catch (const std::exception &e) {
             error(e.what());

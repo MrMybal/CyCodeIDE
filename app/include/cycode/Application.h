@@ -534,7 +534,8 @@ class Application {
     void updateWorkspace();
     std::future<Json> workspacePollFuture_;
     std::future<Json> extensionsRefreshFuture_;
-    uint64_t workspaceIndexRevision_=0;
+    uint64_t workspaceIndexRevision_=0,workspaceIndexGeneration_=0;
+    bool filesIndexing_=false;
     double lastWorkspaceCheck_=-10;
     void refreshGit();
     bool vcsSupports(const std::string &) const;
@@ -615,6 +616,8 @@ class Application {
     int unrealArtifactsGroup_=0;
     std::vector<std::string> files_;
     Tree tree_;
+    struct PreparedFiles {std::vector<std::string> files;Tree tree;};
+    std::unique_ptr<PreparedFiles> preparedFiles_;
     std::future<Json> filesFuture_, searchFuture_, gitFuture_, taskFuture_;
     std::future<Json> vcsFuture_;
     Json vcsInfo_ = Json::object(), vcsHistory_ = Json::object(), vcsConflict_ = Json::object();

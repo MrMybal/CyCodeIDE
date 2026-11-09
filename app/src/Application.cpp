@@ -382,7 +382,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     terminalSelectionStart_ = terminalSelectionEnd_ = {-1, 0};
     active_.clear();
     files_.clear();
-    workspaceIndexRevision_=0;lastWorkspaceCheck_=-10;
+    workspaceIndexRevision_=0;workspaceIndexGeneration_=0;filesIndexing_=false;lastWorkspaceCheck_=-10;
     tree_ = {};
     lastError_.clear();
     search_ = Json::object();
@@ -491,20 +491,35 @@ void Application::prepareUnreal() {
     unrealAnalysisFuture_ = std::async(std::launch::async, [engine, params, cancellation] { return engine->prepareUnrealAnalysis(params, cancellation.get()); });
 }
 void Application::refreshFiles(bool force) {
-    if (filesFuture_.valid())
-        return;
-    auto engine = engine_;
-    filesFuture_ = std::async(std::launch::async, [engine,force] {
+    if (filesFuture_.valid())return;
+    auto engine=engine_;
+    filesFuture_=std::async(std::launch::async,[this,engine,force] {
+        preparedFiles_.reset();
         auto result=engine->dispatch("workspace.files",{{"refresh",force}});
-        const auto revision=result.at("indexRevision").get<uint64_t>(),generation=result.at("generation").get<uint64_t>();size_t attempts=0;
-        while(!result.at("nextOffset").is_null()&&++attempts<32) {
-            const auto page=engine->dispatch("workspace.files",{{"offset",result.at("nextOffset")}});
+        const auto revision=result.at("indexRevision").get<uint64_t>(),generation=result.at("generation").get<uint64_t>();
+        while(!result.at("nextOffset").is_null()) {
+            const auto offset=result.at("nextOffset").get<uint64_t>();
+            const auto page=engine->dispatch("workspace.files",{{"offset",offset}});
             if(!fileIndexPageMatches(revision,generation,page.at("indexRevision").get<uint64_t>(),page.at("generation").get<uint64_t>())) {
-                result["indexRevision"]=0;result["generation"]=0;result["truncated"]=true;result["nextOffset"]=nullptr;break;
+                result["indexRevision"]=0;result["generation"]=0;result["indexing"]=true;
+                result["complete"]=false;result["truncated"]=true;result["nextOffset"]=nullptr;break;
             }
             for(const auto &file:page.at("files"))result["files"].push_back(file);
             result["nextOffset"]=page.at("nextOffset");result["truncated"]=page.at("truncated");
+            if(!result.at("nextOffset").is_null()&&result.at("nextOffset").get<uint64_t>()<=offset)
+                throw std::runtime_error("File enumeration did not advance its page cursor");
         }
+        if(result.at("generation").get<uint64_t>()!=0) {
+            auto prepared=std::make_unique<PreparedFiles>();
+            prepared->files=result.at("files").get<std::vector<std::string>>();
+            for(const auto &path:prepared->files) {
+                Tree *node=&prepared->tree;
+                for(const auto &part:utf8Path(path).parent_path())node=&node->folders[pathUtf8(part)];
+                node->files.push_back(path);
+            }
+            preparedFiles_=std::move(prepared);
+        }
+        result.erase("files"); // The UI receives owned native data, not a second JSON copy.
         return result;
     });
 }
@@ -1158,19 +1173,18 @@ void Application::update() {
     if (ready(filesFuture_)) {
         try {
             auto result = filesFuture_.get();
-            workspaceIndexRevision_=result.value("indexRevision",uint64_t(0));
-            files_ = result["files"].get<std::vector<std::string>>();
-            tree_ = {};
-            for (const auto &path : files_) {
-                Tree *node = &tree_;
-                auto fs = utf8Path(path);
-                for (const auto &part : fs.parent_path())
-                    node = &node->folders[pathUtf8(part)];
-                node->files.push_back(path);
+            filesIndexing_=result.value("indexing",false);
+            const auto generation=result.value("generation",uint64_t(0));
+            if(preparedFiles_&&generation!=workspaceIndexGeneration_) {
+                workspaceIndexRevision_=result.value("indexRevision",uint64_t(0));
+                workspaceIndexGeneration_=generation;
+                files_=std::move(preparedFiles_->files);tree_=std::move(preparedFiles_->tree);
             }
-            if (result.value("truncated", false))
-                output_ += std::string(tr("File index is incomplete; refine the project scope or refresh.")) + "\n";
+            preparedFiles_.reset();
+            const auto enumerationError=result.value("indexError",std::string{});
+            if(!enumerationError.empty())error(enumerationError);
         } catch (const std::exception &e) {
+            filesIndexing_=false;preparedFiles_.reset();
             error(e.what());
         }
     }
@@ -1706,6 +1720,7 @@ void Application::projectPanel() {
                              "accessible below."));
         }
     }
+    if(filesIndexing_)cyui::textDim("%s %zu",tr("Indexing files..."),files_.size());
     ImGui::BeginChild("##files");
     if (solution_.is_object() && !filesFilter_.active()) {
         if (ImGui::TreeNodeEx(tr("Solution"), ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -1716,7 +1731,7 @@ void Application::projectPanel() {
         cyui::overline(tr("Workspace files"));
     }
     if (files_.empty())
-        cyui::emptyState(tr(filesFuture_.valid() ? "Loading files..." : "No files"), tr("Open a workspace or refresh the file list."),
+        cyui::emptyState(tr((filesFuture_.valid()||filesIndexing_) ? "Loading files..." : "No files"), tr("Open a workspace or refresh the file list."),
                          cyui::icon::folder);
     else if (!filesFilter_.active()) {
         tree(tree_, "");
