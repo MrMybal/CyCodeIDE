@@ -230,6 +230,26 @@ clipboard, themes/density/DPI/keymaps and Linux/macOS acceptance remain unverifi
 GitHub Actions stay disabled. Source publication on main is separately authorized;
 no installer or release is created by this integration.
 
+## CyCodeIDE update identity — 2026-11-11
+
+The current Core pin is published 8b8b7cefef47272871afe7774999f8b838ba1ab1.
+The host configures one native CyCode::Updates library for CyCodeIDE,
+MrMybal/CyCodeIDE and the independent IDE version before adding the Core target.
+Target properties, generated configuration and native product-bound manifests
+prevent accepting the historical CyCode/Reader update stream. The Windows helper
+is CyCodeIDEUpdater.exe; installation restarts CyCodeIDE.exe after normal save/close
+and exclusive installation ownership. Core retains transfer, hashes, leases,
+managed-file policy, transactions, journals and recovery. The IDE owns its dialogs,
+installer identity and package composition. No dependency implementation is copied.
+
+The package author reuses Core's UpdateProduct, payload/validate_payload,
+write_archive, PE resource reader, MCP bundle verifier and installer author.
+It preserves the CLI/providers, real isolated MCP, complete help and MSVC runtime;
+private data and build trees are excluded. Setup has an independent AppId,
+CyCodeIDE-installed.flag and registry/install directory. Actual install/restart,
+online replacement and Linux/macOS remain unexecuted under local restrictions.
+The owner authorized the separate v0.2.3 Windows release with these limits. See [the update workflow](Updates.md).
+
 ## Build and validation commands
 
 ```sh
@@ -246,9 +266,9 @@ specific cases; they do not validate OS windows, GPU drivers or multiple monitor
 
 ## Release boundary
 
-This separation is a development delivery on main. No tag or installer release
-is published by this integration. Before a CyCodeIDE installer is published, migrate its update
-repository/asset identity and validate portable/installed layouts. Historical
+The owner authorized the first separate CyCodeIDE v0.2.3 Windows release on main.
+The update identity is migrated to CyCodeIDE. Portable/installed replacement and
+restart remain unexecuted; release notes record this validation boundary. Historical
 updater code remains disabled in this build; its old CMake target is archived in
 app/legacy/UpdaterHost.cmake.txt and is not included by production configuration.
 No native application, CLI, helper, updater or test binary is run locally while

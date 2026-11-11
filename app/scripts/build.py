@@ -25,11 +25,12 @@ def main():
     parser.add_argument('--fetch', action='store_true', help='Fetch pinned native and graphical build sources')
     parser.add_argument('--plan', action='store_true')
     parser.add_argument('--without-documentation', action='store_true', help='Explicit compile-only check; release builds require local help')
+    parser.add_argument('--without-updates', action='store_true', help='Disable release checks in this build; update-capable packages require the default')
     args = parser.parse_args()
     if args.plan:
         print(json.dumps({'core': str(args.core_root or 'pinned CyCode'), 'editor': str(args.editor_root or 'pinned Reader'),
             'buildDirectory': str(args.build_dir.resolve()),
-            'documentation': not args.without_documentation, 'builds': ['CyCodeIDE', 'cycode_cli', 'providers'],
+            'documentation': not args.without_documentation, 'updates': not args.without_updates, 'builds': ['CyCodeIDE', 'cycode_cli', 'providers'],
             'executesApplication': False, 'nativeTests': False}, indent=2))
         return 0
     core = resolve(args.core_root)
@@ -83,7 +84,8 @@ def main():
     commands = [[cmake,'-S',str(ROOT),'-B',str(build),*generator,
         '-DBUILD_TESTING=OFF',f'-DCMAKE_BUILD_TYPE={args.configuration}',
         f'-DCYCODE_CORE_ROOT={core}',f'-DCYCODE_EDITOR_ROOT={editor}',f'-DCYCODE_DEPS={args.deps.resolve()}',
-        f'-DCYUI_DIR={args.cyui or ""}',f'-DCYCODE_BUILD_DOCUMENTATION={"OFF" if args.without_documentation else "ON"}'],
+        f'-DCYUI_DIR={args.cyui or ""}',f'-DCYCODE_IDE_ENABLE_UPDATES={"OFF" if args.without_updates else "ON"}',
+        f'-DCYCODE_BUILD_DOCUMENTATION={"OFF" if args.without_documentation else "ON"}'],
         [cmake,'--build',str(build),'--config',args.configuration,'--parallel','4','--target','CyCode']]
     with (build/'build.log').open('w',encoding='utf-8') as stream:
         for command in commands:

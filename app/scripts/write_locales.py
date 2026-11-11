@@ -1113,4 +1113,13 @@ for key, value in {'Paged text documentation': 'Documentation du texte paginé',
 
 translations.setdefault("Core runtime version", "Version du moteur Core")
 
+for key, value in {'CyCodeIDE update recovery': 'Récupération de mise à jour de CyCodeIDE', 'No interrupted installation is pending. Open CyCodeIDE to install downloaded updates.': 'Aucune installation interrompue n’est en attente. Ouvrez CyCodeIDE pour installer les mises à jour téléchargées.', 'The previous installation was restored. Original backups were retained. Restart CyCodeIDE now?': 'L’installation précédente a été restaurée. Les sauvegardes d’origine ont été conservées. Redémarrer CyCodeIDE maintenant ?', 'CyCodeIDE update': 'Mise à jour de CyCodeIDE', 'The update was installed, but CyCodeIDE could not restart. Start it manually.': 'La mise à jour est installée, mais CyCodeIDE n’a pas pu redémarrer. Lancez-le manuellement.', 'Restart CyCodeIDE': 'Redémarrer CyCodeIDE'}.items():
+    translations.setdefault(key, value)
+
+for key, value in {'Private releases use CYCODEIDE_UPDATE_TOKEN, GH_TOKEN or GITHUB_TOKEN from the environment. Credentials are never saved in preferences.': 'Les versions privées utilisent CYCODEIDE_UPDATE_TOKEN, GH_TOKEN ou GITHUB_TOKEN depuis l’environnement. Les identifiants ne sont jamais enregistrés dans les préférences.'}.items():
+    translations.setdefault(key, value)
+
+for key, value in {'Restore the previous installation? Projects and user data are preserved. Close all CyCodeIDE instances before continuing.': 'Restaurer l’installation précédente ? Les projets et données utilisateur sont conservés. Fermez toutes les instances de CyCodeIDE avant de continuer.', 'The previous installation was restored, but CyCodeIDE could not restart. Start it manually.': 'L’installation précédente a été restaurée, mais CyCodeIDE n’a pas pu redémarrer. Lancez-le manuellement.', 'To recover an interrupted update, run the staged CyCodeIDEUpdater.exe inside data/updates/download-... . Keep pending.json and all backups.': 'Pour récupérer une mise à jour interrompue, lancez le CyCodeIDEUpdater.exe conservé dans data/updates/download-... . Conservez pending.json et toutes les sauvegardes.'}.items():
+    translations.setdefault(key, value)
+
 path.write_text(json.dumps({key: {'en': key, 'fr': value} for key,value in translations.items()}, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')

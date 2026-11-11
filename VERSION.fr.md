@@ -4,17 +4,18 @@
 
 ## Version actuelle des sources
 
-**CyCodeIDE 0.2.3 · EN DÉVELOPPEMENT**
+**CyCodeIDE 0.2.3 · Windows x64 · 2026-11-11**
 
 Il s’agit de la version de l’IDE déclarée par les projets CMake racine et
 application, indépendante du moteur Core lié. La présentation provient de
-l’ancienne application de bureau CyCode 0.2.3. Ces notes décrivent les sources
-actuelles, pas un nouveau binaire, un installateur ou une date de publication.
+l’ancienne application de bureau CyCode 0.2.3. Il s’agit de la première publication
+séparée de l’IDE. [Téléchargements](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3) · [Notes de publication](Docs/Releases/v0.2.3.fr.md).
+Compilation et contrôles des paquets passent ; installation/redémarrage restent non vérifiés.
 
 | Composant | Sources sélectionnées / contrat |
 | --- | --- |
-| CyCodeIDE | Sources de développement 0.2.3 |
-| [CyCode Core](app/core-source.lock.json) | `f5e6261bf8acf22d0b3241622ed4294322724fb9` · API source native/commune 1 · `cycode-core/1` |
+| CyCodeIDE | Version Windows x64 0.2.3 |
+| [CyCode Core](app/core-source.lock.json) | `8b8b7cefef47272871afe7774999f8b838ba1ab1` · API source native/commune 1 · `cycode-core/1` |
 | [Éditeur Reader](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · API source de l’éditeur graphique 1 |
 | [CyUI](app/cyui-source.lock.json) | `0ba1ba663b4b2bf46d066a32829bc91ea2743cba` |
 | Lecteur CyDoc | 0.1.0 · issu du verrouillage de documentation de Core |
@@ -65,10 +66,11 @@ partager un graphe de dépendances compatible.
 - Les saisies annulées et propositions refusées doivent être récupérées puis
   acquittées explicitement avant modification/enregistrement, sans réexécution automatique.
 
-- L’identité de l’installateur et des mises à jour ainsi que l’organisation de la
-  distribution doivent être migrées et validées avant la première publication
-  CyCodeIDE. L’ancien système de mise à jour est désactivé ; son auxiliaire n’est
-  ni compilé ni préparé. L’identité et la version de l’IDE sont indépendantes de Core.
+- Les mises à jour utilisent le dépôt et la version de CyCodeIDE, avec un auxiliaire
+  dédié lié au profil produit immuable de Core. Les paquets CyCode et Reader sont
+  refusés. Exécution de l’installateur, remplacement/redémarrage réels en ligne et
+  validation sur machine propre restent non vérifiés. La publication documente
+  explicitement ces limites. Voir les [mises à jour](Docs/Updates.md).
 - Les sources actuelles ont été compilées avec succès en production Windows
   Release. Les résultats CI natifs et d’interface antérieurs concernent des
   révisions précises sous Windows, Linux et macOS. Ils ne suffisent pas à valider

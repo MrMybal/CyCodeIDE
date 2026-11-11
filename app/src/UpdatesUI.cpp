@@ -281,7 +281,7 @@ void Application::applicationUpdatesContent() {
         SDL_OpenURL("https://github.com/MrMybal/CyCodeIDE/releases");
     return;
 #endif
-    cyui::textDim("CyCode %s | %s", CYCODE_IDE_VERSION, updates::repository);
+    cyui::textDim("CyCodeIDE %s | %s", CYCODE_IDE_VERSION, updates::repository);
     const bool pending = applicationUpdatePending();
     {
         cyui::ScopedDisabled disabled(pending || smoke_ || testSession_ ||
@@ -292,7 +292,7 @@ void Application::applicationUpdatesContent() {
             refreshApplicationUpdates();
     }
     if (cyui::button(tr("Open GitHub Releases")))
-        SDL_OpenURL("https://github.com/MrMybal/CyCode/releases");
+        SDL_OpenURL("https://github.com/MrMybal/CyCodeIDE/releases");
     if (cyui::toggleSwitch(tr("Check for updates at startup"), &checkUpdatesAtStartup_)) {
         try {
             saveSettings();
@@ -300,7 +300,7 @@ void Application::applicationUpdatesContent() {
             updateError_ = e.what();
         }
     }
-    cyui::helpMarker(tr("Private releases use CYCODE_UPDATE_TOKEN, GH_TOKEN or GITHUB_TOKEN from the "
+    cyui::helpMarker(tr("Private releases use CYCODEIDE_UPDATE_TOKEN, GH_TOKEN or GITHUB_TOKEN from the "
                         "environment. Credentials are never saved in preferences."));
     if (!skippedUpdate_.empty()) {
         cyui::textDim("%s: %s", tr("Skipped version"), skippedUpdate_.c_str());
@@ -397,7 +397,9 @@ void Application::applicationUpdatesContent() {
                                         {"failure", attempt.failure},
                                         {"time", attempt.time},
                                         {"directory", pathUtf8(attempt.directory)}});
-                Json report{{"version", CYCODE_IDE_VERSION},
+                Json report{{"product", "CyCodeIDE"},
+                            {"repository", updates::repository},
+                            {"version", CYCODE_IDE_VERSION},
                             {"platform", updates::platform()},
                             {"installation", pathUtf8(root_)},
                             {"attempts", attempts},

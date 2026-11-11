@@ -58,7 +58,7 @@ struct Messages {
         }
         return key;
     }
-    int box(const std::string &message, UINT flags, const char *titleKey = "CyCode update recovery") const {
+    int box(const std::string &message, UINT flags, const char *titleKey = "CyCodeIDE update recovery") const {
         const auto body = utf8Path(message).wstring(), title = utf8Path(tr(titleKey)).wstring();
         return MessageBoxW(nullptr, body.c_str(), title.c_str(), flags);
     }
@@ -158,7 +158,7 @@ struct LiveRecovery {
 };
 RecoveryRun runRecovery(const Recovery &review, const Messages &messages) {
     LiveRecovery live(review, messages);
-    const auto title = utf8Path(messages.tr("CyCode update recovery")).wstring();
+    const auto title = utf8Path(messages.tr("CyCodeIDE update recovery")).wstring();
     const auto stop = utf8Path(messages.tr("Stop recovery")).wstring();
     const auto text = utf8Path(messages.tr("Inspecting recovery files...")).wstring();
     const TASKDIALOG_BUTTON button{IDCANCEL, stop.c_str()};
@@ -243,7 +243,7 @@ struct ResultCopy {
             try {
                 const auto text =
                     utf8Path(self.messages.tr("The recovery report could not be copied.")).wstring();
-                MessageBoxW(window, text.c_str(), L"CyCode", MB_OK | MB_ICONWARNING);
+                MessageBoxW(window, text.c_str(), L"CyCodeIDE", MB_OK | MB_ICONWARNING);
             } catch (...) {
             }
         }
@@ -253,20 +253,20 @@ struct ResultCopy {
 int showRecoveryResult(const Recovery &review, const RecoveryRun &run, const Messages &messages) {
     const auto *label =
         run.restored
-            ? "The previous installation was restored. Original backups were retained. Restart CyCode now?"
+            ? "The previous installation was restored. Original backups were retained. Restart CyCodeIDE now?"
         : run.cancelled ? (run.snapshot.installationChanged
                                ? "This recovery attempt stopped after installed files moved. Keep "
                                  "pending.json and all backups, then run this helper again."
                                : "This recovery attempt was cancelled before installed files moved. Keep "
                                  "pending.json and all backups.")
                         : "Recovery stopped. Keep pending.json, transaction backups and recovery files.";
-    const auto title = utf8Path(messages.tr("CyCode update recovery")).wstring();
+    const auto title = utf8Path(messages.tr("CyCodeIDE update recovery")).wstring();
     const auto content = utf8Path(messages.tr(label)).wstring();
     const auto instruction = utf8Path(messages.tr(detail::recoveryPhaseLabel(run.snapshot.phase))).wstring();
     const auto technical = utf8Path(run.technical).wstring();
     const auto details = utf8Path(messages.tr("Technical details")).wstring();
     const auto close = utf8Path(messages.tr("Close")).wstring();
-    const auto restart = utf8Path(messages.tr("Restart CyCode")).wstring();
+    const auto restart = utf8Path(messages.tr("Restart CyCodeIDE")).wstring();
     const auto copy = utf8Path(messages.tr("Copy recovery report")).wstring();
     ResultCopy clipboard{messages, utf8Path(recoveryReport(review, run.snapshot)).wstring()};
     const TASKDIALOG_BUTTON buttons[] = {
@@ -297,10 +297,10 @@ void showInstallationFailure(const fs::path &root, const fs::path &staging, Inst
                              const std::string &details, bool installed) {
     Messages messages(root, staging);
     const auto label = installed
-                           ? "The update was installed, but CyCode could not restart. Start it manually."
+                           ? "The update was installed, but CyCodeIDE could not restart. Start it manually."
                            : detail::installFailureLabel(failure).data();
     messages.box(messages.tr(label) + "\n\n" + details.substr(0, 16384), MB_OK | MB_ICONERROR,
-                 "CyCode update");
+                 "CyCodeIDE update");
 }
 void restartApplication(const fs::path &root) {
     // Keep replacement excluded between manifest verification and process creation.
@@ -309,13 +309,13 @@ void restartApplication(const fs::path &root) {
         throw std::runtime_error("Cannot restart an unsupported installation");
     const auto files =
         detail::managedManifest(Json::parse(detail::read(root / "manifest.json", 2 * 1024 * 1024)));
-    const auto &expected = files.at("CyCode.exe");
-    const auto file = root / "CyCode.exe";
+    const auto &expected = files.at("CyCodeIDE.exe");
+    const auto file = root / "CyCodeIDE.exe";
     detail::safe(file);
     if (!fs::is_regular_file(file) || fs::hard_link_count(file) != 1 ||
         fs::file_size(file) != expected.size ||
         detail::hashFile(file, 64 * 1024 * 1024, nullptr) != expected.digest)
-        throw std::runtime_error("Installed CyCode executable changed; restart was refused");
+        throw std::runtime_error("Installed CyCodeIDE executable changed; restart was refused");
     std::wstring command = L"\"" + file.wstring() + L"\"";
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
@@ -323,7 +323,7 @@ void restartApplication(const fs::path &root) {
     if (!CreateProcessW(file.c_str(), command.data(), nullptr, nullptr, FALSE, 0, nullptr, root.c_str(),
                         &startup, &process))
         throw std::runtime_error(
-            "Installation is complete, but CyCode could not restart. Retain data/updates for recovery.");
+            "Installation is complete, but CyCodeIDE could not restart. Retain data/updates for recovery.");
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
 }
@@ -344,8 +344,8 @@ std::optional<int> recoveryEntry(const std::vector<std::wstring> &arguments) {
     try {
         detail::safe(root);
         if (!staged || staging.parent_path() != root / "data/updates" ||
-            self.filename() != "CyCodeUpdater.exe") {
-            messages.box(messages.tr("To recover an interrupted update, run the staged CyCodeUpdater.exe "
+            self.filename() != "CyCodeIDEUpdater.exe") {
+            messages.box(messages.tr("To recover an interrupted update, run the staged CyCodeIDEUpdater.exe "
                                      "inside data/updates/download-... . Keep pending.json and all backups."),
                          MB_OK | MB_ICONINFORMATION);
             return 2;
@@ -353,7 +353,7 @@ std::optional<int> recoveryEntry(const std::vector<std::wstring> &arguments) {
         if (!fs::exists(root / "data/updates/pending.json")) {
             messages.box(
                 messages.tr(
-                    "No interrupted installation is pending. Open CyCode to install downloaded updates."),
+                    "No interrupted installation is pending. Open CyCodeIDE to install downloaded updates."),
                 MB_OK | MB_ICONINFORMATION);
             return 0;
         }
@@ -426,7 +426,7 @@ std::optional<int> recoveryEntry(const std::vector<std::wstring> &arguments) {
                                "space estimate is not a reservation.") +
                    "\n";
         summary += "\n" + messages.tr("Restore the previous installation? Projects and user data are "
-                                      "preserved. Close all CyCode instances before continuing.");
+                                      "preserved. Close all CyCodeIDE instances before continuing.");
         if (messages.box(summary, MB_YESNO | MB_DEFBUTTON2 | MB_ICONQUESTION) != IDYES)
             return 0;
         const auto run = runRecovery(review, messages);
@@ -445,7 +445,7 @@ std::optional<int> recoveryEntry(const std::vector<std::wstring> &arguments) {
     } catch (const std::exception &e) {
         messages.box(
             messages.tr(
-                restored ? "The previous installation was restored, but CyCode could not restart. Start it "
+                restored ? "The previous installation was restored, but CyCodeIDE could not restart. Start it "
                            "manually."
                          : "Recovery stopped. Keep pending.json, transaction backups and recovery files.") +
                 "\n\n" + e.what(),

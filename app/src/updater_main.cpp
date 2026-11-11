@@ -1,6 +1,7 @@
 #include "cycode/update/detail/UpdateFiles.h"
 #include "UpdaterRecoveryUI.h"
 #include "cycode/Paths.h"
+#include "cycode/Process.h"
 #include "cycode/TextFile.h"
 #include "cycode/Updates.h"
 #include <chrono>
@@ -69,7 +70,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         if (!portableInstallation(installation))
             throw std::runtime_error("Cannot update a development or unsupported installation");
         prepared =
-            Prepared{package, package.parent_path() / "CyCodeUpdater.exe", installation, expected, digest};
+            Prepared{package, package.parent_path() / "CyCodeIDEUpdater.exe", installation, expected, digest};
         const std::atomic<bool> cancel{false};
         verifyPrepared(*prepared, cancel);
         auto cache = detail::cacheLease(installation, NativeFileLeaseMode::shared);
@@ -85,7 +86,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
         } while (std::chrono::steady_clock::now() < deadline);
         if (!lease)
-            throw std::runtime_error("Close all CyCode instances using this installation, then retry the "
+            throw std::runtime_error("Close all CyCodeIDE instances using this installation, then retry the "
                                      "update. No application was forcibly closed.");
         if (sha256File(package) != digest)
             throw std::runtime_error("Update package SHA-256 verification failed");
@@ -94,18 +95,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
             // Setup takes the same ownership file before writing. If another
             // instance starts in this handoff gap, Setup asks the user to close it.
             lease.reset();
-            std::wstring command = L"\"" + package.wstring() + L"\" /SP- /NORESTART /NOCLOSEAPPLICATIONS /DIR=\"" + installation.wstring() + L"\"";
-            STARTUPINFOW startup{}; startup.cb = sizeof(startup);
-            PROCESS_INFORMATION process{};
-            if (!CreateProcessW(package.c_str(), command.data(), nullptr, nullptr, FALSE, 0, nullptr,
-                                package.parent_path().c_str(), &startup, &process))
-                throw std::runtime_error("Cannot start the verified Windows installer");
-            CloseHandle(process.hThread);
-            const auto wait = WaitForSingleObject(process.hProcess, INFINITE);
-            DWORD exitCode = 1;
-            const auto gotExit = GetExitCodeProcess(process.hProcess, &exitCode);
-            CloseHandle(process.hProcess);
-            if (wait != WAIT_OBJECT_0 || !gotExit || exitCode != 0)
+            const auto process = runProcess(
+                {pathUtf8(package), "/SP-", "/NORESTART", "/NOCLOSEAPPLICATIONS",
+                 "/DIR=" + pathUtf8(installation)}, installation, std::chrono::minutes(30));
+            if (process.exitCode != 0 || process.timedOut || process.cancelled)
                 throw std::runtime_error("Windows installation was cancelled or failed");
             const auto result = nlohmann::json::parse(detail::read(installation / "manifest.json", 2 * 1024 * 1024));
             if (result.at("version") != expected)
@@ -139,10 +132,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
                                         installed);
             else {
                 const auto message = utf8Path(error.what()).wstring();
-                MessageBoxW(nullptr, message.c_str(), L"CyCode update", MB_OK | MB_ICONERROR);
+                MessageBoxW(nullptr, message.c_str(), L"CyCodeIDE update", MB_OK | MB_ICONERROR);
             }
         } catch (...) {
-            MessageBoxW(nullptr, L"Update stopped. Keep data/updates and all backups.", L"CyCode update",
+            MessageBoxW(nullptr, L"Update stopped. Keep data/updates and all backups.", L"CyCodeIDE update",
                         MB_OK | MB_ICONERROR);
         }
         return 1;

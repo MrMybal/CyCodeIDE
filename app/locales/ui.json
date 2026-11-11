@@ -7294,5 +7294,45 @@
   "Core runtime version": {
     "en": "Core runtime version",
     "fr": "Version du moteur Core"
+  },
+  "CyCodeIDE update recovery": {
+    "en": "CyCodeIDE update recovery",
+    "fr": "Récupération de mise à jour de CyCodeIDE"
+  },
+  "No interrupted installation is pending. Open CyCodeIDE to install downloaded updates.": {
+    "en": "No interrupted installation is pending. Open CyCodeIDE to install downloaded updates.",
+    "fr": "Aucune installation interrompue n’est en attente. Ouvrez CyCodeIDE pour installer les mises à jour téléchargées."
+  },
+  "The previous installation was restored. Original backups were retained. Restart CyCodeIDE now?": {
+    "en": "The previous installation was restored. Original backups were retained. Restart CyCodeIDE now?",
+    "fr": "L’installation précédente a été restaurée. Les sauvegardes d’origine ont été conservées. Redémarrer CyCodeIDE maintenant ?"
+  },
+  "CyCodeIDE update": {
+    "en": "CyCodeIDE update",
+    "fr": "Mise à jour de CyCodeIDE"
+  },
+  "The update was installed, but CyCodeIDE could not restart. Start it manually.": {
+    "en": "The update was installed, but CyCodeIDE could not restart. Start it manually.",
+    "fr": "La mise à jour est installée, mais CyCodeIDE n’a pas pu redémarrer. Lancez-le manuellement."
+  },
+  "Restart CyCodeIDE": {
+    "en": "Restart CyCodeIDE",
+    "fr": "Redémarrer CyCodeIDE"
+  },
+  "Private releases use CYCODEIDE_UPDATE_TOKEN, GH_TOKEN or GITHUB_TOKEN from the environment. Credentials are never saved in preferences.": {
+    "en": "Private releases use CYCODEIDE_UPDATE_TOKEN, GH_TOKEN or GITHUB_TOKEN from the environment. Credentials are never saved in preferences.",
+    "fr": "Les versions privées utilisent CYCODEIDE_UPDATE_TOKEN, GH_TOKEN ou GITHUB_TOKEN depuis l’environnement. Les identifiants ne sont jamais enregistrés dans les préférences."
+  },
+  "Restore the previous installation? Projects and user data are preserved. Close all CyCodeIDE instances before continuing.": {
+    "en": "Restore the previous installation? Projects and user data are preserved. Close all CyCodeIDE instances before continuing.",
+    "fr": "Restaurer l’installation précédente ? Les projets et données utilisateur sont conservés. Fermez toutes les instances de CyCodeIDE avant de continuer."
+  },
+  "The previous installation was restored, but CyCodeIDE could not restart. Start it manually.": {
+    "en": "The previous installation was restored, but CyCodeIDE could not restart. Start it manually.",
+    "fr": "L’installation précédente a été restaurée, mais CyCodeIDE n’a pas pu redémarrer. Lancez-le manuellement."
+  },
+  "To recover an interrupted update, run the staged CyCodeIDEUpdater.exe inside data/updates/download-... . Keep pending.json and all backups.": {
+    "en": "To recover an interrupted update, run the staged CyCodeIDEUpdater.exe inside data/updates/download-... . Keep pending.json and all backups.",
+    "fr": "Pour récupérer une mise à jour interrompue, lancez le CyCodeIDEUpdater.exe conservé dans data/updates/download-... . Conservez pending.json et toutes les sauvegardes."
   }
 }

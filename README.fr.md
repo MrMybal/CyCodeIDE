@@ -12,7 +12,7 @@
     </td>
     <td width="300" align="right" valign="top">
       <p><sub>Licence de l’application</sub><br><a href="LICENSE"><strong>GPL-3.0-only</strong></a></p>
-      <p><sub>Version de l’IDE</sub><br><a href="VERSION.fr.md"><strong>0.2.3</strong></a><br><strong>EN DÉVELOPPEMENT</strong></p>
+      <p><sub>Version de l’IDE</sub><br><a href="VERSION.fr.md"><strong>0.2.3</strong></a><br><strong>WINDOWS x64</strong></p>
     </td>
   </tr>
 </table>
@@ -23,11 +23,11 @@ Un IDE natif C++20 pour les projets de code, utilisant
 [CyCode Core](https://github.com/MrMybal/CyCode) et
 [l’éditeur partagé de CyCodeReader](https://github.com/MrMybal/CyCodeReader).
 
-> **EN DÉVELOPPEMENT · CyCodeIDE 0.2.3**
+> **CyCodeIDE 0.2.3 · Windows x64 · 2026-11-11**
 >
-> Cet état des sources provient de l’application de bureau CyCode 0.2.3.
-> Il ne constitue ni un nouvel installateur ni une nouvelle publication.
-> Consulter les [notes de version et limites documentées](VERSION.fr.md).
+> Première version séparée de CyCodeIDE, avec analyse native et mises à jour.
+> [Télécharger l’installateur ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3). Consulter les
+> [notes de version et limites de validation](VERSION.fr.md).
 
 ## À propos de CyCodeIDE
 
@@ -48,7 +48,7 @@ L’API source 1 ne garantit pas une ABI binaire C++ stable.
 
 ## Intégration de développement actuelle
 
-Core est verrouillé sur `f5e6261bf8acf22d0b3241622ed4294322724fb9` et CyUI sur
+Core est verrouillé sur `8b8b7cefef47272871afe7774999f8b838ba1ab1` et CyUI sur
 `0ba1ba663b4b2bf46d066a32829bc91ea2743cba`. L’éditeur paginé partagé est verrouillé
 sur Reader publié `889dd5fd8db8bfabdba4601f5d2a955723c91301`. La compilation par défaut récupère
 cette révision exacte, avec `PagedTextBackend.h` et `PagedTextEditor.h`. Le contrôle
@@ -87,6 +87,10 @@ des dépendances vérifie les capacités natives requises et les en-têtes parta
   versions utilisent les services Core et les outils configurés pour le projet.
 - **Espace de travail** : panneaux ancrables, fenêtres multiples, thèmes et
   raccourcis configurables.
+- **Mises à jour de l’application** : vérification facultative au démarrage,
+  téléchargement/reprise explicites et installation/redémarrage vérifiés via Core
+  sous Windows x64. L’IDE accepte uniquement ses propres paquets ; les copies de
+  développement ne sont pas remplacées. [Parcours et préparation des paquets](Docs/Updates.md).
 - **Anglais et français** : l’anglais est la langue par défaut ; le français est
   sélectionnable. Le manuel bilingue CyDoc fonctionne aussi hors ligne.
 
@@ -94,10 +98,12 @@ des dépendances vérifie les capacités natives requises et les en-têtes parta
 
 ## Installation
 
-Cet état de développement se compile depuis les sources. L’identité de
-l’installateur et des mises à jour ainsi que l’organisation de la distribution
-doivent encore être migrées et validées avant une publication CyCodeIDE.
-Les anciens téléchargements CyCode précèdent cette séparation.
+Télécharger l’[installateur Windows x64 ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3).
+Extraire tout le dossier portable avant de lancer `CyCodeIDE.exe`. L’installateur
+utilise un dossier CyCodeIDE par utilisateur, sans droits administrateur.
+Le flux de mise à jour utilise les versions CyCodeIDE de ce dépôt. Exécution de
+l’installateur et mise à jour/redémarrage réels restent non vérifiés ; voir les
+[mises à jour](Docs/Updates.md). Les anciens téléchargements CyCode précèdent cette séparation.
 
 La compilation cible Windows, Linux et macOS. Les [notes de version](VERSION.fr.md)
 précisent les limites de validation ; une cible de compilation ne suffit pas à

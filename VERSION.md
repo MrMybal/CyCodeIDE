@@ -4,17 +4,18 @@
 
 ## Current source version
 
-**CyCodeIDE 0.2.3 · IN DEVELOPMENT**
+**CyCodeIDE 0.2.3 · Windows x64 · 2026-11-11**
 
 This is the IDE version declared by the root and application CMake projects,
 independent of the linked Core runtime. The presentation was extracted from the
-historical CyCode 0.2.3 desktop application. These notes describe current sources,
-not a newly published binary, installer or release date.
+historical CyCode 0.2.3 desktop application. This is the first separate IDE release.
+[Release assets](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3) · [Release notes](Docs/Releases/v0.2.3.md).
+Production compilation and package checks pass; installation/restart remain unverified.
 
 | Component | Source selection / contract |
 | --- | --- |
-| CyCodeIDE | 0.2.3 development source |
-| [CyCode Core](app/core-source.lock.json) | `f5e6261bf8acf22d0b3241622ed4294322724fb9` · native/common source API 1 · `cycode-core/1` |
+| CyCodeIDE | 0.2.3 Windows x64 release |
+| [CyCode Core](app/core-source.lock.json) | `8b8b7cefef47272871afe7774999f8b838ba1ab1` · native/common source API 1 · `cycode-core/1` |
 | [Reader editor](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · graphical editor source API 1 |
 | [CyUI](app/cyui-source.lock.json) | `0ba1ba663b4b2bf46d066a32829bc91ea2743cba` |
 | CyDoc reader | 0.1.0 · inherited from the pinned Core documentation lock |
@@ -59,9 +60,11 @@ a compatible dependency graph.
 - Cancelled typing and rejected proposals must be copied/recovered and acknowledged
   explicitly before editing/saving; they are never automatically replayed.
 
-- Installer/update identity and distribution layouts need migration and validation
-  before the first CyCodeIDE release. The historical updater is disabled; its old
-  helper is neither built nor staged. IDE identity/version are independent of Core.
+- Updates now use the CyCodeIDE repository/version and a dedicated helper linked
+  to Core's immutable product profile. No legacy CyCode or Reader package is accepted.
+  Installer execution, real online replacement/restart and clean-machine acceptance
+  remain unverified. The release records these limits explicitly.
+  See [application updates](Docs/Updates.md).
 - Current sources have a successful Windows Release production build. Earlier
   native/view CI results cover specific revisions on Windows, Linux and macOS.
   They do not establish full desktop, multi-monitor or installer acceptance for

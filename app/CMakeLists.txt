@@ -19,7 +19,21 @@ set(CYCODE_BUILD_CLI ON CACHE BOOL "Native service for the IDE" FORCE)
 set(CYCODE_BUILD_UPDATES ON CACHE BOOL "Installation services" FORCE)
 set(CYCODE_BUILD_PROVIDERS ON CACHE BOOL "Bundled native providers" FORCE)
 set(CYCODE_BUILD_GUI OFF CACHE BOOL "GUI is owned by this repository" FORCE)
+# The update service is compiled once for THIS consumer, never the legacy stream.
+if(NOT EXISTS "${CYCODE_CORE_ROOT}/cmake/CyCodeUpdates.cmake")
+  message(FATAL_ERROR "The pinned Core must support immutable consumer update identities")
+endif()
+set(CYCODE_UPDATES_PRODUCT CyCodeIDE)
+set(CYCODE_UPDATES_REPOSITORY MrMybal/CyCodeIDE)
+set(CYCODE_UPDATES_VERSION "${PROJECT_VERSION}")
+option(CYCODE_IDE_ENABLE_UPDATES "Check the CyCodeIDE release stream; replacement needs a verified package" ON)
 add_subdirectory("${CYCODE_CORE_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/core")
+foreach(_identity PRODUCT REPOSITORY VERSION)
+  get_target_property(_actual cycode_updates CYCODE_UPDATES_${_identity})
+  if(NOT _actual STREQUAL CYCODE_UPDATES_${_identity})
+    message(FATAL_ERROR "The native update target belongs to a different consumer")
+  endif()
+endforeach()
 set(CYCODE_EDITOR_ROOT "${CYCODE_ROOT}/runtime/deps/cycode-reader" CACHE PATH "Shared graphical editor API 1")
 set(CYUI_DIR "" CACHE PATH "Optional clean CyUI source at the locked revision")
 set(CYCODE_EDITOR_DEPS "${CYCODE_DEPS}")
@@ -103,6 +117,9 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
   target_sources(cycode_ui PRIVATE src/DiagnosticAnnotations.cpp src/DiagnosticsUI.cpp src/EditorTextMap.cpp src/EditorOccurrences.cpp src/OccurrencesUI.cpp)
   target_sources(cycode_ui PRIVATE src/UiFonts.cpp src/Branding.cpp src/UpdatesUI.cpp src/UpdateStorageUI.cpp src/UpdateHistoryUI.cpp)
   target_link_libraries(cycode_ui PRIVATE cycode_updates)
+  if(CYCODE_IDE_ENABLE_UPDATES)
+    target_compile_definitions(cycode_ui PUBLIC CYCODE_IDE_ENABLE_UPDATES=1)
+  endif()
   target_sources(cycode_ui PRIVATE src/ExtensionSyntax.cpp)
   target_link_libraries(cycode_ui PUBLIC cycode_core cycode_editor cycode_fileicons cycode_images
     CyUI::Core CyUI::Code CyUI::CodeEditor CyUI::Diff CyUI::Commands CyUI::Diagnostics CyUI::DocumentViews CyUI::Inspector CyUI::Images CyUI::Assets)
@@ -173,16 +190,35 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
 if(WIN32)
   configure_file(resources/Version.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeVersion.rc" @ONLY)
   target_sources(CyCode PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeVersion.rc")
-  # No legacy updater executable in the development IDE distribution.
+  # Native dialogs are a presentation adapter; transactions remain Core-owned.
+  add_executable(CyCodeIDEUpdater WIN32 src/updater_main.cpp src/UpdaterRecoveryUI.cpp)
+  configure_file(resources/UpdaterVersion.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIDEUpdaterVersion.rc" @ONLY)
+  configure_file(resources/UpdaterManifest.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIDEUpdaterManifest.rc" @ONLY)
+  set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/CyCodeIDEUpdaterManifest.rc" PROPERTIES
+    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/Updater.manifest")
+  target_sources(CyCodeIDEUpdater PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIDEUpdaterVersion.rc"
+    "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIDEUpdaterManifest.rc")
+  if(MSVC)
+    target_link_options(CyCodeIDEUpdater PRIVATE /MANIFEST:NO)
+  endif()
+  target_compile_definitions(CyCodeIDEUpdater PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  target_link_libraries(CyCodeIDEUpdater PRIVATE cycode_updates CyCode::Process shell32 comctl32 Threads::Threads)
+  add_dependencies(CyCode CyCodeIDEUpdater)
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/ide-distribution-$<CONFIG>.json" CONTENT
+    "{\n  \"product\": \"CyCodeIDE\",\n  \"repository\": \"MrMybal/CyCodeIDE\",\n  \"version\": \"${PROJECT_VERSION}\",\n  \"configuration\": \"$<CONFIG>\",\n  \"platform\": \"windows-x64\",\n  \"updates\": \"${CYCODE_IDE_ENABLE_UPDATES}\",\n  \"coreRoot\": \"${CYCODE_CORE_ROOT}\",\n  \"executable\": \"$<TARGET_FILE:CyCode>\",\n  \"helper\": \"$<TARGET_FILE:CyCodeIDEUpdater>\"\n}\n")
   configure_file(resources/Icons.rc.in "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIcons.rc" @ONLY)
   target_sources(CyCode PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/CyCodeIcons.rc")
+endif()
+set(_cycode_update_stage_args)
+if(WIN32)
+  set(_cycode_update_stage_args --update-build-info "${CMAKE_BINARY_DIR}/ide-distribution-$<CONFIG>.json")
 endif()
 # Metadata/SDK facade are generated from the same Core; never fork contracts.
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_custom_command(TARGET CyCode POST_BUILD
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stage_runtime.py"
     --core "${CYCODE_CORE_ROOT}" --ide "${CYCODE_ROOT}" --destination "$<TARGET_FILE_DIR:CyCode>"
-    --cli "$<TARGET_FILE:cycode_cli>" --host-executable "$<TARGET_FILE_NAME:CyCode>"
+    --cli "$<TARGET_FILE:cycode_cli>" --host-executable "$<TARGET_FILE_NAME:CyCode>" ${_cycode_update_stage_args}
   VERBATIM)
 add_dependencies(CyCode cycode_cli)
 set_target_properties(CyCode PROPERTIES OUTPUT_NAME CyCodeIDE)
