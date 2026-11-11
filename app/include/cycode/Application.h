@@ -733,6 +733,7 @@ class Application {
     Json codeActionsState_=Json::object();
     std::string codeActionsKey_,codeActionsError_;
     int codeActionsFilter_=0,codeActionSelected_=-1;
+    cyui::TextFilter codeActionsTextFilter_;
     bool codeActionApply_=false;
     Json informationState_ = Json::object(), informationQuery_;
     std::string informationMethod_, informationWanted_, informationSent_, informationError_;

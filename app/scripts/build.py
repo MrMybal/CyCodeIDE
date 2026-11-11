@@ -21,12 +21,14 @@ def main():
     parser.add_argument('--deps', type=Path, default=ROOT/'runtime/deps')
     parser.add_argument('--cyui', type=Path)
     parser.add_argument('--configuration', default='Release')
+    parser.add_argument('--build-dir', type=Path, default=ROOT/'runtime/build', help='Separate build output without replacing an existing configuration')
     parser.add_argument('--fetch', action='store_true', help='Fetch pinned native and graphical build sources')
     parser.add_argument('--plan', action='store_true')
     parser.add_argument('--without-documentation', action='store_true', help='Explicit compile-only check; release builds require local help')
     args = parser.parse_args()
     if args.plan:
         print(json.dumps({'core': str(args.core_root or 'pinned CyCode'), 'editor': str(args.editor_root or 'pinned Reader'),
+            'buildDirectory': str(args.build_dir.resolve()),
             'documentation': not args.without_documentation, 'builds': ['CyCodeIDE', 'cycode_cli', 'providers'],
             'executesApplication': False, 'nativeTests': False}, indent=2))
         return 0
@@ -75,7 +77,7 @@ def main():
                     member.name = str(Path(*parts[1:]))
                     package.extract(member,target,filter='data')
             marker.write_text(item['sha256'],encoding='utf-8')
-    build = ROOT / 'runtime/build'
+    build = args.build_dir.resolve()
     build.mkdir(parents=True, exist_ok=True)
     generator = ['-G','Visual Studio 17 2022','-A','x64'] if sys.platform == 'win32' else ['-G','Ninja']
     commands = [[cmake,'-S',str(ROOT),'-B',str(build),*generator,

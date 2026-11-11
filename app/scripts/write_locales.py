@@ -1073,4 +1073,20 @@ translations.update({
     'Windows installation was cancelled or failed': 'L’installation Windows a été annulée ou a échoué',
     'Windows installation did not produce the expected version': 'L’installation Windows n’a pas produit la version attendue'
 })
+translations.update({
+    'Text size must be between 0.8 and 2.0': 'La taille du texte doit être comprise entre 0,8 et 2,0',
+    'Select a clangd executable': 'Sélectionnez un exécutable clangd',
+    'Build timeout must be an integer from 1 to 86400 seconds': 'La durée limite de compilation doit être un entier compris entre 1 et 86 400 secondes',
+    'Build timeout must be positive': 'La durée limite de compilation doit être positive'
+})
+translations.update({
+    'Reset diagnostic filters': 'Réinitialiser les filtres des diagnostics',
+    'No matching diagnostics': 'Aucun diagnostic correspondant',
+    'Change the text or severity filters, or reset them to show all diagnostics.': 'Modifiez les filtres de texte ou de gravité, ou réinitialisez-les pour afficher tous les diagnostics.',
+    'No matching code actions': 'Aucune action contextuelle correspondante',
+    'Change or clear the filter to show context actions.': 'Modifiez ou effacez le filtre pour afficher les actions contextuelles.'
+})
+translations.update({
+    'Ctrl + mouse wheel zooms code in this view. Click to reset to 100%.': 'Ctrl + molette zoome le code dans cette vue. Cliquez pour revenir à 100 %.'
+})
 path.write_text(json.dumps({key: {'en': key, 'fr': value} for key,value in translations.items()}, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')

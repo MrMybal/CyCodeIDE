@@ -368,6 +368,39 @@ struct ApplicationModuleTests {
         app.optionsFilter_.query="Theme";
         frame([&] { app.optionsPanel(); });
         require(!app.optionsInspector_.drafts.at(id).active && app.clangd_!="draft", "Filtered property draft escaped into settings");
+        // Context-action filtering retains native indices and never submits from a text field.
+        app.open("sample.cpp");
+        const auto actionParams = app.codeActionParameters();
+        require(!actionParams.is_null(), "Code-action fixture has no source context");
+        app.codeActionsKey_ = actionParams.dump();
+        app.codeActionsState_ = {
+            {"path", actionParams.at("path")}, {"revision", actionParams.at("expectedRevision")},
+            {"sessionId", "fixture-must-not-submit"},
+            {"actions", Json::array({
+                {{"title", "Extract##variable"}, {"kind", "refactor.extract"}, {"reason", ""},
+                 {"index", 17}, {"available", true}},
+                {{"title", "Unavailable action"}, {"kind", "quickfix"}, {"reason", "unsupported fixture"},
+                 {"index", 23}, {"available", false}}
+            })}
+        };
+        app.panels_["codeActions"] = true;
+        auto actionsView = [&] { app.codeActionsPanel(); };
+        app.codeActionsTextFilter_.query = "unsupported";
+        frame(actionsView); frame(actionsView);
+        require(app.codeActionSelected_ == 1, "Reason filtering lost the original native action index");
+        app.codeActionsTextFilter_.query = "no-matching-action";
+        frame(actionsView);
+        require(app.codeActionSelected_ == -1, "An invisible code action remained selected");
+        app.codeActionsTextFilter_.query = "Extract";
+        app.codeActionsTextFilter_.focus();
+        frame(actionsView); frame(actionsView);
+        require(app.codeActionSelected_ == 0 && ImGui::GetActiveID() != 0,
+                "Code-action search field did not take focus");
+        frame(actionsView, ImGuiKey_Enter); frame(actionsView);
+        require(!app.refactorFuture_.valid(), "Enter in the code-action filter submitted a correction");
+        app.panels_["codeActions"] = false;
+        app.codeActionsTextFilter_.clear();
+        app.codeActionsState_ = Json::object(); app.codeActionsKey_.clear(); app.codeActionSelected_ = -1;
         app.paletteMode_="actions";app.paletteOpen_=true;
         auto palette=[&] { ImGui::Begin("Palette fixture");app.palette();ImGui::End(); };
         frame(palette);frame(palette);

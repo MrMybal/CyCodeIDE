@@ -12,6 +12,7 @@ corresponding runtime package, as detailed below.
 | Monocypher 4.0.3 | BSD-2-Clause or CC0-1.0, [local notice](licenses/Monocypher.txt) | https://monocypher.org ; release archive and SHA-256 pinned in app/dependencies.lock.json; Ed25519 and SHA-512 for plugin packages |
 | TinyXML2 | zlib, [local notice](licenses/TinyXML2.txt) | https://github.com/leethomason/tinyxml2, commit 9148bdf719e997d1f474be6bcc7943881046dba1; app/dependencies.lock.json |
 | CyUI | [MIT license](https://github.com/MrMybal/CyUI/blob/ff023e646c6a3038b3dfbfd53f6d2b4a2f5955e3/LICENSE) ([local copy](licenses/CyUI.txt)) | [Official repository](https://github.com/MrMybal/CyUI), pinned by app/cyui-source.lock.json |
+| JetBrains Mono Regular 2.304 | SIL OFL 1.1, [local notice](resources/fonts/JetBrainsMono-OFL.txt) | https://github.com/JetBrains/JetBrainsMono ; original font bytes embedded by CyUI and retained in app/resources/fonts |
 | Dear ImGui | MIT | https://github.com/ocornut/imgui |
 | TextEditor | MIT | CyUI snapshot of https://github.com/goossens/ImGuiColorTextEdit |
 | stb_image | MIT or Unlicense | https://github.com/nothings/stb (app/dependencies.lock.json) |

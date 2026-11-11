@@ -1,5 +1,6 @@
 #include "cycode/Application.h"
 #include "cycode/EditorTheme.h"
+#include "cycode/BuildLimits.h"
 #include <climits>
 #include <cmath>
 #include <imgui_internal.h>
@@ -31,14 +32,26 @@ void Application::optionsProperties() {
     scale.maximum = 2.;
     add("clangd", clangd_);
     add("Restore last workspace session", restoreWorkspaceSession_);
+    auto &buildLimit = add("Build time limit (seconds)", int64_t(configuredBuildTimeout()));
+    buildLimit.bounded = true;
+    buildLimit.integerMinimum = 1;
+    buildLimit.integerMaximum = 86400;
+    buildLimit.help = "Applies to CMake, MSBuild and Unreal build processes. Cancel remains available.";
     const auto validate = [&](cyui::ItemId id, const cyui::PropertyValue &value) -> std::string {
         if (id == uiId("options/Text size")) {
             const auto size = std::get<double>(value);
             if (!std::isfinite(size) || size < .8 || size > 2.)
-                return "Text size must be between 0.8 and 2.0";
+                return tr("Text size must be between 0.8 and 2.0");
         }
         if (id == uiId("options/clangd") && std::get<std::string>(value).empty())
-            return "Select a clangd executable";
+            return tr("Select a clangd executable");
+        if (id == uiId("options/Build time limit (seconds)")) {
+            try {
+                buildTimeout(Json{{"timeoutSeconds", std::get<int64_t>(value)}});
+            } catch (const std::exception &e) {
+                return tr(e.what());
+            }
+        }
         return {};
     };
     // Drafts and previews never change settings; only a committed proposal does.
@@ -61,23 +74,13 @@ void Application::optionsProperties() {
                 clangd_ = std::get<std::string>(value);
             else if (proposal.id == uiId("options/Restore last workspace session"))
                 restoreWorkspaceSession_ = std::get<bool>(value);
+            else if (proposal.id == uiId("options/Build time limit (seconds)"))
+                settings_["buildTimeoutSeconds"] = std::get<int64_t>(value);
             ++optionsRevision_;
         }
 }
 void Application::problemRows() {
     synchronizeProblems();
-    const auto previousTip =
-        std::string(tr("Previous diagnostic")) + " (" + keymap_.hint("problem.previous") + ")";
-    if (cyui::iconButton(cyui::icon::chevronUp, previousTip.c_str()))
-        navigateProblem(true);
-    ImGui::SameLine();
-    const auto nextTip = std::string(tr("Next diagnostic")) + " (" + keymap_.hint("problem.next") + ")";
-    if (cyui::iconButton(cyui::icon::chevronDown, nextTip.c_str()))
-        navigateProblem(false);
-    if (selectedProblem_ && problems_.locations.contains(selectedProblem_)) {
-        const auto &where = problems_.locations.at(selectedProblem_);
-        cyui::textDim("%s: %s:%d", tr("Selected diagnostic"), where.path.c_str(), where.line);
-    }
     viewFilter("##problems-filter", problemsFilter_);
     for (const auto &[label, mask] : {std::pair{"Errors", 8u}, {"Warnings", 4u}, {"Information", 3u}}) {
         bool visible = (problemLevels_ & mask) != 0;
@@ -89,11 +92,46 @@ void Application::problemRows() {
         }
         ImGui::SameLine();
     }
-    ImGui::NewLine();
+    if (problemsFilter_.active() || problemLevels_ != 15) {
+        if (cyui::ghostButton(tr("Reset diagnostic filters"))) {
+            problemsFilter_.clear();
+            problemLevels_ = 15;
+        }
+    } else
+        ImGui::NewLine();
     const auto &rows = problems_.matching(problemsFilter_, problemLevels_);
+    const bool navigable = problems_.adjacent(problemsFilter_, selectedProblem_, false, {}, 0,
+                                              problemLevels_) != 0;
+    {
+        cyui::ScopedDisabled disabled(!navigable);
+        auto tip = [&](const char *label, const char *command) {
+            const auto hint = keymap_.hint(command);
+            return std::string(tr(label)) + (hint.empty() ? "" : " (" + hint + ")");
+        };
+        const auto previousTip = tip("Previous diagnostic", "problem.previous");
+        if (cyui::iconButton(cyui::icon::chevronUp, previousTip.c_str()))
+            navigateProblem(true);
+        ImGui::SameLine();
+        const auto nextTip = tip("Next diagnostic", "problem.next");
+        if (cyui::iconButton(cyui::icon::chevronDown, nextTip.c_str()))
+            navigateProblem(false);
+    }
+    ImGui::SameLine();
     cyui::textDim("%zu / %zu", rows.size(), problems_.rows.size());
+    if (problems_.rows.empty()) {
+        cyui::emptyState(tr("No diagnostics"), tr("Diagnostics from enabled language servers appear here."),
+                         cyui::icon::check);
+        return;
+    }
+    if (rows.empty()) {
+        cyui::emptyState(tr("No matching diagnostics"),
+                         tr("Change the text or severity filters, or reset them to show all diagnostics."),
+                         cyui::icon::filter);
+        return;
+    }
+    // Keep the selection for later, but do not display a detail hidden by the filters.
     if (selectedProblem_)
-        for (const auto &row : problems_.rows)
+        for (const auto &row : rows)
             if (row.id == selectedProblem_) {
                 const auto &location = problems_.locations.at(row.id);
                 if (cyui::beginCard("##problem-detail", tr("Selected diagnostic"), 150.0f)) {
@@ -111,9 +149,6 @@ void Application::problemRows() {
                 cyui::endCard();
                 break;
             }
-    if (problems_.rows.empty())
-        cyui::emptyState(tr("No diagnostics"), tr("Diagnostics from enabled language servers appear here."),
-                         cyui::icon::check);
     const auto requested = cyui::diagnosticList("##diagnostics", rows);
     if (requested && problems_.locations.contains(requested)) {
         selectedProblem_ = requested;

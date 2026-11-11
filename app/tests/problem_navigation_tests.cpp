@@ -25,6 +25,15 @@ void problemNavigationContracts() {
           "Current-file anchor ignored the current line");
     check(model.adjacent(filter, b, false, "a.cpp") == a && model.adjacent(filter, a, false, "a.cpp") == b,
           "Current-file order did not use source lines");
+    check(model.adjacent(filter, a, false, "a.cpp", 4) == a &&
+              model.adjacent(filter, b, true, "a.cpp", 4) == b,
+          "An old selection overrode a manually moved caret");
+    check(model.adjacent(filter, b, false, "a.cpp", 20) == b &&
+              model.adjacent(filter, a, true, "a.cpp", 1) == a,
+          "Caret-based diagnostic navigation did not wrap at file boundaries");
+    check(model.adjacent(filter, a, false, "a.cpp", 8) == b &&
+              model.adjacent(filter, b, true, "a.cpp", 3) == a,
+          "Repeated navigation stopped cycling at the selected diagnostic");
     check(model.adjacent(filter, a, false, "missing.cpp") == 0, "Current-file navigation escaped its scope");
     filter.query = "second";
     check(model.adjacent(filter, c, false) == b && model.adjacent(filter, b, true) == b,

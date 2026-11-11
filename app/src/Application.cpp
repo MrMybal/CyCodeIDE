@@ -1796,6 +1796,14 @@ void Application::editorPanel() {
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
                 active_ = tab->path;
             cyui::space(4);
+            if (!tab->image) {
+                const auto zoom = std::to_string(static_cast<int>(tab->codeEditor.textScale() * 100.f + .5f)) +
+                                  "%###code-zoom";
+                if (cyui::ghostButton(zoom.c_str()))
+                    tab->codeEditor.setTextScale(1.f);
+                cyui::tooltip(tr("Ctrl + mouse wheel zooms code in this view. Click to reset to 100%."));
+                ImGui::SameLine();
+            }
             cyui::textFaint("  %s", tab->displayPath.c_str());
             if (tab->image) imagePanel(tab);
             else {
@@ -2367,9 +2375,6 @@ void Application::optionsPanel() {
         cancelPropertyDrafts(optionsInspector_); ImGui::End(); return;
     }
     optionsProperties();
-    auto buildLimit=desktopBuildTimeout(settings_);
-    if(ImGui::InputInt(tr("Build time limit (seconds)"),&buildLimit,60,600))settings_["buildTimeoutSeconds"]=std::clamp(buildLimit,1,86400);
-    cyui::textDim("%s",tr("Applies to CMake, MSBuild and Unreal build processes. Cancel remains available."));
     keymapOptions();
     if (cyui::button(tr("Save preferences")))
         saveSettings();

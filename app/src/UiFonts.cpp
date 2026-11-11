@@ -31,7 +31,7 @@ nlohmann::json loadApplicationFonts(const std::filesystem::path &installation) {
         const std::string data((std::istreambuf_iterator<char>(input)),{});
         if (!input.bad() && data.size()==bytes) {
             merged=true;
-            for (auto *font : {cyui::uiFont(),cyui::boldFont(),cyui::monoFont()}) {
+            for (auto *font : {cyui::uiFont(),cyui::boldFont()}) {
                 if (!font) {merged=false;continue;}
                 auto *buffer=IM_ALLOC(data.size());
                 if (!buffer) {merged=false;continue;}

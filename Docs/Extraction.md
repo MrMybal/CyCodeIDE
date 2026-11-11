@@ -83,6 +83,83 @@ the native code validated by that matrix. Reader editor source API 1 is pinned
 to d27e84f1097b68c12630dc4c10fcc406d4628760; its subsequent 671c588 change only
 selects the same fixed Core for the standalone app.
 
+## UI follow-up and Core coordination — 2026-11-11
+
+The build time limit is now a bounded integer property in the existing CyUI
+Inspector. It participates in English/French filtering and the shared
+draft/commit/cancel lifecycle; only a committed edit changes preferences.
+Validation reuses Core's BuildLimits helper. The inspector's text-size, clangd
+and build-timeout validation messages have English/French catalogue entries.
+
+Source/data checks passed for seven Python and seven JSON files. Regenerating
+the UI catalogue preserved all 1,659 existing entries and added four entries.
+The existing Windows Release x64 cycode_ui production library compiled with
+BUILD_TESTING=OFF and BuildProjectReferences=false, reusing existing dependency
+outputs. This check used explicit development sources: Core a34db1ddf413b29cd86c856ce2a58c4c636adc43,
+Reader 00daef69fc59bbefd0424098e96c23c4f10b9613 and the locked CyUI c5b0f8ad818a.
+It is presentation compilation evidence, not a full link/distribution build,
+default-pin acceptance, desktop interaction test or Linux/macOS validation.
+No application, CLI, helper or native fixture was launched.
+
+The coordinated Core integration target a34db1d is committed locally but not
+published. Keep the versioned Core pin at 5dc05f4 until publication is authorized;
+the Reader and CyUI locks are unchanged too. New analysis.inspect presentation
+and additional clangd transformations belong to that later integration. The
+inspector change requires no new Core API. GitHub Actions remain paused.
+
+## Diagnostic and context-action interactions — 2026-11-11
+
+Current-file diagnostic navigation now rebases on the caret line after a manual
+move instead of continuing from an unrelated old selection. Filtered-out
+diagnostics keep their selection identity without showing an unrelated detail.
+The panel distinguishes no diagnostics from no filter matches, offers filter
+reset and disables navigation when no visible location is navigable.
+
+Context actions use a persistent CyUI text filter for titles, kinds and
+unavailability reasons, with result counts and clipped table rows. Filtering
+retains original Core action indices and existing availability/revision guards.
+Search fields and popups own their keyboard input; Preview activation keeps
+preview intent rather than also requesting Apply. Action titles render as text,
+including literal ImGui label markers.
+
+Five additional EN/FR entries were generated without changing previous entries.
+Regression cases were added to the existing problem-navigation and module-view
+suite sources for manual caret movement, filter selection and Enter during text
+input. Those native fixtures were neither built nor executed locally.
+The updated Windows Release x64 cycode_ui library compiled with zero warnings
+and zero errors, BUILD_TESTING=OFF and dependency builds disabled, using the same
+explicit development sources recorded above. Source/data and diff checks passed.
+This remains a presentation-only compilation check; desktop interaction,
+full-link/default-pin and Linux/macOS acceptance are unverified for this change.
+Core/Reader/CyUI pins, pre-existing local changes and paused Actions are preserved.
+
+## CyUI code presentation — 2026-11-11
+
+The IDE now pins published CyUI 6173630ad5eb1e585eee1a0e7d3617285563e774.
+Core 5dc05f4 and Reader d27e84f remain unchanged. The existing locked Reader's
+build-local backend preparation accepts this CyUI without editing either
+dependency or copying another editor implementation.
+
+Code, editor and diff views use CyUI's embedded JetBrains Mono Regular 2.304,
+shared syntax roles, local 50–300% wheel zoom and brace-scope guide correction.
+Each IDE editor shows its current zoom percentage; clicking it resets that view
+to 100%. Portable control icons merge into interface fonts only. The existing
+font resource and SIL OFL notice match CyUI's original bytes and remain staged.
+
+The build helper accepts --build-dir for an independent configuration. A fresh
+Windows Release production build with BUILD_TESTING=OFF rebuilt the locked Core,
+CLI/providers, Reader, all selected CyUI modules and the IDE together, including
+the 612-page EN/FR offline manual. It used a clean explicit CyUI source at the
+new lock; default dependency resolution selects the same published revision.
+This avoids mixing libraries built against different native Palette layouts.
+
+Source/data and distribution checks passed, including the font/license hashes,
+the staged Core operation manifest and complete offline-reader resources.
+Earlier local edits and the previous build remain preserved; Core, Reader and
+CyUI sources were not modified. No application, helper or native fixture was
+launched, no release was published, and GitHub Actions remain paused. Actual
+desktop wheel/font/theme/DPI acceptance and Linux/macOS builds remain unverified.
+
 ## Build and validation commands
 
 ```sh

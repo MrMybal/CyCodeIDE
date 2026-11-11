@@ -6634,5 +6634,45 @@
   "Windows installation did not produce the expected version": {
     "en": "Windows installation did not produce the expected version",
     "fr": "L’installation Windows n’a pas produit la version attendue"
+  },
+  "Text size must be between 0.8 and 2.0": {
+    "en": "Text size must be between 0.8 and 2.0",
+    "fr": "La taille du texte doit être comprise entre 0,8 et 2,0"
+  },
+  "Select a clangd executable": {
+    "en": "Select a clangd executable",
+    "fr": "Sélectionnez un exécutable clangd"
+  },
+  "Build timeout must be an integer from 1 to 86400 seconds": {
+    "en": "Build timeout must be an integer from 1 to 86400 seconds",
+    "fr": "La durée limite de compilation doit être un entier compris entre 1 et 86 400 secondes"
+  },
+  "Build timeout must be positive": {
+    "en": "Build timeout must be positive",
+    "fr": "La durée limite de compilation doit être positive"
+  },
+  "Reset diagnostic filters": {
+    "en": "Reset diagnostic filters",
+    "fr": "Réinitialiser les filtres des diagnostics"
+  },
+  "No matching diagnostics": {
+    "en": "No matching diagnostics",
+    "fr": "Aucun diagnostic correspondant"
+  },
+  "Change the text or severity filters, or reset them to show all diagnostics.": {
+    "en": "Change the text or severity filters, or reset them to show all diagnostics.",
+    "fr": "Modifiez les filtres de texte ou de gravité, ou réinitialisez-les pour afficher tous les diagnostics."
+  },
+  "No matching code actions": {
+    "en": "No matching code actions",
+    "fr": "Aucune action contextuelle correspondante"
+  },
+  "Change or clear the filter to show context actions.": {
+    "en": "Change or clear the filter to show context actions.",
+    "fr": "Modifiez ou effacez le filtre pour afficher les actions contextuelles."
+  },
+  "Ctrl + mouse wheel zooms code in this view. Click to reset to 100%.": {
+    "en": "Ctrl + mouse wheel zooms code in this view. Click to reset to 100%.",
+    "fr": "Ctrl + molette zoome le code dans cette vue. Cliquez pour revenir à 100 %."
   }
 }

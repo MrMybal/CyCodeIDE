@@ -81,7 +81,10 @@ cyui::ItemId ProblemModel::adjacent(const cyui::TextFilter &filter, cyui::ItemId
             return std::tie(left.line, left.column, a) < std::tie(right.line, right.column, b);
         });
     const auto at = std::find(candidates.begin(), candidates.end(), selected);
-    if (at != candidates.end()) {
+    // A manual caret move starts current-file navigation from the new line.
+    // Global navigation and repeated commands at the selected line keep cycling.
+    if (at != candidates.end() &&
+        (path.empty() || line <= 0 || locations.at(selected).line == line)) {
         const auto index = static_cast<size_t>(at - candidates.begin());
         return candidates[previous ? (index + candidates.size() - 1) % candidates.size()
                                    : (index + 1) % candidates.size()];
