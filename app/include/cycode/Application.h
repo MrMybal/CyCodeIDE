@@ -9,6 +9,7 @@
 #include "cycode/LanguageClient.h"
 #include "cycode/Syntax.h"
 #include "cycode/EditorSnippet.h"
+#include <cycode/PagedTextEditor.h>
 #include "cycode/ModuleModels.h"
 #include <cyui/modules/Assets.h>
 #include <SDL3/SDL.h>
@@ -133,6 +134,21 @@ class Application {
     cyui::CodeDocument recoveryCode_;
     cyui::CodeViewState recoveryCodeState_;
     struct Tab;
+    bool openPaged(const std::string &,size_t,size_t,bool,bool,bool force=false);
+    void updatePaged();
+    bool pagedCommand(const std::string &,const std::shared_ptr<Tab> &);
+    void pagedPanel(const std::shared_ptr<Tab> &);
+    void pagedRecoveryTask(const std::string &,Json=Json::object());
+    void pagedRecoveryControls();
+    Json pagedSessionState(const std::shared_ptr<Tab> &) const;
+    void nativeHistoryControls();
+    void prepareNativeHistory(bool redo);
+    Json nativeHistory_=Json::object();
+    std::future<Json> pagedRecoveryFuture_;
+    std::string pagedRecoveryMethod_,pagedRecoveryError_;
+    Json pagedCheckpoints_=Json::object(),pagedCheckpoint_=Json::object();
+    cyui::CodeDocument pagedCheckpointCode_;
+    cyui::CodeViewState pagedCheckpointView_;
     bool openImage(const std::string &, bool activate);
     void reloadImage(const std::shared_ptr<Tab> &);
     void imagePanel(const std::shared_ptr<Tab> &);
@@ -172,6 +188,16 @@ class Application {
         uint64_t identity=0;
         uint64_t synchronizedRevision=0;
         std::shared_ptr<ImageView> image;
+        bool pagedProfile=false,pagedClosed=false,pagedCloseAfterSave=false,pagedFind=false;
+        bool pagedSensitive=false,pagedWords=false;
+        uint64_t pagedLine=1;
+        std::string pagedError,pagedQuery,pagedReplacement;
+        Json pagedLocation,pagedPresentation;
+        std::optional<uint64_t> pagedScroll,pagedScrollColumn;
+        std::optional<float> pagedScale;
+        std::future<Json> pagedOpening,pagedNavigation;
+        std::shared_ptr<PagedTextBackend> pagedBackend;
+        std::unique_ptr<PagedTextEditor> paged;
         std::filesystem::path imageSource;
         cyui::CodeEditor codeEditor;
         TextEditor &editor = codeEditor.native();
@@ -351,7 +377,7 @@ class Application {
     bool cargoAnalysisRemember_ = true;
     void referencesPanel();
     void navigate(bool references);
-    void requestNavigation(const std::string &method);
+    void requestNavigation(const std::string &method, bool refresh = false);
     void updateNavigation();
     bool navigationCurrent(const Json &) const;
     void requestHierarchy(const std::string &);
@@ -521,7 +547,7 @@ class Application {
     void beginRename();
     void beginFormat(bool selection);
     void changeTask(const std::string &, Json);
-    void selectChangeFile(const std::string &);
+    void selectChangeFile(const std::string &, uint64_t beforeOffset = 0, uint64_t afterOffset = 0);
     static TextEditor::Palette editorPalette(const std::string &);
     void update();
     void save(const std::shared_ptr<Tab> &);
@@ -563,6 +589,25 @@ class Application {
     int windowTestFrame_ = 0;
     Json windowTest_ = Json::array();
     SDL_Window *window_;
+    void updateAnalysis();
+    void analysisPanel();
+    void inspectionPanel();
+    void stopAnalysis();
+    void prepareAnalysis(Json);
+    void analysisMetadata(const std::string &, Json = Json::object());
+    struct AnalysisView {
+        std::future<Json> prepare, monitor, metadata, inspection;
+        Json status = Json::object(), results = Json::object(), checkpoints = Json::object();
+        Json inspected = Json::object(), process = Json::object(), service = Json::object();
+        std::string operation, inspectionOperation, metadataMethod, error, monitorError, metadataError, inspectionError;
+        std::string prefix, database, executable;
+        uint64_t serial = 0;
+        int scope = 0, batch = 16, profile = 0, timeout = 180;
+        bool persist = false, cancel = false, cancelInspection = false;
+        double lastPoll = -1, inspectionStarted = 0;
+        cyui::TextFilter filter;
+        std::unique_ptr<OutputLog> inspectionOutput = std::make_unique<OutputLog>();
+    } analysisView_;
     std::shared_ptr<Engine> engine_;
     std::future<Json> unrealAnalysisFuture_;
     std::shared_ptr<std::atomic<bool>> unrealAnalysisCancellation_;

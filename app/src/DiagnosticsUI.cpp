@@ -4,7 +4,7 @@ namespace cycode {
 void Application::updateDiagnostics() {
     const auto servers = languageState_.find("servers");
     for (const auto &tab : tabs_) {
-        if (tab->image)
+        if (tab->image || tab->pagedProfile)
             continue;
         const Json *server = nullptr, *publication = nullptr, *entries = nullptr;
         if (servers != languageState_.end() && servers->is_object()) {

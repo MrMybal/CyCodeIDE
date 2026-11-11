@@ -1,5 +1,19 @@
 # Third-party notices
 
+CyCodeIDE stages this presentation notice together with the pinned Core's native
+notice at `CORE_THIRD_PARTY_NOTICES.md`. Keep both files and the selected license
+copies with the distribution. The source dependencies remain separate products:
+
+| Component | License | Source selection |
+|---|---|---|
+| CyCode Core | GPL-3.0-only | https://github.com/MrMybal/CyCode ; `core-source.lock.json` |
+| CyCodeReader shared graphical editor | GPL-3.0-only | https://github.com/MrMybal/CyCodeReader ; `editor-source.lock.json`, source API 1 |
+| CyUI Code/CodeEditor and paged code widgets | MIT | https://github.com/MrMybal/CyUI ; `cyui-source.lock.json`, local `licenses/CyUI.txt` |
+
+Les notices de l'interface et du Core sont distribuées ensemble. Les composants
+conservent les licences indiquées ; leurs verrous de sources fixent les révisions.
+
+
 CyCode's original source is licensed under [GNU GPL v3 only](../LICENSE)
 (`GPL-3.0-only`), Copyright (c) 2026 Cyberalien. See [COPYRIGHT](../COPYRIGHT).
 Dependencies retain their original licenses. Copies are in licenses/ or the
@@ -9,7 +23,7 @@ corresponding runtime package, as detailed below.
 |---|---|---|
 | PCRE2 10.49 | BSD-3-Clause WITH PCRE2-exception, [local notice](licenses/PCRE2.txt) | https://github.com/PCRE2Project/pcre2, commit 6f9d7c1373262c541324a16a358785b33ef116cf; app/dependencies.lock.json; static UTF-8 snippet matching, JIT/tools/tests disabled |
 | utf8proc 2.12.0 | MIT and included Unicode data terms, [local notice](licenses/utf8proc.txt) | https://github.com/JuliaStrings/utf8proc, commit 79cdd5ab40c79afa559f689ffc13b76812dee1ac; app/dependencies.lock.json; Unicode snippet casing |
-| Monocypher 4.0.3 | BSD-2-Clause or CC0-1.0, [local notice](licenses/Monocypher.txt) | https://monocypher.org ; release archive and SHA-256 pinned in app/dependencies.lock.json; Ed25519 and SHA-512 for plugin packages |
+| Monocypher 4.0.3 | BSD-2-Clause or CC0-1.0, [local notice](licenses/Monocypher.txt) | https://monocypher.org ; release archive and SHA-256 pinned in app/dependencies.lock.json; Ed25519/SHA-512 for plugin packages and native BLAKE2b-256 streaming digests |
 | TinyXML2 | zlib, [local notice](licenses/TinyXML2.txt) | https://github.com/leethomason/tinyxml2, commit 9148bdf719e997d1f474be6bcc7943881046dba1; app/dependencies.lock.json |
 | CyUI | [MIT license](https://github.com/MrMybal/CyUI/blob/ff023e646c6a3038b3dfbfd53f6d2b4a2f5955e3/LICENSE) ([local copy](licenses/CyUI.txt)) | [Official repository](https://github.com/MrMybal/CyUI), pinned by app/cyui-source.lock.json |
 | JetBrains Mono Regular 2.304 | SIL OFL 1.1, [local notice](resources/fonts/JetBrainsMono-OFL.txt) | https://github.com/JetBrains/JetBrainsMono ; original font bytes embedded by CyUI and retained in app/resources/fonts |

@@ -3,9 +3,36 @@
 #include "cycode/Recovery.h"
 #include "cycode/WorkspaceSession.h"
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <imgui_internal.h>
 
 namespace cycode {
+namespace {
+bool validPagedSession(const Json &value) {
+    if(!value.is_object())return false;
+    const auto version=value.find("version");
+    if(version==value.end() || !version->is_number_integer() || *version!=1)return false;
+    for(const auto *name:{"line","character","scrollLine","scrollColumn"}) {
+        const auto found=value.find(name);
+        if(found==value.end() || !found->is_number_integer())return false;
+        if(found->is_number_unsigned()) {
+            if(found->get<uint64_t>()>uint64_t(std::numeric_limits<int64_t>::max()))return false;
+        } else if(found->get<int64_t>()<0)return false;
+    }
+    const auto scale=value.find("scale");
+    return scale!=value.end() && scale->is_number() && std::isfinite(scale->get<float>()) &&
+        scale->get<float>()>=.5f && scale->get<float>()<=3.f;
+}
+}
+Json Application::pagedSessionState(const std::shared_ptr<Tab> &tab) const {
+    if(tab->paged && tab->paged->status().ready) {
+        const auto &view=tab->paged->view();const auto p=view.selection().caret;
+        return {{"version",1},{"line",p.line},{"character",p.character},
+                {"scrollLine",view.firstLine()},{"scrollColumn",view.firstColumn()},{"scale",view.options().textScale}};
+    }
+    return tab->pagedPresentation;
+}
 Json Application::editorSessionState(const std::shared_ptr<Tab> &tab, size_t &lineBudget,
                                      size_t &hashBudget) const {
     auto &editor = tab->editor;
@@ -59,6 +86,19 @@ void Application::restoreSessionTab(const std::shared_ptr<Tab> &tab, const Json 
     if (std::none_of(tabs_.begin(), tabs_.end(),
                      [&](const auto &other) { return other != tab && other->windowKey == window; }))
         tab->windowKey = window;
+    if(tab->pagedProfile) {
+        const auto view=item.find("pagedView");
+        if(view!=item.end() && validPagedSession(*view)) {
+            tab->pagedPresentation=*view;
+            tab->pagedLocation={{"line",view->at("line").get<uint64_t>()+1},{"column",view->at("character").get<uint64_t>()+1},{"utf16",true}};
+            tab->pagedScroll=view->at("scrollLine");tab->pagedScrollColumn=view->at("scrollColumn");tab->pagedScale=view->at("scale").get<float>();
+        } else {
+            tab->pagedPresentation=nullptr;tab->pagedScrollColumn.reset();tab->pagedScale.reset();
+            tab->pagedLocation={{"line",item.at("line").get<uint64_t>()+1},{"column",item.at("column").get<uint64_t>()+1},{"utf16",true}};
+            tab->pagedScroll=item.at("scroll").get<uint64_t>();
+        }
+        return;
+    }
     if (tab->image) {
         if (item.contains("image"))
             tab->image->restoreSession(item.at("image"));

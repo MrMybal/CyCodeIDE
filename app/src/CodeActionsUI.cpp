@@ -3,7 +3,7 @@
 #include <algorithm>
 namespace cycode {
 Json Application::codeActionParameters() const {
-    for (const auto &tab : tabs_) if (tab->path==active_ && !tab->readOnly && engine_->supportsLanguage(tab->path)) {
+    for (const auto &tab : tabs_) if (tab->path==active_ && !tab->pagedProfile && !tab->readOnly && engine_->supportsLanguage(tab->path)) {
         const auto selection=tab->editor.GetMainCursorSelection();
         auto position=[&](TextEditor::DocPos p) { return Json{{"line",p.line},{"character",LanguageClient::utf16Length(tab->editor.GetSectionText({p.line,0},p))}}; };
         Json params={{"path",tab->path},{"expectedRevision",tab->revision},{"range",{{"start",position(selection.start)},{"end",position(selection.end)}}}};

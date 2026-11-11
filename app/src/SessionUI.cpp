@@ -114,7 +114,18 @@ Json Application::workspaceSessionSnapshot() const {
              {"line", std::min<size_t>(cursor.line, 10000000)},
              {"column", std::min<size_t>(cursor.index, 1000000)},
              {"scroll", std::min<size_t>(tab->image ? 0 : tab->editor.GetFirstVisibleRow(), 10000000)}};
-        if (tab->image) item["image"] = tab->image->sessionState();
+        if(tab->pagedProfile) {
+            item["paged"]=true;item["pagedView"]=pagedSessionState(tab);
+            if(tab->paged){const auto p=tab->paged->view().selection().caret;
+                item["line"]=std::min<uint64_t>(p.line,10000000);item["column"]=std::min<uint64_t>(p.character,1000000);
+                item["scroll"]=std::min<uint64_t>(tab->paged->view().firstLine(),10000000);}
+            else if(tab->pagedLocation.is_object()) {
+                item["line"]=std::min<uint64_t>(tab->pagedLocation.value("line",uint64_t(1))-1,10000000);
+                item["column"]=std::min<uint64_t>(tab->pagedLocation.value("column",uint64_t(1))-1,1000000);
+                item["scroll"]=std::min<uint64_t>(tab->pagedScroll.value_or(0),10000000);
+            }
+        }
+        else if (tab->image) item["image"] = tab->image->sessionState();
         else item["editor"] = editorSessionState(tab,lineBudget,hashBudget);
         add(std::move(item));
     }
@@ -184,7 +195,8 @@ void Application::updateWorkspaceSession() {
         try {
             if (!std::filesystem::is_regular_file(engine_->resolve(path)))
                 continue;
-            open(path, 0, 0, false, false);
+            if(item.contains("paged") && item.at("paged").is_boolean() && item.at("paged")==true)openPaged(path,0,0,false,false,true);
+            else open(path, 0, 0, false, false);
             const auto found =
                 std::find_if(tabs_.begin(), tabs_.end(), [&](const auto &tab) { return tab->path == path; });
             if (found == tabs_.end())

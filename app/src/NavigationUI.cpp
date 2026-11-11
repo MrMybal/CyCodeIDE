@@ -133,18 +133,18 @@ bool Application::navigationCurrent(const Json &report) const {
         server->value("epoch", uint64_t(0)) != report.at("epoch"))
         return false;
     for (const auto &tab : tabs_)
-        if (tab->path == report.at("path").get_ref<const std::string &>() && !tab->image)
+        if (tab->path == report.at("path").get_ref<const std::string &>() && !tab->image && !tab->pagedProfile)
             return tab->identity == report.at("documentId") && tab->revision == report.at("revision");
     return false;
 }
 void Application::navigate(bool references) {
     requestNavigation(references ? "language.references" : "language.definition");
 }
-void Application::requestNavigation(const std::string &method) {
+void Application::requestNavigation(const std::string &method, bool refresh) {
     if (navigationFuture_.valid() || !locationRequest(method))
         return;
     for (const auto &tab : tabs_) {
-        if (tab->path != active_ || tab->image || !engine_->supportsLanguage(tab->path) ||
+        if (tab->path != active_ || tab->image || tab->pagedProfile || !engine_->supportsLanguage(tab->path) ||
             tab->path.starts_with("debug://"))
             continue;
         navigationPosition_ = tab->editor.GetMainCursorPosition();
@@ -164,6 +164,7 @@ void Application::requestNavigation(const std::string &method) {
             {"expectedDocumentId", tab->identity},
             {"position",
              {{"line", navigationPosition_.line}, {"character", LanguageClient::utf16Length(prefix)}}}};
+        if (refresh) parameters["refresh"] = true;
         const auto servers = languageState_.find("servers");
         if (servers != languageState_.end()) {
             const auto server = servers->find(engine_->languageBackendFor(tab->path));
@@ -232,7 +233,8 @@ void Application::referencesPanel() {
     }
     ImGui::BeginDisabled(!commandEnabled(navigationCommand(navigationMethod_)));
     if (cyui::button(tr("Refresh at caret")))
-        requestNavigation(navigationMethod_);
+        requestNavigation(navigationMethod_, true);
+    cyui::tooltip(tr("Request a fresh backend result. Index progress may leave cached results."));
     ImGui::EndDisabled();
     if (!navigationError_.empty())
         cyui::textColoured(cyui::palette().warning, "%s", navigationError_.c_str());

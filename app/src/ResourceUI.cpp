@@ -38,7 +38,8 @@ void Application::resourceTabPath(const std::shared_ptr<Tab> &tab, const std::st
     tab->completionSession.clear();
     tab->highlightRevision = 0;
     tab->highlightCount = 0;
-    if (!tab->image) {
+    if(tab->pagedProfile){if(tab->paged)tab->paged->setLanguage(cyui::codeLanguageForPath(path));}
+    else if (!tab->image) {
         tab->editor.SetAutoCompleteSuggestions({});
         configureEditor(tab);
     }

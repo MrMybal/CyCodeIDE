@@ -8,7 +8,7 @@ Json Application::occurrenceParameters() const {
     if (smoke_)
         return nullptr;
     for (const auto &tab : tabs_) {
-        if (tab->path != active_ || tab->image || tab->path.starts_with("debug://") ||
+        if (tab->path != active_ || tab->image || tab->pagedProfile || tab->path.starts_with("debug://") ||
             isUntitledDocument(tab->path) ||
             (LanguageService::supportsCpp(tab->path) && unrealAnalysisState_ == "preparing"))
             continue;

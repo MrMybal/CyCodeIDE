@@ -62,11 +62,17 @@ void Application::documentDraftDialogs() {
         }
         cyui::textDim("%s",
                       tr("Choose a new file in an existing workspace folder. Existing files are preserved."));
+        if(tab->pagedProfile)cyui::callout(cyui::Tone::warning,tr("Save As publishes the complete paged document to a new file and resets native history for the old path."));
         if (!saveAsError_.empty())
             cyui::callout(cyui::Tone::error, saveAsError_.c_str());
         if (cyui::primaryButton(tr("Save")) ||
             (destinationFocused && ImGui::IsKeyPressed(ImGuiKey_Enter, false))) {
             try {
+                if(tab->pagedProfile) {
+                    if(!tab->paged || !tab->paged->save(utf8Path(saveAsDestination_)))throw std::runtime_error(tr("Finish pending input and native operations before saving."));
+                    tab->pagedCloseAfterSave=pendingClose_==tab->path;
+                    saveAsOpen_=false;committed=true;ImGui::CloseCurrentPopup();
+                } else {
                 const auto result =
                     engine_->dispatch("documents.saveAs", {{"path", tab->path},
                                                            {"destination", saveAsDestination_},
@@ -105,6 +111,7 @@ void Application::documentDraftDialogs() {
                 refreshFiles(false);
                 refreshGit();
                 cyui::notify(tr("Saved"), cyui::Tone::success);
+                }
             } catch (const std::exception &e) {
                 saveAsError_ = e.what();
             }

@@ -131,6 +131,31 @@ void Application::shortcuts() {
     }
 }
 bool Application::commandEnabled(const std::string &id) const {
+    if (id == "view.analysis") return bool(engine_);
+    if(id=="file.openPaged") {
+        for(const auto &tab:tabs_)if(tab->path==active_)return !tab->image && !tab->pagedProfile && !tab->dirty && !tab->readOnly &&
+            !isUntitledDocument(tab->path) && tab->path.find("://")==std::string::npos;
+        return false;
+    }
+    for(const auto &tab:tabs_)if(tab->path==active_ && tab->pagedProfile) {
+        if(id=="file.checkpointPaged")return tab->paged && !tab->paged->status().busy && !tab->paged->unsettled() && !tab->pagedClosed;
+        if(id.starts_with("code.") || id=="edit.captureSnippet" || id=="refactor.rename" || id=="refactor.format" || id=="refactor.formatSelection" ||
+           id=="debug.breakpoint" || id=="debug.runToCursor" || id=="navigate.definition" || id=="navigate.references" ||
+           id=="navigate.declaration" || id=="navigate.typeDefinition" || id=="navigate.implementation" || id=="navigate.members" ||
+           id=="navigate.callHierarchy" || id=="navigate.typeHierarchy" || id=="navigate.counterpart" || id=="navigate.include" || id=="navigate.relatedFiles")return false;
+        const auto command=findCommand(id);
+        if(!command)return extensionCommandEnabled(id);
+        if(command->context==CommandContext::global)break;
+        static const std::set<std::string> supported={"file.save","file.saveAs","file.close","edit.copy","edit.cut","edit.paste","edit.selectAll","edit.undo","edit.redo","search.document","search.replace","search.next","navigate.line","navigate.nextTab","navigate.previousTab","navigate.back","navigate.forward"};
+        if(!supported.contains(id))return false;
+        if(id=="file.close" || id=="navigate.nextTab" || id=="navigate.previousTab" || id=="navigate.back" || id=="navigate.forward")break;
+        if(!tab->paged || tab->pagedClosed)return false;
+        const auto &state=tab->paged->status();
+        if(state.busy)return false;
+        if(id=="edit.undo" || id=="edit.redo")return !tab->readOnly && !tab->paged->unsettled() && (id=="edit.undo"?state.canUndo:state.canRedo);
+        if(tab->readOnly && (id=="file.save" || id=="file.saveAs" || id=="edit.cut" || id=="edit.paste"))return false;
+        return true;
+    }
     if(id=="navigate.counterpart" || id=="navigate.include" || id=="navigate.relatedFiles") {
         if(smoke_ || testSession_ || counterpartFuture_.valid() || counterpartOpen_)return false;
         for(const auto &tab:tabs_)if(tab->path==active_) {
@@ -262,7 +287,7 @@ bool Application::commandEnabled(const std::string &id) const {
         if (id == "debug.gotoTargets") return DebugTargets::available(debugState_,DebugTargets::Kind::goTo);
         if (id == "debug.breakpoint") { for (const auto &tab : tabs_) if (tab->path == active_) return !tab->readOnly && !isUntitledDocument(active_); return false; }
     }
-    if (id == "refactor.undo") return !refactorFuture_.valid() && refactorPlan_.is_object() && refactorPlan_.value("state", "") == "applied";
+    if (id == "refactor.undo") return !refactorFuture_.valid() && refactorPlan_.is_object() && refactorPlan_.value("state", "") == "applied" && !refactorPlan_.contains("history");
     if (id == "refactor.apply") return !refactorFuture_.valid() && refactorPlan_.is_object() && refactorPlan_.value("state", "") == "preview" && !refactorPlan_.at("files").empty();
     if (id.starts_with("refactor.") || id == "navigate.members") {
         if (smoke_ || !engine_->supportsLanguage(active_) || refactorFuture_.valid()) return false;
@@ -281,6 +306,12 @@ bool Application::commandEnabled(const std::string &id) const {
 }
 void Application::rememberNavigation() {
     for (const auto &tab : tabs_) if (tab->path == active_) {
+        if(tab->pagedProfile && tab->paged) {
+            const auto p=tab->paged->view().selection().caret;
+            HistoryPosition item{active_,size_t(p.line),size_t(p.character)};
+            if(historyBack_.empty() || historyBack_.back().path!=item.path || historyBack_.back().line!=item.line || historyBack_.back().character!=item.character)historyBack_.push_back(item);
+            if(historyBack_.size()>200)historyBack_.erase(historyBack_.begin());historyForward_.clear();return;
+        }
         auto position = tab->editor.GetMainCursorPosition();
         HistoryPosition item{active_, position.line, LanguageClient::utf16Length(tab->editor.GetSectionText({position.line, 0}, position))};
         if (historyBack_.empty() || historyBack_.back().path != item.path || historyBack_.back().line != item.line || historyBack_.back().character != item.character) historyBack_.push_back(item);
@@ -293,6 +324,7 @@ void Application::navigationHistory(bool forward) {
     auto &to = forward ? historyBack_ : historyForward_;
     if (from.empty()) return;
     for (const auto &tab : tabs_) if (tab->path == active_) {
+        if(tab->pagedProfile && tab->paged){const auto p=tab->paged->view().selection().caret;to.push_back({active_,size_t(p.line),size_t(p.character)});continue;}
         auto pos = tab->editor.GetMainCursorPosition();
         to.push_back({active_, pos.line, LanguageClient::utf16Length(tab->editor.GetSectionText({pos.line, 0}, pos))});
     }
@@ -308,7 +340,10 @@ void Application::executeCommand(const std::string &id) {
     std::shared_ptr<Tab> tab;
     for (const auto &item : tabs_) if (item->path == active_) tab = item;
     try {
+        if(id=="file.openPaged"){openPaged(tab->path,0,0,false,true,true);return;}
+        if(tab && tab->pagedProfile && pagedCommand(id,tab))return;
         if (executeExtensionCommand(id)) return;
+        if (id == "view.analysis") { showPanel("Analysis and inspections", "analysis"); return; }
         if (id.starts_with("help.")) {
             std::string page = id.substr(5);
             std::string anchor;

@@ -6674,5 +6674,625 @@
   "Ctrl + mouse wheel zooms code in this view. Click to reset to 100%.": {
     "en": "Ctrl + mouse wheel zooms code in this view. Click to reset to 100%.",
     "fr": "Ctrl + molette zoome le code dans cette vue. Cliquez pour revenir à 100 %."
+  },
+  "Analysis and inspections": {
+    "en": "Analysis and inspections",
+    "fr": "Analyse et inspections"
+  },
+  "Analysis progress": {
+    "en": "Analysis progress",
+    "fr": "Progression de l’analyse"
+  },
+  "C++ inspections": {
+    "en": "C++ inspections",
+    "fr": "Inspections C++"
+  },
+  "Ready for the next batch": {
+    "en": "Ready for the next batch",
+    "fr": "Prêt pour le lot suivant"
+  },
+  "Service and language backends": {
+    "en": "Service and language backends",
+    "fr": "Service et serveurs de langage"
+  },
+  "Native Engine attached": {
+    "en": "Native Engine attached",
+    "fr": "Moteur natif partagé connecté"
+  },
+  "Native Engine unavailable": {
+    "en": "Native Engine unavailable",
+    "fr": "Moteur natif indisponible"
+  },
+  "Exact shared-service lifecycle status is unavailable through this Core source API.": {
+    "en": "Exact shared-service lifecycle status is unavailable through this Core source API.",
+    "fr": "L’état exact du cycle de vie du service partagé n’est pas exposé par cette API source Core."
+  },
+  "File inventory": {
+    "en": "File inventory",
+    "fr": "Inventaire des fichiers"
+  },
+  "Inventory currently available": {
+    "en": "Inventory currently available",
+    "fr": "Inventaire actuellement disponible"
+  },
+  "Waiting for language server": {
+    "en": "Waiting for language server",
+    "fr": "En attente du serveur de langage"
+  },
+  "Active file diagnostics": {
+    "en": "Active file diagnostics",
+    "fr": "Diagnostics du fichier actif"
+  },
+  "Current revision": {
+    "en": "Current revision",
+    "fr": "Révision actuelle"
+  },
+  "Not observed at the current revision": {
+    "en": "Not observed at the current revision",
+    "fr": "Non observé sur la révision actuelle"
+  },
+  "Inventory, active-file analysis and whole-project semantic coverage are different. Index completeness remains unknown.": {
+    "en": "Inventory, active-file analysis and whole-project semantic coverage are different. Index completeness remains unknown.",
+    "fr": "Inventaire, analyse du fichier actif et couverture sémantique globale sont distincts. La complétude de l’index reste inconnue."
+  },
+  "Active C++ file": {
+    "en": "Active C++ file",
+    "fr": "Fichier C++ actif"
+  },
+  "Path prefix": {
+    "en": "Path prefix",
+    "fr": "Préfixe de chemin"
+  },
+  "Persist traversal checkpoint": {
+    "en": "Persist traversal checkpoint",
+    "fr": "Conserver le point de reprise du parcours"
+  },
+  "Sources per batch": {
+    "en": "Sources per batch",
+    "fr": "Sources par lot"
+  },
+  "Zero inventories without compiling. Each next batch requires an explicit request.": {
+    "en": "Zero inventories without compiling. Each next batch requires an explicit request.",
+    "fr": "Zéro inventorie sans compiler. Chaque lot suivant exige une demande explicite."
+  },
+  "Prepare selected scope": {
+    "en": "Prepare selected scope",
+    "fr": "Préparer la portée choisie"
+  },
+  "Resume next batch": {
+    "en": "Resume next batch",
+    "fr": "Reprendre le lot suivant"
+  },
+  "Pause analysis": {
+    "en": "Pause analysis",
+    "fr": "Mettre l’analyse en pause"
+  },
+  "Source traversal": {
+    "en": "Source traversal",
+    "fr": "Parcours des sources"
+  },
+  "Historical observations": {
+    "en": "Historical observations",
+    "fr": "Observations historiques"
+  },
+  "Current-pass observations": {
+    "en": "Current-pass observations",
+    "fr": "Observations de la passe courante"
+  },
+  "Restored observations are historical and unknown for this pass. They do not authorize current edits.": {
+    "en": "Restored observations are historical and unknown for this pass. They do not authorize current edits.",
+    "fr": "Les observations restaurées sont historiques et inconnues pour cette passe. Elles n’autorisent aucune modification actuelle."
+  },
+  "Refresh result page": {
+    "en": "Refresh result page",
+    "fr": "Actualiser la page de résultats"
+  },
+  "Historical observation": {
+    "en": "Historical observation",
+    "fr": "Observation historique"
+  },
+  "Current-pass observation": {
+    "en": "Current-pass observation",
+    "fr": "Observation de la passe courante"
+  },
+  "Discover analysis checkpoints": {
+    "en": "Discover analysis checkpoints",
+    "fr": "Découvrir les points de reprise d’analyse"
+  },
+  "Restore traversal": {
+    "en": "Restore traversal",
+    "fr": "Restaurer le parcours"
+  },
+  "Checkpoint discovery was limited or contains invalid records. No checkpoint was deleted.": {
+    "en": "Checkpoint discovery was limited or contains invalid records. No checkpoint was deleted.",
+    "fr": "La découverte est limitée ou contient des entrées invalides. Aucun point de reprise n’a été supprimé."
+  },
+  "Inspect one saved C++ translation unit with its real compilation command. No fixes are applied or sources saved.": {
+    "en": "Inspect one saved C++ translation unit with its real compilation command. No fixes are applied or sources saved.",
+    "fr": "Inspecter une unité C++ enregistrée avec sa véritable commande de compilation. Aucun correctif ni enregistrement des sources n’est effectué."
+  },
+  "Open a saved C++ source and resolve unsaved changes or disk conflicts before inspection.": {
+    "en": "Open a saved C++ source and resolve unsaved changes or disk conflicts before inspection.",
+    "fr": "Ouvrez une source C++ enregistrée et résolvez les modifications non enregistrées ou conflits disque avant l’inspection."
+  },
+  "Inspection profile": {
+    "en": "Inspection profile",
+    "fr": "Profil d’inspection"
+  },
+  "clang-tidy executable": {
+    "en": "clang-tidy executable",
+    "fr": "Exécutable clang-tidy"
+  },
+  "Leave empty to use Core tool discovery. A missing tool is reported explicitly.": {
+    "en": "Leave empty to use Core tool discovery. A missing tool is reported explicitly.",
+    "fr": "Laisser vide pour utiliser la détection Core. Un outil manquant est signalé explicitement."
+  },
+  "Inspect saved source": {
+    "en": "Inspect saved source",
+    "fr": "Inspecter la source enregistrée"
+  },
+  "Cancel inspection": {
+    "en": "Cancel inspection",
+    "fr": "Annuler l’inspection"
+  },
+  "Native process running": {
+    "en": "Native process running",
+    "fr": "Processus natif en cours"
+  },
+  "Waiting for native process": {
+    "en": "Waiting for native process",
+    "fr": "En attente du processus natif"
+  },
+  "Inspection results are stale. Inspect the current saved revision again.": {
+    "en": "Inspection results are stale. Inspect the current saved revision again.",
+    "fr": "Les résultats sont périmés. Inspectez à nouveau la révision actuelle enregistrée."
+  },
+  "Inspection output or diagnostics were truncated.": {
+    "en": "Inspection output or diagnostics were truncated.",
+    "fr": "La sortie ou les diagnostics d’inspection ont été tronqués."
+  },
+  "Compiler locations use one-based UTF-8 byte columns, not LSP UTF-16 positions.": {
+    "en": "Compiler locations use one-based UTF-8 byte columns, not LSP UTF-16 positions.",
+    "fr": "Les emplacements du compilateur utilisent des colonnes d’octets UTF-8 depuis un, distinctes des positions LSP UTF-16."
+  },
+  "Open location": {
+    "en": "Open location",
+    "fr": "Ouvrir l’emplacement"
+  },
+  "Copy inspection output": {
+    "en": "Copy inspection output",
+    "fr": "Copier la sortie d’inspection"
+  },
+  "Request a fresh backend result. Index progress may leave cached results.": {
+    "en": "Request a fresh backend result. Index progress may leave cached results.",
+    "fr": "Demander un nouveau résultat au serveur. La progression de l’index peut laisser des résultats en cache."
+  },
+  "Partial byte preview. Apply and Undo affect the complete native change plan.": {
+    "en": "Partial byte preview. Apply and Undo affect the complete native change plan.",
+    "fr": "Aperçu partiel en octets. Appliquer et annuler concernent le plan natif complet."
+  },
+  "First preview page": {
+    "en": "First preview page",
+    "fr": "Première page de l’aperçu"
+  },
+  "Next preview page": {
+    "en": "Next preview page",
+    "fr": "Page suivante de l’aperçu"
+  },
+  "Checkpoint": {
+    "en": "Checkpoint",
+    "fr": "Point de reprise"
+  },
+  "Compilation database": {
+    "en": "Compilation database",
+    "fr": "Base de commandes de compilation"
+  },
+  "Open": {
+    "en": "Open",
+    "fr": "Ouvrir"
+  },
+  "Scope": {
+    "en": "Scope",
+    "fr": "Portée"
+  },
+  "Shared native service": {
+    "en": "Shared native service",
+    "fr": "Service natif partagé"
+  },
+  "Service details": {
+    "en": "Service details",
+    "fr": "Détails du service"
+  },
+  "Shared Engine context": {
+    "en": "Shared Engine context",
+    "fr": "Contexte du moteur partagé"
+  },
+  "Core source version": {
+    "en": "Core source version",
+    "fr": "Version des sources Core"
+  },
+  "Connect agents to this Engine": {
+    "en": "Connect agents to this Engine",
+    "fr": "Connecter les agents à ce moteur"
+  },
+  "Status pending": {
+    "en": "Status pending",
+    "fr": "État en attente"
+  },
+  "Clean diagnostics": {
+    "en": "Clean diagnostics",
+    "fr": "Diagnostics sans erreur"
+  },
+  "Diagnostics with errors": {
+    "en": "Diagnostics with errors",
+    "fr": "Diagnostics avec erreurs"
+  },
+  "Unknown diagnostics": {
+    "en": "Unknown diagnostics",
+    "fr": "Diagnostics inconnus"
+  },
+  "Unvisited sources": {
+    "en": "Unvisited sources",
+    "fr": "Sources non visitées"
+  },
+  "Elapsed (ms)": {
+    "en": "Elapsed (ms)",
+    "fr": "Durée (ms)"
+  },
+  "Recommended": {
+    "en": "Recommended",
+    "fr": "Recommandé"
+  },
+  "Security": {
+    "en": "Security",
+    "fr": "Sécurité"
+  },
+  "Modernize": {
+    "en": "Modernize",
+    "fr": "Modernisation"
+  },
+  "Performance": {
+    "en": "Performance",
+    "fr": "Performance"
+  },
+  "Portability": {
+    "en": "Portability",
+    "fr": "Portabilité"
+  },
+  "Use configured compilation database": {
+    "en": "Use configured compilation database",
+    "fr": "Utiliser la base de compilation configurée"
+  },
+  "Inspection documentation": {
+    "en": "Inspection documentation",
+    "fr": "Documentation des inspections"
+  },
+  "No diagnostics in this result.": {
+    "en": "No diagnostics in this result.",
+    "fr": "Aucun diagnostic dans ce résultat."
+  },
+  "Stopping": {
+    "en": "Stopping",
+    "fr": "Arrêt en cours"
+  },
+  "Complete": {
+    "en": "Complete",
+    "fr": "Terminé"
+  },
+  "Truncated": {
+    "en": "Truncated",
+    "fr": "Tronqué"
+  },
+  "Stale results": {
+    "en": "Stale results",
+    "fr": "Résultats périmés"
+  },
+  "Timeout (seconds)": {
+    "en": "Timeout (seconds)",
+    "fr": "Délai maximal (secondes)"
+  },
+  "Diagnostics outside the workspace": {
+    "en": "Diagnostics outside the workspace",
+    "fr": "Diagnostics hors de l’espace de travail"
+  },
+  "Open with paged text": {
+    "en": "Open with paged text",
+    "fr": "Ouvrir en texte paginé"
+  },
+  "Acknowledge pending input": {
+    "en": "Acknowledge pending input",
+    "fr": "Acquitter les saisies en attente"
+  },
+  "Checkpoint active paged text": {
+    "en": "Checkpoint active paged text",
+    "fr": "Créer un point de reprise du texte paginé actif"
+  },
+  "Checkpoint baseline differs from disk. Reconcile the source before restoration.": {
+    "en": "Checkpoint baseline differs from disk. Reconcile the source before restoration.",
+    "fr": "La base du point de reprise diffère du disque. Réconciliez la source avant la restauration."
+  },
+  "Copy pending input": {
+    "en": "Copy pending input",
+    "fr": "Copier les saisies en attente"
+  },
+  "Discarded native history entries": {
+    "en": "Discarded native history entries",
+    "fr": "Entrées sorties de l’historique natif"
+  },
+  "Discover paged checkpoints": {
+    "en": "Discover paged checkpoints",
+    "fr": "Découvrir les points de reprise paginés"
+  },
+  "Explicit paged recovery": {
+    "en": "Explicit paged recovery",
+    "fr": "Récupération paginée explicite"
+  },
+  "Find in paged text": {
+    "en": "Find in paged text",
+    "fr": "Rechercher dans le texte paginé"
+  },
+  "Finish pending input and native operations before saving.": {
+    "en": "Finish pending input and native operations before saving.",
+    "fr": "Terminez les saisies en attente et les opérations natives avant d’enregistrer."
+  },
+  "Native change history": {
+    "en": "Native change history",
+    "fr": "Historique des modifications natives"
+  },
+  "Native paged document was closed externally. Recover pending input before closing this view.": {
+    "en": "Native paged document was closed externally. Recover pending input before closing this view.",
+    "fr": "Le document paginé natif a été fermé par un autre client. Récupérez les saisies en attente avant de fermer cette vue."
+  },
+  "Native transactions are shared with attached agents. Prepare and review the complete change before applying.": {
+    "en": "Native transactions are shared with attached agents. Prepare and review the complete change before applying.",
+    "fr": "Les transactions natives sont partagées avec les agents connectés. Préparez et examinez la modification complète avant de l’appliquer."
+  },
+  "Next": {
+    "en": "Next",
+    "fr": "Suivant"
+  },
+  "Open paged source": {
+    "en": "Open paged source",
+    "fr": "Ouvrir la source paginée"
+  },
+  "Opening native paged text...": {
+    "en": "Opening native paged text...",
+    "fr": "Ouverture du texte paginé natif…"
+  },
+  "Ordinary-buffer checkpoints: every second. Paged checkpoints and source saves are explicit.": {
+    "en": "Ordinary-buffer checkpoints: every second. Paged checkpoints and source saves are explicit.",
+    "fr": "Points de reprise des tampons ordinaires : chaque seconde. Les points paginés et l’enregistrement des sources sont explicites."
+  },
+  "Paged UTF-8": {
+    "en": "Paged UTF-8",
+    "fr": "UTF-8 paginé"
+  },
+  "Paged UTF-8. No LSP overlay; save or close unsaved paged edits before compiler queries.": {
+    "en": "Paged UTF-8. No LSP overlay; save or close unsaved paged edits before compiler queries.",
+    "fr": "UTF-8 paginé, sans superposition LSP : enregistrez ou fermez les modifications paginées avant une requête au compilateur."
+  },
+  "Paged checkpoints": {
+    "en": "Paged checkpoints",
+    "fr": "Points de reprise paginés"
+  },
+  "Paged checkpoints are explicit. Publishing one does not save the source; restore is a reviewed native change with Undo.": {
+    "en": "Paged checkpoints are explicit. Publishing one does not save the source; restore is a reviewed native change with Undo.",
+    "fr": "Les points de reprise paginés sont explicites. Leur publication n’enregistre pas la source ; la restauration est une modification native examinée et annulable."
+  },
+  "Pending input was cancelled. Recover it before closing or saving.": {
+    "en": "Pending input was cancelled. Recover it before closing or saving.",
+    "fr": "Des saisies en attente ont été annulées. Récupérez-les avant de fermer ou d’enregistrer."
+  },
+  "Prepare checkpoint restoration": {
+    "en": "Prepare checkpoint restoration",
+    "fr": "Préparer la restauration du point de reprise"
+  },
+  "Prepare native Undo": {
+    "en": "Prepare native Undo",
+    "fr": "Préparer l’annulation native"
+  },
+  "Prepare native Redo": {
+    "en": "Prepare native Redo",
+    "fr": "Préparer le rétablissement natif"
+  },
+  "Preview": {
+    "en": "Preview",
+    "fr": "Aperçu"
+  },
+  "Previous": {
+    "en": "Previous",
+    "fr": "Précédent"
+  },
+  "Refresh native history": {
+    "en": "Refresh native history",
+    "fr": "Actualiser l’historique natif"
+  },
+  "Refresh paged state": {
+    "en": "Refresh paged state",
+    "fr": "Actualiser l’état paginé"
+  },
+  "Replace current match": {
+    "en": "Replace current match",
+    "fr": "Remplacer l’occurrence actuelle"
+  },
+  "Save or close modified documents before changing text profiles.": {
+    "en": "Save or close modified documents before changing text profiles.",
+    "fr": "Enregistrez ou fermez les documents modifiés avant de changer de profil de texte."
+  },
+  "Save paged text and wait for native operations before building.": {
+    "en": "Save paged text and wait for native operations before building.",
+    "fr": "Enregistrez le texte paginé et attendez la fin des opérations natives avant de compiler."
+  },
+  "Wait for the current paged operation.": {
+    "en": "Wait for the current paged operation.",
+    "fr": "Attendez la fin de l’opération paginée en cours."
+  },
+  "Whole words": {
+    "en": "Whole words",
+    "fr": "Mots entiers"
+  },
+  "Loading native paged backend...": {
+    "en": "Loading native paged backend...",
+    "fr": "Chargement du backend paginé natif…"
+  },
+  "Native operation / index in progress...": {
+    "en": "Native operation / index in progress...",
+    "fr": "Opération native ou indexation en cours…"
+  },
+  "Syntax unavailable above 32 MiB: shared streaming lexer required.": {
+    "en": "Syntax unavailable above 32 MiB: shared streaming lexer required.",
+    "fr": "Coloration indisponible au-delà de 32 Mio : analyseur lexical partagé en flux requis."
+  },
+  "Cannot prepare UTF-8 line fragment": {
+    "en": "Cannot prepare UTF-8 line fragment",
+    "fr": "Impossible de préparer le fragment de ligne UTF-8"
+  },
+  "Clipboard publication failed; selection was not cut.": {
+    "en": "Clipboard publication failed; selection was not cut.",
+    "fr": "La copie vers le presse-papiers a échoué ; la sélection n’a pas été coupée."
+  },
+  "Clipboard result discarded after a revision change.": {
+    "en": "Clipboard result discarded after a revision change.",
+    "fr": "Résultat du presse-papiers abandonné après un changement de révision."
+  },
+  "Clipboard selection exceeds the 4 MiB export budget.": {
+    "en": "Clipboard selection exceeds the 4 MiB export budget.",
+    "fr": "La sélection dépasse le budget d’export de 4 Mio du presse-papiers."
+  },
+  "Committed edit; view acknowledgement was cancelled.": {
+    "en": "Committed edit; view acknowledgement was cancelled.",
+    "fr": "Modification validée ; l’acquittement de la vue a été annulé."
+  },
+  "Importing and indexing UTF-8 text...": {
+    "en": "Importing and indexing UTF-8 text...",
+    "fr": "Import et indexation du texte UTF-8…"
+  },
+  "Insertion exceeds the 1 MiB operation budget": {
+    "en": "Insertion exceeds the 1 MiB operation budget",
+    "fr": "L’insertion dépasse le budget de 1 Mio par opération"
+  },
+  "Invalid native UTF-8 byte continuation": {
+    "en": "Invalid native UTF-8 byte continuation",
+    "fr": "Continuation native en octets UTF-8 invalide"
+  },
+  "Invalid native paged backend state": {
+    "en": "Invalid native paged backend state",
+    "fr": "État invalide du backend natif paginé"
+  },
+  "Invalid native paged search range": {
+    "en": "Invalid native paged search range",
+    "fr": "Plage native de recherche paginée invalide"
+  },
+  "Invalid native prepared edit identity": {
+    "en": "Invalid native prepared edit identity",
+    "fr": "Identité de modification native préparée invalide"
+  },
+  "Invalid paged read budget": {
+    "en": "Invalid paged read budget",
+    "fr": "Budget de lecture paginée invalide"
+  },
+  "Native Undo did not issue a committed revision": {
+    "en": "Native Undo did not issue a committed revision",
+    "fr": "L’annulation native n’a pas fourni de nouvelle révision"
+  },
+  "Native apply did not issue a committed revision": {
+    "en": "Native apply did not issue a committed revision",
+    "fr": "La validation native n’a pas fourni de nouvelle révision"
+  },
+  "Native search exceeds its result budget": {
+    "en": "Native search exceeds its result budget",
+    "fr": "La recherche native dépasse son budget de résultats"
+  },
+  "No native transaction available.": {
+    "en": "No native transaction available.",
+    "fr": "Aucune transaction native disponible."
+  },
+  "Page preparation exceeds its byte/token budget": {
+    "en": "Page preparation exceeds its byte/token budget",
+    "fr": "La préparation de page dépasse son budget d’octets ou de jetons"
+  },
+  "Paged document is read-only": {
+    "en": "Paged document is read-only",
+    "fr": "Le document paginé est en lecture seule"
+  },
+  "Paged read cancelled": {
+    "en": "Paged read cancelled",
+    "fr": "Lecture paginée annulée"
+  },
+  "Paged revision counter exhausted": {
+    "en": "Paged revision counter exhausted",
+    "fr": "Compteur de révisions paginées épuisé"
+  },
+  "Recover cancelled input before editing or saving.": {
+    "en": "Recover cancelled input before editing or saving.",
+    "fr": "Récupérez les saisies annulées avant de modifier ou d’enregistrer."
+  },
+  "Saving the complete native document...": {
+    "en": "Saving the complete native document...",
+    "fr": "Enregistrement du document natif complet…"
+  },
+  "Search must include the complete CRLF pair.": {
+    "en": "Search must include the complete CRLF pair.",
+    "fr": "La recherche doit inclure la paire CRLF complète."
+  },
+  "Search query must contain 1 to 4096 bytes": {
+    "en": "Search query must contain 1 to 4096 bytes",
+    "fr": "La recherche doit contenir de 1 à 4096 octets"
+  },
+  "Stale paged document revision": {
+    "en": "Stale paged document revision",
+    "fr": "Révision périmée du document paginé"
+  },
+  "Standalone durable paged recovery is unavailable.": {
+    "en": "Standalone durable paged recovery is unavailable.",
+    "fr": "La récupération durable du texte paginé autonome est indisponible."
+  },
+  "Syntax highlighting is unavailable above 32 MiB.": {
+    "en": "Syntax highlighting is unavailable above 32 MiB.",
+    "fr": "La coloration est indisponible au-delà de 32 Mio."
+  },
+  "Wrong paged document identity": {
+    "en": "Wrong paged document identity",
+    "fr": "Identité incorrecte du document paginé"
+  },
+  "Paged text documentation": {
+    "en": "Paged text documentation",
+    "fr": "Documentation du texte paginé"
+  },
+  "Save As publishes the complete paged document to a new file and resets native history for the old path.": {
+    "en": "Save As publishes the complete paged document to a new file and resets native history for the old path.",
+    "fr": "Enregistrer sous publie le document paginé complet dans un nouveau fichier et réinitialise l’historique natif lié à l’ancien chemin."
+  },
+  "Review multi-file native changes in Refactoring before Undo or Redo.": {
+    "en": "Review multi-file native changes in Refactoring before Undo or Redo.",
+    "fr": "Examinez les modifications natives multifichiers dans Refactorisation avant de les annuler ou de les rétablir."
+  },
+  "Review annotated native changes in Refactoring before Redo.": {
+    "en": "Review annotated native changes in Refactoring before Redo.",
+    "fr": "Examinez les modifications natives annotées dans Refactorisation avant de les rétablir."
+  },
+  "Committed. Refresh the native paged state before editing.": {
+    "en": "Committed. Refresh the native paged state before editing.",
+    "fr": "Modification validée. Actualisez l’état paginé natif avant de modifier le texte."
+  },
+  "Native edit committed; some notifications failed. Refresh the native paged state.": {
+    "en": "Native edit committed; some notifications failed. Refresh the native paged state.",
+    "fr": "Modification native validée ; certaines notifications ont échoué. Actualisez l’état paginé natif."
+  },
+  "Native paged document was replaced or closed": {
+    "en": "Native paged document was replaced or closed",
+    "fr": "Le document paginé natif a été remplacé ou fermé"
+  },
+  "Native paged document was closed": {
+    "en": "Native paged document was closed",
+    "fr": "Le document paginé natif a été fermé"
+  },
+  "Native transaction committed without its paged document receipt; do not retry": {
+    "en": "Native transaction committed without its paged document receipt; do not retry",
+    "fr": "Transaction native validée sans reçu du document paginé ; ne relancez pas l’opération"
+  },
+  "Core runtime version": {
+    "en": "Core runtime version",
+    "fr": "Version du moteur Core"
   }
 }

@@ -3,7 +3,7 @@
 #include <algorithm>
 namespace cycode {
 Json Application::informationParameters() const {
-    for (const auto &tab : tabs_) if (tab->path==active_ && engine_->supportsLanguage(tab->path)) {
+    for (const auto &tab : tabs_) if (tab->path==active_ && !tab->pagedProfile && engine_->supportsLanguage(tab->path)) {
         const auto cursor=tab->editor.GetMainCursorPosition();
         return {{"path",tab->path},{"expectedRevision",tab->revision},
             {"position",{{"line",cursor.line},{"character",LanguageClient::utf16Length(tab->editor.GetSectionText({cursor.line,0},cursor))}}}};

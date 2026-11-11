@@ -46,7 +46,34 @@ partagent les composants natifs de tampon, encodage, processus et protocole,
 avec un seul Core et une seule instance compatible ImGui/éditeur par compilation.
 L’API source 1 ne garantit pas une ABI binaire C++ stable.
 
+## Intégration de développement actuelle
+
+Core est verrouillé sur `f5e6261bf8acf22d0b3241622ed4294322724fb9` et CyUI sur
+`0ba1ba663b4b2bf46d066a32829bc91ea2743cba`. L’éditeur paginé partagé est verrouillé
+sur Reader publié `889dd5fd8db8bfabdba4601f5d2a955723c91301`. La compilation par défaut récupère
+cette révision exacte, avec `PagedTextBackend.h` et `PagedTextEditor.h`. Le contrôle
+des dépendances vérifie les capacités natives requises et les en-têtes partagés.
+
 ## Fonctionnalités
+
+- **Analyse progressive** : Affichage → Analyse et inspections distingue service
+  partagé, serveurs de langage, inventaire et diagnostics du fichier actif.
+  Préparez des lots bornés, mettez en pause, reprenez et restaurez explicitement
+  les points de parcours. Les observations historiques restent distinctes des
+  preuves actuelles ; aucune campagne ne démarre automatiquement. Références
+  permet une demande explicite de résultat actualisé au serveur.
+- **Inspections C++ et historique natif** : vrais profils clang-tidy sur une
+  source enregistrée et sa base de compilation réelle. Les résultats périmés ou
+  tronqués, colonnes d’octets UTF-8 et sorties sont visibles. Les aperçus de
+  refactorisation sont paginés si nécessaire ; l’Undo/Redo natif contrôlé est
+  partagé avec les agents et conserve les confirmations d’annotations.
+- **UTF-8 paginé** : les grands fichiers du projet utilisent la vue virtuelle
+  Reader/CyUI partagée ; un petit fichier propre peut choisir Fichier → Ouvrir
+  en texte paginé. Pages, sélections multiples pages, presse-papiers, recherche
+  littérale, éditions et enregistrements complets utilisent le même Engine.
+  La récupération propose découverte, aperçu et restauration native explicite.
+  Ce profil n’a pas de superposition LSP ; la coloration avec contexte est
+  indisponible au-delà de 32 Mio. Voir les [limites](VERSION.fr.md).
 
 - **Édition du code** : éditeur partagé de Reader avec annulation/rétablissement,
   couleurs syntaxiques CyUI et JetBrains Mono embarquée. Ctrl + molette zoome
@@ -137,7 +164,10 @@ Les révisions exactes sont verrouillées dans les fichiers
 [Core](app/core-source.lock.json), [Reader](app/editor-source.lock.json) et
 [CyUI](app/cyui-source.lock.json). Les dépendances natives et celles de l’éditeur
 suivent leurs verrouillages respectifs ; les [dépendances d’images](app/dependencies.lock.json)
-sont verrouillées ici.
+sont verrouillées ici. L’éditeur partagé utilise sa révision publiée verrouillée
+et réutilise le Core propre choisi par l’IDE ; le verrou Core de l’application
+Reader autonome reste indépendant. Les chemins de développement explicites
+restent disponibles pour coordonner les modifications de sources.
 
 Le manuel hors ligne est généré par défaut. `--without-documentation` est une
 option explicite réservée à la vérification de compilation. La préparation
@@ -159,7 +189,7 @@ Voir [COPYRIGHT](COPYRIGHT). Les dépendances conservent leurs licences et notic
 | Bibliothèque · sources | Licence · texte | Utilisation / périmètre |
 | --- | --- | --- |
 | [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/5dc05f4bffe5d38e871250c9de23651c33d47221/LICENSE) | Services natifs de projet, documents et CLI partagés. |
-| [Éditeur CyCodeReader](https://github.com/MrMybal/CyCodeReader) | [GPL-3.0-only](https://github.com/MrMybal/CyCodeReader/blob/d27e84f1097b68c12630dc4c10fcc406d4628760/LICENSE) | API source 1 de l’éditeur graphique partagé. |
+| [Éditeur CyCodeReader](https://github.com/MrMybal/CyCodeReader) | [GPL-3.0-only](https://github.com/MrMybal/CyCodeReader/blob/889dd5fd8db8bfabdba4601f5d2a955723c91301/LICENSE) | API source 1 de l’éditeur graphique partagé. |
 | [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/6173630ad5eb1e585eee1a0e7d3617285563e774/LICENSE) | Modules sélectionnés d’interface, code, comparaison et panneaux. |
 | [Dear ImGui](https://github.com/ocornut/imgui) | [MIT](https://github.com/ocornut/imgui/blob/d682dc41f58b98c9343ffbaa7d94f07e9024b3ca/LICENSE.txt) | Interface native et adaptateurs SDL/OpenGL partagés. |
 | [SDL3](https://github.com/libsdl-org/SDL) | [zlib](https://github.com/libsdl-org/SDL/blob/release-3.4.18/LICENSE.txt) | Fenêtres natives, saisie et intégration à la plateforme. |

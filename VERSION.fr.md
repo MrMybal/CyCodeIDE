@@ -14,15 +14,24 @@ actuelles, pas un nouveau binaire, un installateur ou une date de publication.
 | Composant | Sources sélectionnées / contrat |
 | --- | --- |
 | CyCodeIDE | Sources de développement 0.2.3 |
-| [CyCode Core](app/core-source.lock.json) | `5dc05f4bffe5d38e871250c9de23651c33d47221` · API source native/commune 1 · `cycode-core/1` |
-| [Éditeur Reader](app/editor-source.lock.json) | `d27e84f1097b68c12630dc4c10fcc406d4628760` · API source de l’éditeur graphique 1 |
-| [CyUI](app/cyui-source.lock.json) | `6173630ad5eb1e585eee1a0e7d3617285563e774` |
+| [CyCode Core](app/core-source.lock.json) | `f5e6261bf8acf22d0b3241622ed4294322724fb9` · API source native/commune 1 · `cycode-core/1` |
+| [Éditeur Reader](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · API source de l’éditeur graphique 1 |
+| [CyUI](app/cyui-source.lock.json) | `0ba1ba663b4b2bf46d066a32829bc91ea2743cba` |
 | Lecteur CyDoc | 0.1.0 · issu du verrouillage de documentation de Core |
 
 L’API source 1 n’est pas une ABI binaire C++ stable. L’IDE, Core et Reader doivent
 partager un graphe de dépendances compatible.
 
 ## Changements dans cet état des sources
+
+- La vue d’analyse et d’inspection expose lots natifs, pause/reprise, points de
+  parcours durables, preuves historiques/actuelles et vrais profils clang-tidy.
+- L’historique natif et les reçus atomiques viennent de Core. Les annulations et
+  rétablissements multifichiers ou annotés sont préparés/examinés dans
+  Refactorisation ; les éditions paginées utilisent le même propriétaire natif.
+- L’éditeur paginé partagé utilise pages natives asynchrones, positions UTF-16 et
+  octets contrôlés, publication intégrale et aperçu/restauration explicites. Les
+  sessions gardent profil, chemin et curseur, sans sauvegarde paginée implicite.
 
 - CyCodeIDE gère la présentation ; Core conserve les services natifs et
   transactions contrôlées ; Reader fournit l’éditeur graphique partagé.
@@ -44,6 +53,17 @@ partager un graphe de dépendances compatible.
   notes de version et références aux licences des dépendances.
 
 ## Limites documentées
+
+- Les tampons GUI/LSP ordinaires restent limités à 4 Mio. Le profil UTF-8 paginé
+  n’a ni superposition LSP, conversion d’encodage, pliage, multi-curseur ni snippets.
+  Enregistrez ou fermez ses modifications avant les requêtes au compilateur.
+  La coloration avec contexte reste indisponible au-delà de 32 Mio.
+- L’historique natif retient au plus 256 transactions ; fermeture ou changement
+  de chemin invalide les entrées concernées. Enregistrer sous réinitialise donc
+  l’historique paginé lié à l’ancien chemin. Points de reprise, Save et historique
+  restent distincts.
+- Les saisies annulées et propositions refusées doivent être récupérées puis
+  acquittées explicitement avant modification/enregistrement, sans réexécution automatique.
 
 - L’identité de l’installateur et des mises à jour ainsi que l’organisation de la
   distribution doivent être migrées et validées avant la première publication

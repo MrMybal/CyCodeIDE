@@ -101,6 +101,15 @@ Application::Application(LaunchOptions options, SDL_Window *window)
         open("app/examples/hello/main.cpp");
 }
 Application::~Application() {
+    if (engine_) stopAnalysis();
+    if (pagedRecoveryFuture_.valid()) pagedRecoveryFuture_.wait();
+    for (const auto &tab:tabs_) {
+        if(tab->pagedOpening.valid())tab->pagedOpening.wait();
+        if(tab->pagedNavigation.valid())tab->pagedNavigation.wait();
+        // Join shared editor workers while Engine/plugins still exist.
+        if(tab->paged && tab->paged->status().ready)tab->pagedPresentation=pagedSessionState(tab);
+        tab->paged.reset();
+    }
     if(updateCancellation_) *updateCancellation_=true;
     if(updateCheckFuture_.valid())updateCheckFuture_.wait();
     if(updateDownloadFuture_.valid())updateDownloadFuture_.wait();
@@ -224,7 +233,10 @@ bool Application::busy() const {
     if(resourceFuture_.valid())return true;
     if(recoveryFuture_.valid())return true;
     for (const auto &tab : tabs_) if ((tab->image && tab->image->loading()) || tab->highlighting.valid() || tab->completionAccept.valid()) return true;
-    return filesFuture_.valid() || searchFuture_.valid() || gitFuture_.valid() || taskFuture_.valid() ||
+    for(const auto &tab:tabs_)if(tab->pagedOpening.valid() || tab->pagedNavigation.valid() ||
+        (tab->paged && (tab->paged->status().busy || tab->paged->unsettled())))return true;
+    return pagedRecoveryFuture_.valid() || analysisView_.prepare.valid() || analysisView_.inspection.valid() || analysisView_.metadata.valid() ||
+           filesFuture_.valid() || searchFuture_.valid() || gitFuture_.valid() || taskFuture_.valid() ||
            navigationFuture_.valid() || buildFuture_.valid() || detectionFuture_.valid() || unrealAnalysisFuture_.valid() || structure_.future.valid() || occurrences_.future.valid() || symbolFuture_.valid() || symbolResolveFuture_.valid() || informationFuture_.valid() || codeActionsFuture_.valid() || refactorFuture_.valid() || terminalFuture_.valid() || debugFuture_.valid() || vcsFuture_.valid();
 }
 Json Application::testState() const {
@@ -242,6 +254,8 @@ Json Application::testState() const {
     result["solution"] = solution_;
     result["unreal"] = unreal_;
     result["unrealAnalysis"] = unrealAnalysisState_;
+    result["analysis"] = {{"status",analysisView_.status},{"results",analysisView_.results},{"checkpoints",analysisView_.checkpoints},
+                          {"inspection",analysisView_.inspected},{"error",analysisView_.error},{"inspectionError",analysisView_.inspectionError}};
     result["workspace"] = pathUtf8(engine_->workspace());
     result["entry"] = pathUtf8(entry_);
     result["theme"] = theme_;
@@ -311,6 +325,12 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     const bool inspectMsbuild = !nextUnreal.value("available",false) && (!std::filesystem::is_directory(path) || (!std::filesystem::exists(nextEngine->workspace()/"CMakeLists.txt") && !std::filesystem::exists(nextEngine->workspace()/"app/CMakeLists.txt")));
     const auto nextMsbuild = inspectMsbuild ? nextEngine->dispatch("msbuild.inspect") : Json::object();
     if (engine_) {
+        if (pagedRecoveryFuture_.valid()) throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
+        for(const auto &tab:tabs_)if(tab->pagedOpening.valid() || tab->pagedNavigation.valid() ||
+            (tab->paged && (tab->paged->status().busy || tab->paged->unsettled())))
+            throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
+        if (analysisView_.prepare.valid() || analysisView_.inspection.valid() || analysisView_.metadata.valid())
+            throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
         if(engine_->dispatch("build.status").value("running",false))throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
         if(engine_->dispatch("project.status").value("running",false))throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
         if(templateFuture_.valid())throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
@@ -327,6 +347,13 @@ void Application::setWorkspace(const std::filesystem::path &path) {
                              &buildFuture_, &presetFuture_, &detectionFuture_, &structure_.future, &occurrences_.future, &symbolFuture_, &symbolResolveFuture_, &informationFuture_, &hierarchyFuture_, &codeActionsFuture_, &refactorFuture_, &terminalFuture_, &debugFuture_, &vcsFuture_, &counterpartFuture_})
             if (future->valid())
                 throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
+        stopAnalysis();
+        analysisView_ = AnalysisView{};
+        for (auto &tab:tabs_) {
+            if(tab->paged && tab->paged->status().ready)tab->pagedPresentation=pagedSessionState(tab);
+            tab->paged.reset();
+        }
+        pagedCheckpoints_=Json::object();pagedCheckpoint_=Json::object();pagedRecoveryError_.clear();nativeHistory_=Json::object();
         engine_->configureLanguage(clangd_, false, false);
     }
     bridge_.reset();
@@ -362,6 +389,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     refactorAnnotationPlan_.clear();refactorConfirmed_.clear();
     panels_.try_emplace("refactoring", false);
     panels_.try_emplace("information", false);
+    panels_.try_emplace("analysis", false);
     panels_.try_emplace("cmakePresets",false);presetInitialized_=false;presetCatalogue_=nullptr;presetPlan_=nullptr;presetName_.clear();presetError_.clear();
     panels_.try_emplace("hierarchy",false);hierarchyState_=Json::object();hierarchySelected_=Json::object();hierarchyBranches_.clear();hierarchyBranchErrors_.clear();hierarchyError_.clear();hierarchyValid_=false;hierarchyBytes_=0;
     panels_.try_emplace("codeActions",false);codeActionsState_=Json::object();codeActionsKey_.clear();codeActionsError_.clear();codeActionSelected_=-1;
@@ -642,6 +670,10 @@ void Application::task(const std::string &method, Json params) {
     if (actualMethod.starts_with("msbuild.")) { params = buildParameters(); if (msbuildRestore_ && (actualMethod == "msbuild.build" || actualMethod == "msbuild.rebuild")) params["restore"] = true; }
     if (actualMethod.starts_with("project.")) params = projectProfile_;
     if(supportsBuildTimeout(actualMethod)&&actualMethod!="unreal.automationRun")params["timeoutSeconds"]=desktopBuildTimeout(settings_);
+    if(supportsBuildTimeout(actualMethod))for(const auto &tab:tabs_)if(tab->pagedProfile &&
+        (tab->dirty || tab->pagedOpening.valid() || (tab->paged && (tab->paged->status().busy || tab->paged->unsettled())))) {
+        error(tr("Save paged text and wait for native operations before building."));return;
+    }
     if (actualMethod == "msbuild.build" || actualMethod == "msbuild.rebuild" || actualMethod == "build.presetRun" || actualMethod.starts_with("project.")) {
         saveAll();
         if (std::any_of(tabs_.begin(),tabs_.end(),[](const auto &tab) { return tab->dirty; })) return;
@@ -754,6 +786,7 @@ void Application::open(const std::string &path, size_t line, size_t column, bool
     if (!isUntitledDocument(path) && openImage(path,activate)) return;
     if (path.starts_with("debug://")) { openDebugSource(path,line,column); return; }
     try {
+        if(openPaged(path,line,column,utf16,activate))return;
         auto doc = path.starts_with("sdk://") ? engine_->dispatch("sources.read", {{"source", path}})
                                              : engine_->dispatch("documents.open", {{"path", path}});
         std::string canonical = doc["path"];
@@ -829,7 +862,7 @@ void Application::open(const std::string &path, size_t line, size_t column, bool
     }
 }
 void Application::changed(const std::shared_ptr<Tab> &tab) {
-    if (tab->readOnly) return;
+    if (tab->readOnly || tab->pagedProfile) return;
     clearDiagnosticAnnotations(tab->editor);tab->diagnosticKey.clear();tab->diagnosticCount=0;tab->diagnosticTruncated=false;
     tab->editor.ClearSemanticTokens(); tab->highlightRevision=0; tab->highlightCount=0; tab->highlightRetryAt=ImGui::GetTime()+.3;
     try {
@@ -861,6 +894,11 @@ void Application::changed(const std::shared_ptr<Tab> &tab) {
     }
 }
 void Application::save(const std::shared_ptr<Tab> &tab) {
+    if (tab->pagedProfile) {
+        if (!tab->paged || !tab->paged->save()) error(tr("Finish pending input and native operations before saving."));
+        else tab->pagedCloseAfterSave=pendingClose_==tab->path;
+        return;
+    }
     if (tab->readOnly) return;
     if (isUntitledDocument(tab->path)) { beginSaveAs(tab); return; }
     try {
@@ -882,12 +920,20 @@ void Application::closeTab(const std::string &path, bool discard) {
     auto found = std::find_if(tabs_.begin(), tabs_.end(), [&](const auto &tab) { return tab->path == path; });
     if (found == tabs_.end())
         return;
+    if ((*found)->pagedProfile && ((*found)->pagedOpening.valid() || (*found)->pagedNavigation.valid() ||
+        ((*found)->paged && (*found)->paged->status().busy))) {
+        error(tr("Wait for the current paged operation."));closeAll_=false;return;
+    }
     if ((*found)->dirty && !discard) {
         pendingClose_ = path;
         return;
     }
     try {
-        if ((*found)->image) { }
+        if ((*found)->pagedProfile) {
+            if(!(*found)->pagedClosed && (*found)->identity)
+                engine_->dispatch("documents.closePaged",{{"path",path},{"expectedRevision",(*found)->revision},{"expectedDocumentId",(*found)->identity},{"discard",discard}});
+        }
+        else if ((*found)->image) { }
         else if ((*found)->readOnly && path.starts_with("sdk://")) engine_->dispatch("sources.close", {{"source", path}});
         else if (path.starts_with("debug://")) { }
         else engine_->dispatch("documents.close", {{"path", path}, {"discard", discard},{"expectedRevision",(*found)->revision}});
@@ -922,6 +968,7 @@ void Application::retireTabView(const std::string &path) {
         active_ = tabs_.empty() ? "" : tabs_.front()->path;
 }
 void Application::update() {
+    updatePaged();
     updateBuildCancellation();
     updateProjectCancellation();
     updateProjectTemplates();
@@ -972,7 +1019,7 @@ void Application::update() {
     std::set<uint64_t> liveDocumentIds;
     for (const auto &info : documents) liveDocumentIds.insert(info.value("id",uint64_t(0)));
     const auto views = tabs_;
-    for (const auto &tab : views) if (!tab->readOnly && !tab->image && tab->identity && !liveDocumentIds.contains(tab->identity)) {
+    for (const auto &tab : views) if (!tab->pagedProfile && !tab->readOnly && !tab->image && tab->identity && !liveDocumentIds.contains(tab->identity)) {
         const auto text = tab->editor.GetText();
         if (text != tab->synchronizedText) {
             try {
@@ -989,6 +1036,11 @@ void Application::update() {
             }
         } else retireTabView(tab->path);
     }
+    for(const auto &tab:views)if(tab->pagedProfile && tab->identity && !liveDocumentIds.contains(tab->identity)) {
+        tab->pagedClosed=true;tab->readOnly=true;
+        tab->pagedError=tr("Native paged document was closed externally. Recover pending input before closing this view.");
+        if(tab->paged){auto document=tab->paged->view().document();document.readOnly=true;tab->paged->view().setDocument(document);}
+    }
     for (const auto &info : documents) {
         auto found = std::find_if(tabs_.begin(), tabs_.end(), [&](const auto &tab) {
             return tab->identity?tab->identity==info.value("id",uint64_t(0)):tab->path == info["path"].get<std::string>();
@@ -998,6 +1050,11 @@ void Application::update() {
             continue;
         }
         auto &tab = *found;
+        if(tab->pagedProfile) {
+            if(tab->paged && (info.at("revision")!=tab->revision || info.at("path")!=tab->path ||
+                info.value("dirty",false)!=tab->paged->status().dirty))tab->paged->refresh();
+            continue;
+        }
         if(info.at("revision").get<uint64_t>()==tab->revision&&tab->synchronizedRevision!=tab->revision) {
             tab->synchronizedText=tab->editor.GetText();tab->synchronizedRevision=tab->revision;
         }
@@ -1030,12 +1087,14 @@ void Application::update() {
     updatePresetActions();
     updateHierarchy();
     updateCodeActions();
+    updateAnalysis();
     updateHighlights();
     updateDiagnostics();
     updateTerminal();
     updateDebug();
     updateVcs();
     for (const auto &tab : tabs_) {
+        if(tab->pagedProfile)continue;
         if (ready(tab->completionAccept)) {
             try {
                 const auto prepared=tab->completionAccept.get();
@@ -1528,6 +1587,10 @@ void Application::statusBar() {
             ImGui::SameLine();
             cyui::alignRight(cyui::dp(420));
             if (tab->image) { cyui::textDim("%s",tr("Image preview")); continue; }
+            if(tab->pagedProfile) {
+                const auto pos=tab->paged?tab->paged->view().selection().caret:cyui::PagedCodePosition{};
+                cyui::textDim("%s | %llu:%llu | UTF-16",tr("Paged UTF-8"),static_cast<unsigned long long>(pos.line+1),static_cast<unsigned long long>(pos.character+1));continue;
+            }
             auto pos = tab->editor.GetMainCursorPosition();
             cyui::textDim("%s  |  Ln %zu, Col %zu  |  UTF-8", tab->editor.GetLanguageName().c_str(),
                           pos.line + 1, pos.index + 1);
@@ -1573,6 +1636,7 @@ void Application::layout(ImGuiID dock) {
                                                             {"Tests", "tests"},
                                                             {"Version control", "vcs"},
                                                             {"Problems", "problems"},
+                                                            {"Analysis and inspections", "analysis"},
                                                             {"References", "references"},
                                                             {"Code information", "information"},
                                                             {"Hierarchy", "hierarchy"},
@@ -1796,16 +1860,20 @@ void Application::editorPanel() {
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
                 active_ = tab->path;
             cyui::space(4);
-            if (!tab->image) {
-                const auto zoom = std::to_string(static_cast<int>(tab->codeEditor.textScale() * 100.f + .5f)) +
+            if (!tab->image && (!tab->pagedProfile || tab->paged)) {
+                const float scale=tab->paged?tab->paged->view().options().textScale:tab->codeEditor.textScale();
+                const auto zoom = std::to_string(static_cast<int>(scale * 100.f + .5f)) +
                                   "%###code-zoom";
-                if (cyui::ghostButton(zoom.c_str()))
-                    tab->codeEditor.setTextScale(1.f);
+                if (cyui::ghostButton(zoom.c_str())) {
+                    if(tab->paged){auto options=tab->paged->view().options();options.textScale=1.f;tab->paged->view().setOptions(options);}
+                    else tab->codeEditor.setTextScale(1.f);
+                }
                 cyui::tooltip(tr("Ctrl + mouse wheel zooms code in this view. Click to reset to 100%."));
                 ImGui::SameLine();
             }
             cyui::textFaint("  %s", tab->displayPath.c_str());
             if (tab->image) imagePanel(tab);
+            else if(tab->pagedProfile)pagedPanel(tab);
             else {
             if (tab->snippet.active()) {
                 ImGui::SameLine();cyui::badge((std::string(tr("Snippet parameter"))+" "+std::to_string(tab->snippet.index())).c_str(),cyui::Tone::accent);
@@ -2698,6 +2766,7 @@ void Application::frame() {
     testsPanel();
     gitPanel();
     problemsPanel();
+    analysisPanel();
     referencesPanel();
     informationPanel();
     hierarchyPanel();

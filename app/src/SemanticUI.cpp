@@ -52,9 +52,10 @@ void Application::renamePopup() {
     if (cyui::button(tr("Cancel"))) ImGui::CloseCurrentPopup();
     ImGui::EndPopup();
 }
-void Application::selectChangeFile(const std::string &path) {
+void Application::selectChangeFile(const std::string &path, uint64_t beforeOffset, uint64_t afterOffset) {
     if (!refactorPlan_.is_object() || refactorFuture_.valid()) return;
-    refactorFile_ = path; changeTask("changes.preview", {{"id", refactorPlan_.at("id")}, {"path", path}});
+    refactorFile_ = path; changeTask("changes.preview", {{"id", refactorPlan_.at("id")}, {"path", path},
+        {"beforeOffset", beforeOffset}, {"afterOffset", afterOffset}, {"length", 65536}});
 }
 void Application::updateSemantic() {
     if (completed(symbolResolveFuture_)) {
@@ -87,7 +88,8 @@ void Application::updateSemantic() {
     try {
         auto result = refactorFuture_.get();
         const auto method = refactorOperation_;
-        if (method == "changes.preview") {
+        if(method=="changes.historyStatus")nativeHistory_=std::move(result);
+        else if (method == "changes.preview") {
             refactorPreview_ = result;
             beforePreviewCode_.setText(result.at("before").get<std::string>());
             afterPreviewCode_.setText(result.at("after").get<std::string>());
@@ -105,7 +107,7 @@ void Application::updateSemantic() {
                 editor->SetCaretsVisible(false); editor->SetLineSpacing(1.15f);
             }
 
-        } else if (method == "language.format" || method == "language.rename" || method=="language.codeActionPrepare") {
+        } else if (method == "language.format" || method == "language.rename" || method=="language.codeActionPrepare" || method=="changes.historyPrepare") {
             refactorPlan_ = result; refactorPreview_ = nullptr;
             if (result.at("files").empty()) { cyui::notify(tr("No changes required"), cyui::Tone::neutral); return; }
             if ((method == "language.format" || (method=="language.codeActionPrepare" && codeActionApply_)) &&
@@ -124,6 +126,7 @@ void Application::updateSemantic() {
 }
 void Application::refactorPanel() {
     if (!beginPanel("Refactoring", "refactoring")) return;
+    nativeHistoryControls();
     if (!refactorPlan_.is_object()) {
         cyui::emptyState(tr("Refactoring"), tr("Rename a C++ symbol to preview changes across its references."), cyui::icon::edit);
         ImGui::End(); return;
@@ -167,7 +170,7 @@ void Application::refactorPanel() {
     ImGui::BeginDisabled(refactorFuture_.valid() || state != "preview" || refactorPlan_.at("files").empty() || !confirmed);
     if (cyui::primaryButton(tr("Apply changes"))) changeTask("changes.apply", {{"id", refactorPlan_.at("id")},{"confirmedAnnotations",refactorConfirmed_}});
     ImGui::EndDisabled(); ImGui::SameLine();
-    ImGui::BeginDisabled(refactorFuture_.valid() || state != "applied");
+    ImGui::BeginDisabled(refactorFuture_.valid() || state != "applied" || refactorPlan_.contains("history"));
     if (cyui::button(tr("Undo refactoring"))) changeTask("changes.undo", {{"id", refactorPlan_.at("id")}});
     ImGui::EndDisabled(); ImGui::SameLine();
     if (refactorFuture_.valid()) cyui::spinner("##refactoring");
@@ -181,6 +184,25 @@ void Application::refactorPanel() {
         ImGui::EndCombo();
     }
     if (refactorPreview_.is_object()) {
+        if (refactorPreview_.contains("beforeOffset")) {
+            const auto beforeOffset = refactorPreview_.value("beforeOffset", uint64_t(0));
+            const auto afterOffset = refactorPreview_.value("afterOffset", uint64_t(0));
+            const bool partial = beforeOffset || afterOffset || refactorPreview_.value("hasMore", false);
+            if (partial) {
+                cyui::callout(cyui::Tone::neutral, tr("Partial byte preview. Apply and Undo affect the complete native change plan."));
+                cyui::textDim("%s: %llu / %llu | %s: %llu / %llu", tr("Before"),
+                    static_cast<unsigned long long>(beforeOffset),
+                    static_cast<unsigned long long>(refactorPreview_.value("beforeBytes",uint64_t(0))), tr("After"),
+                    static_cast<unsigned long long>(afterOffset),
+                    static_cast<unsigned long long>(refactorPreview_.value("afterBytes",uint64_t(0))));
+                { cyui::ScopedDisabled disabled(refactorFuture_.valid() || (!beforeOffset && !afterOffset));
+                  if (cyui::button(tr("First preview page"))) selectChangeFile(refactorFile_); }
+                ImGui::SameLine();
+                { cyui::ScopedDisabled disabled(refactorFuture_.valid() || !refactorPreview_.value("hasMore",false));
+                  if (cyui::button(tr("Next preview page"))) selectChangeFile(refactorFile_,
+                      refactorPreview_.at("nextBeforeOffset"), refactorPreview_.at("nextAfterOffset")); }
+            }
+        }
         ImGui::Checkbox(tr("Wrap lines"), &previewWrap_);
         if (!previewWrap_) cyui::diffViewer("##change-preview", refactorDiffState_, refactorDiff_);
         else

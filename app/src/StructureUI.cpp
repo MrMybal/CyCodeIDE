@@ -55,7 +55,7 @@ bool Application::symbolResultCurrent(const Json &result) const {
         if (result.at("path") != active_)
             return false;
         for (const auto &tab : tabs_)
-            if (tab->path == active_ && !tab->image)
+            if (tab->path == active_ && !tab->image && !tab->pagedProfile)
                 return tab->identity == result.at("documentId") && tab->revision == result.at("revision");
         return false;
     }

@@ -6,7 +6,7 @@ Json Application::extensionContext() const {
     bool readOnly = false;
     for (const auto &tab : tabs_)
         if (tab->path == active_)
-            readOnly = tab->readOnly || bool(tab->image);
+            readOnly = tab->readOnly || bool(tab->image) || tab->pagedProfile;
     return {{"document", !active_.empty()},
             {"readOnly", readOnly},
             {"path", active_},
@@ -32,6 +32,9 @@ bool Application::extensionVisible(const Json &entry) const {
 }
 std::vector<Command> Application::commandCatalogue() const {
     auto catalogue = commands();
+    catalogue.push_back({"view.analysis", "Analysis and inspections", "View", CommandContext::global});
+    catalogue.push_back({"file.openPaged","Open with paged text","File",CommandContext::document});
+    catalogue.push_back({"file.checkpointPaged","Checkpoint active paged text","File",CommandContext::document});
     for (const auto &entry : pluginInfo_.value("commands", Json::array())) {
         const auto scope = entry.value("context", std::string("global"));
         catalogue.push_back({entry.at("id"), entry.value("title", entry.at("id").get<std::string>()),
@@ -116,6 +119,7 @@ bool Application::extensionCommandEnabled(const std::string &id) const {
             if (!extensionVisible(entry) || taskFuture_.valid())
                 return false;
             const auto scope = entry.value("context", std::string("global"));
+            for(const auto &tab:tabs_)if(tab->path==active_ && tab->pagedProfile && scope!="global")return false;
             return scope == "global" || (!active_.empty() && (scope != "editor" || editorFocused_));
         }
     return false;
@@ -150,7 +154,8 @@ bool Application::executeExtensionCommand(const std::string &id) {
             Json input = {{"context", extensionContext()}};
             for (const auto &tab : tabs_)
                 if (tab->path == active_) {
-                    input["text"] = tab->image ? "" : tab->editor.GetText();
+                    if(tab->pagedProfile){input["storage"]="paged";input["documentId"]=tab->identity;}
+                    else input["text"] = tab->image ? "" : tab->editor.GetText();
                     input["revision"] = tab->revision;
                 }
             task("plugins.invoke", {{"command", id}, {"input", input}});

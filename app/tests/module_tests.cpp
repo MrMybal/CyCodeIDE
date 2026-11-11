@@ -43,6 +43,34 @@ struct ApplicationModuleTests {
         app.open("sample.cpp");
         auto tab = app.tabs_.back();
         {
+            require(app.commandEnabled("view.analysis"), "Analysis panel command is unavailable");
+            app.executeCommand("view.analysis");
+            require(app.panels_.at("analysis"), "Analysis command did not open its panel");
+            frame([&] { app.analysisPanel(); });
+            app.prepareAnalysis({{"paths", Json::array({"sample.cpp"})}, {"batchSize", 16}});
+            require(!app.analysisView_.prepare.valid(), "Fixture implicitly started compiler traversal");
+            app.analysisView_.status = {{"state", "pending"}, {"session", "current"}};
+            app.analysisView_.serial = 8;
+            std::promise<Json> stale;
+            app.analysisView_.monitor = stale.get_future();
+            stale.set_value({{"ticket", 7}, {"analysis", {{"state", "running"}, {"session", "old"}}}});
+            app.updateAnalysis();
+            require(app.analysisView_.status.at("session") == "current", "Old analysis monitor replaced a new session");
+            app.analysisView_ = Application::AnalysisView{};
+            app.panels_["analysis"] = false;
+        }
+        {
+            auto paged=std::make_shared<Application::Tab>();paged->path="wide.txt";paged->pagedProfile=true;
+            const Json view={{"version",1},{"line",uint64_t(12000000)},{"character",uint64_t(80000000)},
+                {"scrollLine",uint64_t(11999995)},{"scrollColumn",uint64_t(79999995)},{"scale",1.5}};
+            Json item={{"path","wide.txt"},{"windowKey","wide"},{"line",0},{"column",0},{"scroll",0},{"pagedView",view}};
+            app.restoreSessionTab(paged,item);
+            require(paged->pagedLocation.at("line")==12000001 && paged->pagedLocation.at("column")==80000001,"Paged session coordinates were truncated to ordinary limits");
+            require(app.pagedSessionState(paged)==view,"Pending paged session presentation was lost");
+            item["pagedView"]["character"]=uint64_t(-1);app.restoreSessionTab(paged,item);
+            require(paged->pagedLocation.at("column")==1,"Malformed paged session coordinates were accepted");
+        }
+        {
             const auto oldStatus = app.languageState_;
             Json report = {{"symbols", Json::array()}, {"backend", "cpp"}, {"epoch", 17}, {"documentId", tab->identity},
                 {"path", tab->path}, {"revision", tab->revision}};

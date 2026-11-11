@@ -14,6 +14,8 @@ class StagingTests(unittest.TestCase):
             for name in ['CyTool.json','contracts.py','tool.py','requirements.txt','LICENSE-CyToolsCore.txt','THIRD_PARTY_NOTICES.md']:
                 fixture(core/'app'/name)
             fixture(core/'app/CyTool.json',json.dumps({'id':'cy.code','operations':[{'id':'fixture.operation','permissions':['workspace.read']}]}))
+            fixture(ide/'app/THIRD_PARTY_NOTICES.md','IDE graphical dependency notices')
+            fixture(core/'app/THIRD_PARTY_NOTICES.md','Core native dependency notices')
             fixture(ide/'app/locales/ui.json')
             fixture(ide/'app/resources/fonts/font-notice.txt')
             fixture(ide/'icons/CyCode.png')
@@ -32,6 +34,8 @@ class StagingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 stage(core,ide,dest,cli,'../other-app')
             files={p.relative_to(dest).as_posix() for p in dest.rglob('*') if p.is_file()}
+            self.assertEqual((dest/'app/THIRD_PARTY_NOTICES.md').read_text(encoding='utf-8'),'IDE graphical dependency notices')
+            self.assertEqual((dest/'app/CORE_THIRD_PARTY_NOTICES.md').read_text(encoding='utf-8'),'Core native dependency notices')
             self.assertIn('icons/CyCode.png',files)
             self.assertIn('app/locales/ui.json',files)
             self.assertIn('runtime/plugins/unreal.json',files)

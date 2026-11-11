@@ -8,6 +8,7 @@ void Application::updateHighlights() {
     const auto servers=languageState_.find("servers");
     if (servers==languageState_.end() || !servers->is_object()) return;
     for (const auto &tab : tabs_) {
+        if(tab->pagedProfile)continue;
         const auto server=servers->find(engine_->languageBackendFor(tab->path));
         if (server==servers->end()) continue;
         const auto generation=server->value("semanticGeneration",uint64_t(0));
@@ -31,7 +32,7 @@ void Application::updateHighlights() {
         pending+=tab->highlighting.valid();
     }
     auto launch=[&](const std::shared_ptr<Tab> &tab) {
-        if (smoke_ || pending>=2 || tab->highlighting.valid() || !engine_->supportsLanguage(tab->path) ||
+        if (tab->pagedProfile || smoke_ || pending>=2 || tab->highlighting.valid() || !engine_->supportsLanguage(tab->path) ||
             now<tab->highlightRetryAt || (tab->highlightRevision==tab->revision && tab->highlightGeneration==tab->highlightObservedGeneration)) return;
         const auto server=servers->find(engine_->languageBackendFor(tab->path));
         if (server==servers->end() || !server->value("ready",false) || !server->value("semanticTokens",false) || unrealAnalysisState_=="preparing") return;

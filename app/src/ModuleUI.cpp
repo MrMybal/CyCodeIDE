@@ -277,7 +277,7 @@ void Application::navigateProblem(bool previous, bool currentFile) {
     if (currentFile)
         for (const auto &tab : tabs_)
             if (tab->path == active_ && !tab->image)
-                line = tab->editor.GetMainCursorPosition().line + 1;
+                line = tab->paged ? int(std::min<uint64_t>(tab->paged->view().selection().caret.line+1,INT_MAX)) : int(tab->editor.GetMainCursorPosition().line + 1);
     if (currentFile && line == 0)
         return;
     const auto selected = problems_.adjacent(problemsFilter_, selectedProblem_, previous,

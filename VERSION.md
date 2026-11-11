@@ -14,15 +14,24 @@ not a newly published binary, installer or release date.
 | Component | Source selection / contract |
 | --- | --- |
 | CyCodeIDE | 0.2.3 development source |
-| [CyCode Core](app/core-source.lock.json) | `5dc05f4bffe5d38e871250c9de23651c33d47221` · native/common source API 1 · `cycode-core/1` |
-| [Reader editor](app/editor-source.lock.json) | `d27e84f1097b68c12630dc4c10fcc406d4628760` · graphical editor source API 1 |
-| [CyUI](app/cyui-source.lock.json) | `6173630ad5eb1e585eee1a0e7d3617285563e774` |
+| [CyCode Core](app/core-source.lock.json) | `f5e6261bf8acf22d0b3241622ed4294322724fb9` · native/common source API 1 · `cycode-core/1` |
+| [Reader editor](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · graphical editor source API 1 |
+| [CyUI](app/cyui-source.lock.json) | `0ba1ba663b4b2bf46d066a32829bc91ea2743cba` |
 | CyDoc reader | 0.1.0 · inherited from the pinned Core documentation lock |
 
 Source API 1 is not a stable C++ binary ABI. The IDE, Core and Reader must share
 a compatible dependency graph.
 
 ## Changes in this source snapshot
+
+- The analysis/inspection view exposes native batches, pause/resume, durable
+  traversal checkpoints, historical/current evidence and actual clang-tidy profiles.
+- Native change history and atomic commit receipts come from Core. Multi-file
+  or annotated Undo/Redo is prepared/reviewed in Refactoring; single-file paged
+  edits use that same native transaction owner.
+- Shared paged editing uses asynchronous native pages, guarded UTF-16/byte mapping,
+  whole-document publication and explicit checkpoint preview/restoration. Sessions
+  retain the profile/path/caret, not an implicit unsaved paged backup.
 
 - CyCodeIDE owns presentation; Core retains native services and guarded
   transactions; Reader supplies the shared graphical editor.
@@ -40,6 +49,15 @@ a compatible dependency graph.
   and dependency-license references.
 
 ## Documented limitations
+
+- Ordinary GUI/LSP buffers retain their 4 MiB limit. Paged UTF-8 has no LSP overlay,
+  encoding conversion, folding, multi-cursor or snippets. Save or close dirty paged
+  buffers before compiler queries. Contextual syntax is unavailable above 32 MiB.
+- Native history retains at most 256 transactions; document close/path rebinding
+  invalidates affected entries. In particular, paged Save As resets history bound
+  to the previous path. Explicit checkpoints are separate from Save and history.
+- Cancelled typing and rejected proposals must be copied/recovered and acknowledged
+  explicitly before editing/saving; they are never automatically replayed.
 
 - Installer/update identity and distribution layouts need migration and validation
   before the first CyCodeIDE release. The historical updater is disabled; its old

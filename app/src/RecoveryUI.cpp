@@ -98,6 +98,7 @@ void Application::recoveryPanel() {
         ImGui::SetNextWindowDockID(build->DockId, ImGuiCond_FirstUseEver);
     if (!beginPanel("Recovery", "recovery"))
         return;
+    pagedRecoveryControls();
     {
         cyui::ScopedDisabled disabled(recoveryFuture_.valid());
         if (cyui::button(tr("Refresh")))
@@ -111,7 +112,7 @@ void Application::recoveryPanel() {
         cyui::spinner("##recovery-pending");
     else
         cyui::textDim("%s",
-                      tr("Automatic checkpoints: every second. Project files are saved only on request."));
+                      tr("Ordinary-buffer checkpoints: every second. Paged checkpoints and source saves are explicit."));
     if (!recoveryError_.empty())
         cyui::callout(cyui::Tone::error, recoveryError_.c_str());
     for (const auto &entry : recoveryInfo_.value("errors", Json::array()))

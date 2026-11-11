@@ -17,8 +17,12 @@ def stage(core, ide, destination, cli, host_executable):
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
-    for name in ['contracts.py', 'tool.py', 'requirements.txt', 'LICENSE-CyToolsCore.txt', 'THIRD_PARTY_NOTICES.md']:
+    for name in ['contracts.py', 'tool.py', 'requirements.txt', 'LICENSE-CyToolsCore.txt']:
         copy(core / 'app' / name, Path('app') / name)
+    copy(core / 'app/THIRD_PARTY_NOTICES.md', Path('app/CORE_THIRD_PARTY_NOTICES.md'))
+    host_notice = ide / 'app/THIRD_PARTY_NOTICES.md'
+    copy(host_notice if host_notice.is_file() else core / 'app/THIRD_PARTY_NOTICES.md',
+         Path('app/THIRD_PARTY_NOTICES.md'))
     # The operation/permission registry stays byte-for-byte equivalent to Core;
     # only application catalogue metadata belongs to this host.
     manifest=json.loads((core/'app/CyTool.json').read_text(encoding='utf-8'))

@@ -40,6 +40,9 @@ endif()
   execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/cyui_dependency.py"
     --destination "${CYCODE_DEPS}/cyui-${CYCODE_CYUI_CACHE_ID}" --source "${CYUI_DIR}"
     OUTPUT_VARIABLE CYUI_DIR OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+  execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/verify_editor_contract.py"
+    --core "${CYCODE_CORE_ROOT}" --editor "${CYCODE_EDITOR_ROOT}"
+    COMMAND_ERROR_IS_FATAL ANY)
   # The host pins and validates CyUI above. The shared editor consumes that
   # already-validated source instead of resolving a second standalone dependency.
   # No dependency source/lock is patched, and no dirty checkout is accepted.
@@ -96,6 +99,7 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
   target_sources(cycode_ui PRIVATE src/TestsUI.cpp)
   target_sources(cycode_ui PRIVATE src/BuildUI.cpp)
   target_sources(cycode_ui PRIVATE src/LanguageSettingsUI.cpp)
+  target_sources(cycode_ui PRIVATE src/AnalysisUI.cpp src/PagedUI.cpp src/EnginePagedBackend.cpp src/NativeHistoryUI.cpp)
   target_sources(cycode_ui PRIVATE src/DiagnosticAnnotations.cpp src/DiagnosticsUI.cpp src/EditorTextMap.cpp src/EditorOccurrences.cpp src/OccurrencesUI.cpp)
   target_sources(cycode_ui PRIVATE src/UiFonts.cpp src/Branding.cpp src/UpdatesUI.cpp src/UpdateStorageUI.cpp src/UpdateHistoryUI.cpp)
   target_link_libraries(cycode_ui PRIVATE cycode_updates)
@@ -123,6 +127,10 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
   endif()
 
   if(BUILD_TESTING)
+    # Manual opt-in: this fixture requires a NEW synthetic directory argument.
+    # It is never registered for implicit execution by the production build.
+    add_executable(cycode_paged_backend_tests tests/paged_backend_tests.cpp)
+    target_link_libraries(cycode_paged_backend_tests PRIVATE cycode_ui)
     add_executable(cycode_workflow_ui_tests tests/workflow_ui_tests.cpp tests/session_ui_tests.cpp)
     target_link_libraries(cycode_workflow_ui_tests PRIVATE cycode_ui)
     add_test(NAME workflows_ui COMMAND cycode_workflow_ui_tests "${CYCODE_ROOT}" "${CMAKE_COMMAND}")

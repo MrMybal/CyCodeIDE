@@ -160,6 +160,76 @@ CyUI sources were not modified. No application, helper or native fixture was
 launched, no release was published, and GitHub Actions remain paused. Actual
 desktop wheel/font/theme/DPI acceptance and Linux/macOS builds remain unverified.
 
+## Native analysis and shared paged integration — 2026-11-11
+
+Core is pinned to published f5e6261bf8acf22d0b3241622ed4294322724fb9 and CyUI
+to 0ba1ba663b4b2bf46d066a32829bc91ea2743cba. Core now owns 252 canonical
+operations, including native history status/preparation and plan/receipt status.
+The IDE stages the original schemas/permissions and only derives launch metadata.
+The canonical EN/FR manual and its UI analysis/inspection routes come from Core.
+
+The Analysis and inspections view separates service lifecycle, each language
+backend, file inventory, active-revision diagnostics and bounded compiler traversal.
+Jobs run off the UI thread; cancellation is correlated to the view's operation.
+Checkpoint restoration uses a zero-sized batch and distinguishes historical from
+current-pass observations. No compiler campaign starts on opening the view and
+the stopped Unreal campaign is not resumed. Navigation offers explicit refresh;
+automatic invalidation from background index progress is not claimed.
+
+Actual saved-source clang-tidy profiles use real compilation databases, revision
+guards and native process cancellation. Results retain stale/truncated status,
+native output and one-based UTF-8 byte columns. Existing offered clangd actions,
+annotations, multi-file Apply/Undo and bounded before/after preview remain native.
+The native history inspector prepares multi-file/annotated Undo/Redo for review.
+
+Reader owns PagedTextEditor/PagedTextBackend and CyUI owns PagedCodeEditor. The
+IDE backend translates those graphical intents to its persistent project Engine:
+native page/line reads, byte-edit preparation, authoritative atomic commit receipts,
+native history, complete Save/Save As/close and explicit durable checkpoints.
+It creates no LargeText, SpoolStore, independent text session or text Undo stack.
+Optional bounded caret metadata refers to native transaction IDs only.
+Clipboard and literal search use guarded native bytes and the shared text helpers.
+Native line metrics/UTF-16 positions remain distinct from UTF-8/BOM/visual columns.
+Paged views receive external native revision updates and retain cancelled typing
+and rejected proposals for explicit recovery rather than silent replay.
+
+The versioned Reader lock now selects published 889dd5fd8db8bfabdba4601f5d2a955723c91301,
+including the shared paged adapter and the three reviewed integration corrections.
+The published revision was retrieved into a clean dependency cache; the IDE build
+uses default Reader resolution rather than the active Reader development checkout.
+The capability/header gate checks the native operation subset and shared headers.
+Reader source publication was explicitly authorized; it creates no IDE release.
+
+The shared editor CMake now consumes a clean Core already selected by an embedding
+IDE, checking native/common source API 1, matching Core SOURCE_DIR, tracked Git
+cleanliness and the common component's existing one-source-owner guard. Standalone
+Reader/editor-only resolution enforces Reader's own published Core lock, now
+f5e6261 in Reader 889dd5f. The IDE does not rewrite that independent lock.
+Shared adapter corrections keep the widget
+drawing while a native edit is pending so CyUI can retain typing, and detect the
+first physical newline beyond a page boundary. Pre-change Reader files are backed
+up under ignored integration runtime data; other Reader work is preserved.
+
+Ordinary buffers keep the 4 MiB GUI/LSP policy. Paged text has no LSP overlay;
+syntax uses complete bounded context up to 32 MiB and explicitly refuses larger
+contextual coloration. Native history retains at most 256 transactions and is
+invalidated by close/path rebinding, including paged Save As. Explicit checkpoint
+publication does not save the source. Baseline conflicts require reconciliation.
+Sessions preserve profile/path/caret, not an automatic unsaved paged backup.
+
+Windows Release x64 production compilation/link and the offline EN/FR manual pass
+with Core f5e6261, the published locked Reader editor and locked CyUI 0ba1ba6.
+Source/data checks, inert staging and Reader resolver checks pass. MSVC /Zs checks
+the IDE paged backend fixture, module fixture and shared paged editor fixture;
+these fixtures are neither linked as tests nor executed. Prepared cases include
+96 MiB text, long-line CRLF/BOM/Unicode, cross-page edits, same-Engine visibility,
+stale IDs/revisions, multi-step Undo/Redo, whole saves/Save As, explicit restoration,
+external conflicts and typing queued behind a rejected asynchronous proposal.
+No native app, CLI, helper, installer or test is launched. Actual runtime/GUI,
+clipboard, themes/density/DPI/keymaps and Linux/macOS acceptance remain unverified.
+GitHub Actions stay disabled. Source publication on main is separately authorized;
+no installer or release is created by this integration.
+
 ## Build and validation commands
 
 ```sh
@@ -176,8 +246,8 @@ specific cases; they do not validate OS windows, GPU drivers or multiple monitor
 
 ## Release boundary
 
-This separation is a development delivery. No main branch, tag or release has
-been replaced. Before a CyCodeIDE installer is published, migrate its update
+This separation is a development delivery on main. No tag or installer release
+is published by this integration. Before a CyCodeIDE installer is published, migrate its update
 repository/asset identity and validate portable/installed layouts. Historical
 updater code remains disabled in this build; its old CMake target is archived in
 app/legacy/UpdaterHost.cmake.txt and is not included by production configuration.
