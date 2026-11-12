@@ -82,6 +82,35 @@ const char *commandIcon(const std::string &id) {
 bool sidePanel(const std::string &id) {
     return id == "project" || id == "resources" || id == "search";
 }
+// Rider-style tool window stripes: navigation trees dock at the left, output
+// and run tools along the bottom, and code assistance at the right.
+struct ToolWindow { const char *icon, *text, *id; ImGuiDir zone; };
+const std::vector<ToolWindow> &toolWindows() {
+    static const std::vector<ToolWindow> windows={
+        {cyui::icon::folder,"Project","project",ImGuiDir_Left},
+        {cyui::icon::openFile,"Files","resources",ImGuiDir_Left},
+        {cyui::icon::sync,"Version control","vcs",ImGuiDir_Left},
+        {cyui::icon::list,"Structure","structure",ImGuiDir_Left},
+        {cyui::icon::repair,"Build","build",ImGuiDir_Down},
+        {cyui::icon::bug,"Debugger","debugger",ImGuiDir_Down},
+        {cyui::icon::code,"Terminal","terminal",ImGuiDir_Down},
+        {cyui::icon::warning,"Problems","problems",ImGuiDir_Down},
+        {cyui::icon::check,"Tests","tests",ImGuiDir_Down},
+        {cyui::icon::record,"Git commits","gitCommits",ImGuiDir_Down},
+        {cyui::icon::link,"References","references",ImGuiDir_Down},
+        {cyui::icon::viewAll,"Analysis and inspections","analysis",ImGuiDir_Down},
+        {cyui::icon::info,"Code information","information",ImGuiDir_Right},
+        {cyui::icon::lightbulb,"Code actions","codeActions",ImGuiDir_Right},
+        {cyui::icon::grid,"Hierarchy","hierarchy",ImGuiDir_Right},
+        {cyui::icon::library,"Extensions","extensions",ImGuiDir_Right},
+        {cyui::icon::connect,"MCP","mcp",ImGuiDir_Right}};
+    return windows;
+}
+const std::set<std::string> &bottomToolWindows() {
+    static const std::set<std::string> ids={"build","unreal","cmake","cmakePresets","msbuild","projectTasks","tests",
+        "gitCommits","problems","analysis","references","refactoring","terminal","debugger","recovery","occurrences"};
+    return ids;
+}
 std::string menuTitle(std::string title) {
     if (ImGui::CalcTextSize(title.c_str()).x <= cyui::dp(70)) return title;
     do {
@@ -135,9 +164,27 @@ SDL_HitTestResult SDLCALL Application::windowHitTest(SDL_Window *window,const SD
     return self->titleDragEnabled_ && SDL_PointInRect(point,&self->titleDrag_)?SDL_HITTEST_DRAGGABLE:SDL_HITTEST_NORMAL;
 }
 
+ImGuiDir Application::toolWindowZone(const std::string &id) {
+    for(const auto &window:toolWindows())if(window.id==id)return window.zone;
+    return bottomToolWindows().contains(id)?ImGuiDir_Down:ImGuiDir_None;
+}
+
+void Application::openToolWindow(const char *text,const char *id) {
+    const auto zone=toolWindowZone(id);
+    if(zone==ImGuiDir_None)showPanel(text,id);
+    else dockToolPanel(text,id,zone);
+}
+
 void Application::dockToolPanel(const char *text,const char *id,ImGuiDir direction) {
-    if(!workspaceDock_ || direction==ImGuiDir_Left){showPanel(text,id);return;}
-    auto &destination=direction==ImGuiDir_Right?rightDock_:bottomDock_;
+    if(!workspaceDock_ || direction==ImGuiDir_None){showPanel(text,id);return;}
+    // A tool window keeps the place the user gave it: docked elsewhere or
+    // floating in its own native window. Only unplaced windows join their zone.
+    if(const auto existing=ImGui::FindWindowByName(label(text,id).c_str())) {
+        if(!existing->DockId || ImGui::DockBuilderGetNode(existing->DockId)) {
+            showPanel(text,id);return;
+        }
+    }
+    auto &destination=direction==ImGuiDir_Left?leftDock_:direction==ImGuiDir_Right?rightDock_:bottomDock_;
     if(!ImGui::DockBuilderGetNode(destination)) {
         destination=0;
         const auto host=ImGui::FindWindowByName("##editors");
@@ -147,13 +194,16 @@ void Application::dockToolPanel(const char *text,const char *id,ImGuiDir directi
             for(auto window:ImGui::GetCurrentContext()->Windows)if(window->DockNode &&
                 std::string(window->Name).ends_with("###"+panel) && window->DockNode->HostWindow &&
                 ImGui::DockNodeGetRootNode(window->DockNode)->ID==workspaceDock_) {
-                const bool onSide=direction==ImGuiDir_Right?window->Pos.x>=host->Pos.x+host->Size.x-cyui::dp(8):window->Pos.y>=host->Pos.y+host->Size.y-cyui::dp(8);
+                const float edge=cyui::dp(8);
+                const bool onSide=direction==ImGuiDir_Left?window->Pos.x+window->Size.x<=host->Pos.x+edge:
+                    direction==ImGuiDir_Right?window->Pos.x>=host->Pos.x+host->Size.x-edge:
+                    window->Pos.y>=host->Pos.y+host->Size.y-edge;
                 if(onSide){destination=window->DockId;break;}
             }
             if(destination)break;
         }
         if(!destination)if(auto center=ImGui::DockBuilderGetCentralNode(workspaceDock_))
-            destination=ImGui::DockBuilderSplitNode(center->ID,direction,.29f,nullptr,nullptr);
+            destination=ImGui::DockBuilderSplitNode(center->ID,direction,direction==ImGuiDir_Down?.30f:.22f,nullptr,nullptr);
     }
     if(destination) {
         ImGui::DockBuilderDockWindow(label(text,id).c_str(),destination);
@@ -325,7 +375,7 @@ void Application::menu() {
     cyui::badge(CYCODE_IDE_VERSION, cyui::Tone::neutral);
     const auto catalogue = commandCatalogue();
     const auto bar=ImGui::GetCurrentWindow();
-    const float controls=cyui::dp(titleBarActive_?228.f:98.f);
+    const float controls=cyui::dp(titleBarActive_?334.f:204.f);
     float menusWidth=0;
     for(const auto *name:{"File","Edit","Search","Navigate","Refactor","Build","Run","View","Project","Version control","Extensions","Help"})
         menusWidth+=ImGui::CalcTextSize(menuTitle(tr(name)).c_str()).x+ImGui::GetStyle().ItemSpacing.x*2;
@@ -399,6 +449,12 @@ void Application::menu() {
         if(cyui::iconButton(icon,tip.c_str(),false,0,{cyui::dp(28),buttonHeight}))executeCommand(id);
         ImGui::PopID();
     };
+    // Rider's main toolbar: Back/Forward, Search Everywhere, then run controls.
+    action(cyui::icon::back,"navigate.back","Back");
+    action(cyui::icon::forward,"navigate.forward","Forward");
+    buttonX+=cyui::dp(8);
+    action(cyui::icon::search,"search.everywhere","Search everywhere");
+    buttonX+=cyui::dp(8);
     action(cyui::icon::play,"run.start","Run without debugging");
     action(cyui::icon::bug,"debug.start","Debug / Continue");
     action(cyui::icon::stop,"debug.stop","Stop debugging");
@@ -429,6 +485,7 @@ void Application::toggleToolWindows() {
 
 std::vector<std::string> Application::backgroundTasks() const {
     std::vector<std::string> result;
+    if (workspaceFuture_.valid()) result.push_back("Opening solution...");
     if (filesFuture_.valid() || filesIndexing_) result.push_back("Indexing files...");
     if (unrealAnalysisFuture_.valid()) result.push_back("Preparing Unreal code analysis...");
     if (searchFuture_.valid()) result.push_back("Searching workspace...");
@@ -438,6 +495,7 @@ std::vector<std::string> Application::backgroundTasks() const {
     if (analysisView_.inspection.valid()) result.push_back("C++ inspections");
     if (buildFuture_.valid() || detectionFuture_.valid()) result.push_back("Detecting project tools...");
     if (debugFuture_.valid()) result.push_back("Debugger");
+    if (navigationFuture_.valid()) result.push_back("Navigating to symbol...");
     if (updateDownloadFuture_.valid()) result.push_back("Downloading update...");
     const auto servers=languageState_.value("servers",Json::object());
     for (const auto &[key,server] : servers.items())
@@ -481,69 +539,99 @@ void Application::statusBar() {
     cyui::endStatusBar();
 }
 
+void Application::vcsDiffPanel() {
+    if (!vcsDiffWindow_) return;
+    ImGui::SetNextWindowDockID(editorDock_, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(cyui::dp(850, 650), ImGuiCond_FirstUseEver);
+    if (vcsDiffFocus_) { ImGui::SetNextWindowFocus(); vcsDiffFocus_ = false; }
+    const auto title = std::string(tr("Diff")) + ": " + vcsDiffTitle_ + "###vcs-diff";
+    if (ImGui::Begin(title.c_str(), &vcsDiffWindow_)) {
+        if (!vcsDiffPath_.empty()) {
+            cyui::textFaint("%s", vcsDiffPath_.c_str());
+            ImGui::SameLine();
+            if (cyui::ghostButton(tr("Open file"))) openFromProject(vcsDiffPath_, true);
+            ImGui::SameLine();
+            if (cyui::ghostButton(tr("Refresh")) && !vcsFuture_.valid()) vcsTask("vcs.diff", {{"path", vcsDiffPath_}});
+        }
+        drawDiff("##vcs-diff-view", vcsDiffState_, vcsDiff_);
+    }
+    ImGui::End();
+}
+
+void Application::workspaceLoadingOverlay() {
+    if (!workspaceFuture_.valid()) return;
+    // Rider-like non-blocking progress while the next solution is parsed.
+    const auto viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos({viewport->WorkPos.x + viewport->WorkSize.x * .5f, viewport->WorkPos.y + viewport->WorkSize.y * .5f},
+                            ImGuiCond_Always, {.5f, .5f});
+    ImGui::SetNextWindowViewport(viewport->ID);
+    cyui::ScopedVar padding(ImGuiStyleVar_WindowPadding, cyui::dp(18, 14));
+    if (ImGui::Begin("##workspace-loading", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+                     ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoMove)) {
+        cyui::heading(tr("Opening solution..."), 3);
+        cyui::textDim("%s", pathUtf8(utf8Path(workspaceLoadingPath_).filename()).c_str());
+        cyui::space(4);
+        cyui::progressBar(-1.f, cyui::dp(360, 5));
+        cyui::space(4);
+        cyui::textFaint("%s %.0f s", tr("Reading projects and configurations"), ImGui::GetTime() - workspaceLoadingStarted_);
+    }
+    ImGui::End();
+}
+
 void Application::rail() {
-    auto button=[&](const char *icon,const char *text,const char *id,ImGuiDir direction) {
-        const auto window=ImGui::FindWindowByName(label(text,id).c_str());
-        const bool visible=panels_[id] && window && window->WasActive && !window->Hidden &&
+    const float buttonHeight=cyui::dp(32),step=buttonHeight+cyui::dp(3)+ImGui::GetStyle().ItemSpacing.y*2;
+    auto button=[&](const ToolWindow &tool) {
+        const auto window=ImGui::FindWindowByName(label(tool.text,tool.id).c_str());
+        const bool visible=panels_[tool.id] && window && window->WasActive && !window->Hidden &&
                            (!window->DockNode || window->DockNode->VisibleWindow==window);
-        ImGui::PushID(id);
-        if(cyui::iconButton(icon,tr(text),visible,0,cyui::dp(30,32))) {
-            if(visible)panels_[id]=false;
-            else {if(std::string_view(id)=="gitCommits")vcsSection_="History";dockToolPanel(text,id,direction);}
+        auto tip=std::string(tr(tool.text));
+        if(const auto shortcut=keymap_.hint(std::string("view.")+tool.id);!shortcut.empty())tip+=" ("+shortcut+")";
+        ImGui::PushID(tool.id);
+        if(cyui::iconButton(tool.icon,tip.c_str(),visible,0,cyui::dp(30,32))) {
+            if(visible){panels_[tool.id]=false;if(!active_.empty())focusTab_=active_;}
+            else {if(std::string_view(tool.id)=="gitCommits")vcsSection_="History";dockToolPanel(tool.text,tool.id,tool.zone);}
         }
         ImGui::PopID();cyui::space(3);
     };
-    if(beginToolRail("##rail",ImGuiDir_Left)) {
-        // The workspace search shortcut opens its full results/preview window.
-        button(cyui::icon::search,"Find in workspace...","search",ImGuiDir_Left);
-        const bool tall=ImGui::GetWindowHeight()>cyui::dp(500);
-        const auto spacing=ImGui::GetStyle().ItemSpacing.y;
-        const float toolsHeight=tall?cyui::dp(5*32+4*3+2*5+8)+spacing*13:cyui::dp(2*32+2*5+8)+spacing*5;
-        ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY()+cyui::dp(10),ImGui::GetWindowHeight()-toolsHeight));
-        ImGui::Separator();cyui::space(5);
-        if(tall) {
-            button(cyui::icon::repair,"Build","build",ImGuiDir_Down);
-            button(cyui::icon::play,"Debugger","debugger",ImGuiDir_Down);
-            button(cyui::icon::code,"Terminal","terminal",ImGuiDir_Down);
-            button(cyui::icon::check,"Git commits","gitCommits",ImGuiDir_Down);
-        } else {
-            if(cyui::iconButton(cyui::icon::dockBottom,tr("Bottom tool windows"),false,0,cyui::dp(30,32)))ImGui::OpenPopup("##bottom-tools");
-            if(ImGui::BeginPopup("##bottom-tools")) {
-                for(const auto &[text,id]:std::vector<std::pair<const char *,const char *>>{{"Build","build"},{"Debugger","debugger"},{"Terminal","terminal"},{"Git commits","gitCommits"}})
-                    if(ImGui::MenuItem(tr(text)))dockToolPanel(text,id,ImGuiDir_Down);
-                ImGui::EndPopup();
+    // Groups collapse into one menu button when the stripe is too short.
+    auto group=[&](ImGuiDir zone,float available,const char *icon,const char *tip,const char *popup) {
+        std::vector<const ToolWindow *> tools;
+        for(const auto &tool:toolWindows())if(tool.zone==zone)tools.push_back(&tool);
+        if(available>=step*float(tools.size())){for(const auto *tool:tools)button(*tool);return;}
+        if(cyui::iconButton(icon,tr(tip),false,0,cyui::dp(30,32)))ImGui::OpenPopup(popup);
+        if(ImGui::BeginPopup(popup)) {
+            for(const auto *tool:tools)if(ImGui::MenuItem(tr(tool->text),keymap_.hint(std::string("view.")+tool->id).c_str(),panels_[tool->id])) {
+                if(std::string_view(tool->id)=="gitCommits")vcsSection_="History";
+                dockToolPanel(tool->text,tool->id,tool->zone);
             }
+            ImGui::EndPopup();
         }
+        cyui::space(3);
+    };
+    if(beginToolRail("##rail",ImGuiDir_Left)) {
+        const float height=ImGui::GetWindowHeight()-cyui::dp(16);
+        // Each separator row is the line, a 5 dp gap and their item spacing.
+        const float separator=cyui::dp(6)+ImGui::GetStyle().ItemSpacing.y*2;
+        const float toggle=separator+step;
+        const float half=std::max(0.f,(height-toggle-separator)*.5f);
+        // Upper group: project, files, commit and structure trees (left zone).
+        group(ImGuiDir_Left,half,cyui::icon::dockLeft,"Left tool windows","##left-tools");
+        // Lower group: build, run, terminal and results (bottom zone), as in Rider.
+        size_t bottomCount=0;for(const auto &tool:toolWindows())bottomCount+=tool.zone==ImGuiDir_Down;
+        const float bottomSpace=height-ImGui::GetCursorPosY()-toggle-separator;
+        const float bottomHeight=bottomSpace>=step*float(bottomCount)?step*float(bottomCount):step;
+        ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY()+cyui::dp(6),height-bottomHeight-toggle-separator));
         ImGui::Separator();cyui::space(5);
-        if(cyui::iconButton(cyui::icon::chevronDown,tr("Show or hide tool windows (Ctrl+Shift+F12)"),false,0,cyui::dp(30,32)))toggleToolWindows();
+        group(ImGuiDir_Down,bottomSpace,cyui::icon::dockBottom,"Bottom tool windows","##bottom-tools");
+        ImGui::Separator();cyui::space(5);
+        auto tip=std::string(tr("Show or hide tool windows"));
+        if(const auto shortcut=keymap_.hint("view.toolWindows");!shortcut.empty())tip+=" ("+shortcut+")";
+        if(cyui::iconButton(cyui::icon::chevronDown,tip.c_str(),false,0,cyui::dp(30,32)))toggleToolWindows();
     }
     ImGui::End();
     if(beginToolRail("##right-rail",ImGuiDir_Right)) {
-        button(cyui::icon::folder,"Project","project",ImGuiDir_Right);
-        button(cyui::icon::document,"Files","resources",ImGuiDir_Right);
-        button(cyui::icon::sync,"Version control","vcs",ImGuiDir_Right);
-        if(ImGui::GetWindowHeight()>cyui::dp(700)) {
-        button(cyui::icon::list,"Structure","structure",ImGuiDir_Right);
-        button(cyui::icon::link,"References","references",ImGuiDir_Right);
-        button(cyui::icon::info,"Code information","information",ImGuiDir_Right);
-        button(cyui::icon::lightbulb,"Code actions","codeActions",ImGuiDir_Right);
-        button(cyui::icon::viewAll,"Analysis and inspections","analysis",ImGuiDir_Right);
-        button(cyui::icon::warning,"Problems","problems",ImGuiDir_Right);
-        button(cyui::icon::check,"Tests","tests",ImGuiDir_Right);
-        } else {
-            if(cyui::iconButton(cyui::icon::more,tr("More tool windows"),false,0,cyui::dp(30,32)))ImGui::OpenPopup("##right-tools");
-            if(ImGui::BeginPopup("##right-tools")) {
-                for(const auto &[text,id]:std::vector<std::pair<const char *,const char *>>{{"Structure","structure"},{"References","references"},{"Code information","information"},{"Code actions","codeActions"},{"Analysis and inspections","analysis"},{"Problems","problems"},{"Tests","tests"},{"Extensions","extensions"},{"MCP","mcp"}})
-                    if(ImGui::MenuItem(tr(text)))dockToolPanel(text,id,ImGuiDir_Right);
-                ImGui::EndPopup();
-            }
-        }
-        if(ImGui::GetWindowHeight()>cyui::dp(350)) {
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(),ImGui::GetWindowHeight()-cyui::dp(2*35+18)-ImGui::GetStyle().ItemSpacing.y*5));
-            ImGui::Separator();cyui::space(5);
-        button(cyui::icon::library,"Extensions","extensions",ImGuiDir_Right);
-        button(cyui::icon::connect,"MCP","mcp",ImGuiDir_Right);
-        }
+        group(ImGuiDir_Right,ImGui::GetWindowHeight()-cyui::dp(16),cyui::icon::dockRight,"Right tool windows","##right-tools");
     }
     ImGui::End();
 }

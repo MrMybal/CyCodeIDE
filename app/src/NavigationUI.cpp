@@ -180,7 +180,10 @@ void Application::requestNavigation(const std::string &method, bool refresh) {
                 return Json{{"ticket", ticket}, {"error", e.what()}};
             }
         });
-        showPanel("References", "references");
+        // Like Rider, only Find Usages opens the results window up front. Go to
+        // definition/declaration/type/implementation jumps straight to a tab and
+        // shows the list only when the symbol has several targets.
+        if (navigationReferences_) openToolWindow("References", "references");
         return;
     }
     cyui::notify(tr("Open a source file with a language server."), cyui::Tone::neutral);
@@ -195,11 +198,13 @@ void Application::updateNavigation() {
             return;
         if (reply.contains("error")) {
             navigationError_ = reply.at("error");
+            if (!navigationReferences_) cyui::notify(navigationError_.c_str(), cyui::Tone::warning);
             return;
         }
         languageState_ = engine_->languageStatus();
         if (!navigationCurrent(reply.at("result"))) {
             navigationError_ = tr("Navigation context changed. Run the query again.");
+            if (!navigationReferences_) cyui::notify(navigationError_.c_str(), cyui::Tone::neutral);
             return;
         }
         navigation_ = std::move(reply.at("result"));
@@ -217,7 +222,8 @@ void Application::updateNavigation() {
             const auto &start = row.at("range").at("start");
             open(row.at("path"), start.at("line").get<size_t>() + 1, start.at("character").get<size_t>() + 1,
                  true);
-        }
+        } else if (!navigationReferences_ && locations.size() > 1)
+            openToolWindow("References", "references");
     } catch (const std::exception &e) {
         navigationError_ = e.what();
     }

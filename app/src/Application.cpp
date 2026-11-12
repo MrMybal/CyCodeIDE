@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cyui/Core.h>
 #include <fstream>
+#include <functional>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <random>
@@ -138,6 +139,8 @@ Application::~Application() {
     for(auto &[id,view]:extensionViews_)waitWithBuildStop(view.pending);
     if (unrealAnalysisCancellation_) *unrealAnalysisCancellation_ = true;
     if (unrealAnalysisFuture_.valid()) unrealAnalysisFuture_.wait();
+    // A solution being parsed in the background reads members; finish it first.
+    if (workspaceFuture_.valid()) workspaceFuture_.wait();
     if (searchCancellation_)
         *searchCancellation_ = true;
     engine_->configureLanguage(clangd_, false, false);
@@ -192,6 +195,12 @@ void Application::loadSettings() {
     codeLineSpacing_=std::clamp(settings_.value("codeLineSpacing",1.2f),1.f,2.f);
     searchSideBySide_=settings_.value("searchSideBySide",false);
     integratedTitleBar_=settings_.value("integratedTitleBar",true);
+    reformatOnSave_=settings_.value("reformatOnSave",false);
+    formatOnType_=settings_.value("formatOnType",true);
+    projectHeaderHidden_=settings_.value("projectHeaderHidden",false);
+    riderLayouts_.clear();
+    if(const auto layouts=settings_.find("riderLayouts");layouts!=settings_.end() && layouts->is_array())
+        for(const auto &key:*layouts)if(key.is_string() && key.get_ref<const std::string &>().size()<=32 && riderLayouts_.size()<512)riderLayouts_.insert(key.get<std::string>());
     theme_ = settings_.value("theme", theme_);
     if (settings_.value("schemaVersion", 1) < 2 && theme_ == "navy")
         theme_ = "graphite";
@@ -213,9 +222,21 @@ void Application::loadSettings() {
 void Application::saveSettings() {
     const auto buildLimit=desktopBuildTimeout(settings_);
     std::filesystem::create_directories(root_ / "data/settings");
+    // Another instance may have migrated other workspace layouts meanwhile.
+    try {
+        std::error_code sizeError;
+        const auto current=root_ / "data/settings/ui-preferences.json";
+        if(std::filesystem::file_size(current,sizeError)<=1024*1024 && !sizeError) {
+            std::ifstream input(current);const auto saved=Json::parse(input);
+            for(const auto &key:saved.value("riderLayouts",Json::array()))
+                if(key.is_string() && key.get_ref<const std::string &>().size()<=32 && riderLayouts_.size()<512)riderLayouts_.insert(key.get<std::string>());
+        }
+    } catch(const std::exception &) {}
     settings_ = {{"schemaVersion", 3}, {"codeZoom",codeZoom_}, {"codeFontSize",codeFontSize_}, {"codeLineSpacing",codeLineSpacing_}, {"searchSideBySide",searchSideBySide_}, {"integratedTitleBar",integratedTitleBar_}, {"minimap",minimap_}, {"checkUpdatesAtStartup",checkUpdatesAtStartup_}, {"skippedUpdate",skippedUpdate_},      {"theme", theme_},   {"language", locale_},
                  {"textScale", textScale_}, {"clangd", clangd_}, {"workspace", pathUtf8(entry_)},
-                 {"keymap", keymapProfile_}, {"keymapOverrides", keymapOverrides_}, {"buildTimeoutSeconds",buildLimit},{"restoreWorkspaceSession",restoreWorkspaceSession_}};
+                 {"keymap", keymapProfile_}, {"keymapOverrides", keymapOverrides_}, {"buildTimeoutSeconds",buildLimit},{"restoreWorkspaceSession",restoreWorkspaceSession_},
+                 {"reformatOnSave",reformatOnSave_}, {"formatOnType",formatOnType_}, {"riderLayouts",riderLayouts_},
+                 {"projectHeaderHidden",projectHeaderHidden_}};
     auto destination = root_ / "data/settings/ui-preferences.json";
     auto temporary = destination;
     temporary += "." + instance_ + ".tmp";
@@ -324,14 +345,29 @@ Json Application::testState() const {
         }
     return result;
 }
-void Application::setWorkspace(const std::filesystem::path &path) {
-    // Validate the requested solution before tearing down the current session.
-    auto nextEngine = std::make_shared<Engine>(path, smoke_ || testSession_ ? std::filesystem::path{} : std::filesystem::absolute(root_ / "data/settings/language-servers"),
+Application::PreparedWorkspace Application::prepareWorkspace(const std::filesystem::path &path) const {
+    // Solution parsing and project inspection can take seconds on large Unreal or
+    // MSBuild solutions. This phase touches no UI state, so it runs off the UI thread.
+    PreparedWorkspace next;
+    next.path = path;
+    next.engine = std::make_shared<Engine>(path, smoke_ || testSession_ ? std::filesystem::path{} : std::filesystem::absolute(root_ / "data/settings/language-servers"),
         smoke_ || testSession_ ? std::filesystem::path{} : std::filesystem::absolute(root_ / "data/settings/snippets"));
-    auto nextSolution = nextEngine->dispatch("workspace.describe").at("solution");
-    auto nextUnreal = nextEngine->dispatch("unreal.inspect");
-    const bool inspectMsbuild = !nextUnreal.value("available",false) && (!std::filesystem::is_directory(path) || (!std::filesystem::exists(nextEngine->workspace()/"CMakeLists.txt") && !std::filesystem::exists(nextEngine->workspace()/"app/CMakeLists.txt")));
-    const auto nextMsbuild = inspectMsbuild ? nextEngine->dispatch("msbuild.inspect") : Json::object();
+    next.solution = next.engine->dispatch("workspace.describe").at("solution");
+    next.unreal = next.engine->dispatch("unreal.inspect");
+    const bool inspectMsbuild = !next.unreal.value("available",false) && (!std::filesystem::is_directory(path) || (!std::filesystem::exists(next.engine->workspace()/"CMakeLists.txt") && !std::filesystem::exists(next.engine->workspace()/"app/CMakeLists.txt")));
+    next.msbuild = inspectMsbuild ? next.engine->dispatch("msbuild.inspect") : Json::object();
+    return next;
+}
+void Application::setWorkspace(const std::filesystem::path &path) {
+    commitWorkspace(prepareWorkspace(path));
+}
+void Application::commitWorkspace(PreparedWorkspace next) {
+    // Validate the requested solution before tearing down the current session.
+    const auto path = next.path;
+    auto nextEngine = std::move(next.engine);
+    auto nextSolution = std::move(next.solution);
+    auto nextUnreal = std::move(next.unreal);
+    const auto nextMsbuild = std::move(next.msbuild);
     if (engine_) {
         if(searchPreviewFuture_.valid()) {
             if(searchPreviewFuture_.wait_for(std::chrono::seconds(0))!=std::future_status::ready)throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
@@ -387,7 +423,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     liveBuildState_=Json::object();liveBuildText_.clear();liveBuildError_.clear();lastLiveBuildPoll_=-1;
     tabs_.clear();
     panels_.clear();panels_["project"]=true;rightmostTab_.clear();hiddenToolPanels_.clear();
-    workspaceDock_=rightDock_=bottomDock_=0;
+    workspaceDock_=leftDock_=rightDock_=bottomDock_=0;
     searchPreviewLoaded_.clear();searchPreviewError_.clear();selectedSearch_=size_t(-1);
     saveAsQueue_.clear();saveAsDocument_=0;saveAsOpen_=false;saveAsError_.clear();
     languageDecisions_.clear();
@@ -416,7 +452,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     debugUnrealLaunch_ = nullptr; pendingUnrealDebug_ = Json::object();
     debugVariablePages_=debugScopePage_=debugMemory_=debugAssembly_=debugException_=Json::object();debugScopeReference_=debugScopeStart_=0;debugEvaluationMemory_.clear();
     debugBreakpointDrafts_ = Json::object(); debugCurrentLine_ = 0;
-    vcsInfo_ = vcsHistory_ = vcsConflict_ = Json::object(); vcsSection_ = "Changes"; vcsPreviewTitle_.clear();
+    vcsInfo_ = vcsHistory_ = vcsConflict_ = Json::object(); vcsSection_ = "Changes"; vcsPreviewTitle_.clear(); vcsDiffWindow_=false; vcsDiffPath_.clear();
     clearGitConflicts();
     clearGitCheckout();
     clearUnrealAutomation();clearUnrealLaunch();unrealArtifacts_=Json::object();unrealArtifactsBound_=true;clearGitReplay();clearGitMerge();
@@ -425,6 +461,8 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     terminalSelectionStart_ = terminalSelectionEnd_ = {-1, 0};
     active_.clear();
     files_.clear();
+    ++projectTreeGeneration_;
+    projectOpen_.clear();
     workspaceIndexRevision_=0;workspaceIndexGeneration_=0;filesIndexing_=false;lastWorkspaceCheck_=-10;
     tree_ = {};
     lastError_.clear();
@@ -449,6 +487,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     panels_.try_emplace("recovery",false);
     recoveryTask("recovery.list");
     solution_ = std::move(nextSolution);
+    ++projectTreeGeneration_;
     solutionConfiguration_ = solution_.is_object() && !solution_.at("configurations").empty()
                                  ? solution_.at("configurations")[0].get<std::string>()
                                  : "";
@@ -476,6 +515,7 @@ void Application::setWorkspace(const std::filesystem::path &path) {
             hash ^= c;
             hash *= 1099511628211ULL;
         }
+        layoutKey_ = std::to_string(hash);
         auto directory = root_ / "data/settings/workspaces";
         std::filesystem::create_directories(directory);
         ImGui::ClearIniSettings();
@@ -1259,7 +1299,7 @@ void Application::update() {
             if(preparedFiles_&&generation!=workspaceIndexGeneration_) {
                 workspaceIndexRevision_=result.value("indexRevision",uint64_t(0));
                 workspaceIndexGeneration_=generation;
-                files_=std::move(preparedFiles_->files);tree_=std::move(preparedFiles_->tree);
+                files_=std::move(preparedFiles_->files);tree_=std::move(preparedFiles_->tree);++projectTreeGeneration_;
             }
             preparedFiles_.reset();
             const auto enumerationError=result.value("indexError",std::string{});
@@ -1298,6 +1338,7 @@ void Application::update() {
             if (taskMethod_.starts_with("msbuild.") || taskMethod_.starts_with("project.")) buildDiagnostics_ = result.value("diagnostics",Json::array());
             if (taskMethod_ == "unreal.generate" && result.value("exitCode", -1) == 0) {
                 solution_ = engine_->dispatch("workspace.describe").at("solution");
+                ++projectTreeGeneration_;
                 refreshFiles();
             }
             if(taskMethod_=="plugins.configure"||taskMethod_=="plugins.list") { pluginInfo_=result;synchronizeExtensions();refreshGit(); }
@@ -1395,10 +1436,16 @@ void Application::update() {
                 error(dialog_->error);
         }
     }
-    if (!pendingWorkspace_.empty() && !busy() && !userSnippetsOpen_) {
-        auto path = std::move(pendingWorkspace_); pendingWorkspace_.clear();
+    if (!pendingWorkspace_.empty() && !busy() && !userSnippetsOpen_ && !workspaceFuture_.valid()) {
+        workspaceLoadingPath_ = std::move(pendingWorkspace_); pendingWorkspace_.clear();
+        workspaceLoadingStarted_ = ImGui::GetTime();
+        const auto path = utf8Path(workspaceLoadingPath_);
+        workspaceFuture_ = std::async(std::launch::async, [this, path] { return prepareWorkspace(path); });
+    }
+    if (ready(workspaceFuture_)) {
+        const auto path = std::exchange(workspaceLoadingPath_, {});
         const bool generated=path==templateOpenEntry_;
-        try { setWorkspace(utf8Path(path));if(generated&&!templateOpenFile_.empty())open(templateOpenFile_); }
+        try { commitWorkspace(workspaceFuture_.get());if(generated&&!templateOpenFile_.empty())open(templateOpenFile_); }
         catch (const std::exception &e) { error(e.what());if(generated){templateError_=e.what();templateModal_=true;} }
         if(generated){templateOpenEntry_.clear();templateOpenFile_.clear();}
     }
@@ -1538,28 +1585,31 @@ void Application::layout(ImGuiID dock) {
     ImGui::DockBuilderRemoveNode(dock);
     ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dock, ImGui::GetMainViewport()->WorkSize);
+    // Rider-like default: full-height project trees at the left, code assistance
+    // at the right, and run/build/results tool windows under the editors.
     auto center = dock;
-    rightDock_ = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, .27f, nullptr, &center);
-    auto bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, .29f, nullptr, &center);
-    bottomDock_=bottom;
-    ImGui::DockBuilderDockWindow(label("Project", "project").c_str(), rightDock_);
-    // Workspace search is a floating results/preview window, not a narrow sidebar.
-    ImGui::DockBuilderDockWindow(label("Files", "resources").c_str(), rightDock_);
-    ImGui::DockBuilderDockWindow(label("Structure", "structure").c_str(), rightDock_);
+    leftDock_ = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, .2f, nullptr, &center);
+    rightDock_ = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, .25f, nullptr, &center);
+    bottomDock_ = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, .3f, nullptr, &center);
     ImGui::DockBuilderDockWindow("##editors", center);
+    // Workspace search is a floating results/preview window, not a narrow sidebar.
     for (const auto &[text, id] :
-         std::vector<std::pair<const char *, const char *>>{{"Build", "build"},
+         std::vector<std::pair<const char *, const char *>>{{"Project", "project"},
+                                                            {"Files", "resources"},
+                                                            {"Version control", "vcs"},
+                                                            {"Structure", "structure"},
+                                                            {"Build", "build"},
                                                             {"Unreal Engine", "unreal"},
                                                             {"CMake", "cmake"},
                                                             {"CMake preset actions", "cmakePresets"},
                                                             {"MSBuild", "msbuild"},
                                                             {"Project tasks", "projectTasks"},
                                                             {"Tests", "tests"},
-                                                            {"Version control", "vcs"},
                                                             {"Git commits", "gitCommits"},
                                                             {"Problems", "problems"},
                                                             {"Analysis and inspections", "analysis"},
                                                             {"References", "references"},
+                                                            {"Occurrences", "occurrences"},
                                                             {"Code information", "information"},
                                                             {"Hierarchy", "hierarchy"},
                                                             {"Code actions", "codeActions"},
@@ -1568,99 +1618,158 @@ void Application::layout(ImGuiID dock) {
                                                             {"Debugger", "debugger"},
                                                             {"Extensions", "extensions"},
                                                             {"Recovery", "recovery"},
-                                                            {"MCP", "mcp"}})
+                                                            {"MCP", "mcp"}}) {
+        const auto zone = toolWindowZone(id);
         ImGui::DockBuilderDockWindow(label(text, id).c_str(),
-            std::set<std::string>{"vcs","problems","tests","recovery","references","information","hierarchy","codeActions","analysis","extensions","mcp"}.contains(id)?rightDock_:bottom);
+            zone == ImGuiDir_Left ? leftDock_ : zone == ImGuiDir_Right ? rightDock_ : bottomDock_);
+    }
     ImGui::DockBuilderFinish(dock);
     layoutReady_ = true;
 }
-void Application::tree(Tree &node, const std::string &prefix) {
-    for (auto &[name, child] : node.folders) {
-        auto key = prefix + name;
-        ImGui::PushID(key.c_str());
-        if (revealPath_.starts_with(key + '/'))
-            ImGui::SetNextItemOpen(true);
-        bool open = resourceTreeNode(name, key,
-                                 ImGuiTreeNodeFlags_SpanAvailWidth |
-                                     (prefix.empty() && (!unreal_.value("available", false) ||
-                                                         name == "Source" || name == "Plugins")
-                                          ? ImGuiTreeNodeFlags_DefaultOpen
-                                          : 0),
-                                 theme_, true);
-        if(ImGui::IsItemClicked())selectedResource_=key;
-        if(ImGui::BeginPopupContextItem()) { resourceMenu(key,true);ImGui::EndPopup(); }
-        if (open) {
-            tree(child, key + "/");
-            ImGui::TreePop();
-        }
-        ImGui::PopID();
+void Application::buildProjectRows() {
+    projectRows_.clear();
+    const auto isOpen = [&](const std::string &key, bool fallback) {
+        const auto found = projectOpen_.find(key);
+        return found == projectOpen_.end() ? fallback : found->second;
+    };
+    using Kind = ProjectRow::Kind;
+    if (filesFilter_.active()) {
+        for (const auto &path : files_)
+            if (filesFilter_.matches(path, path)) projectRows_.push_back({Kind::file, 0, false, path, path, path, {}});
+        return;
     }
-    ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
+    if (solution_.is_object()) {
+        const bool open = isOpen("solution", true);
+        projectRows_.push_back({Kind::solution, 0, open, "solution", tr("Solution"), {}, {}});
+        if (open) {
+            const auto &projects = solution_.at("projects");
+            // One parent index replaces the former scan of every project for each node.
+            std::map<std::string, std::vector<size_t>> children;
+            for (size_t i = 0; i < projects.size(); ++i) children[projects[i].at("parent").get<std::string>()].push_back(i);
+            std::function<void(const std::string &, uint16_t)> add = [&](const std::string &parent, uint16_t depth) {
+                const auto found = children.find(parent);
+                if (found == children.end() || depth > 64) return;
+                for (const auto index : found->second) {
+                    const auto &project = projects[index];
+                    const auto id = project.at("id").get<std::string>();
+                    const bool folder = project.at("folder"), exists = project.at("exists"), external = project.at("external");
+                    auto name = project.at("name").get<std::string>();
+                    if (!exists) name += " (" + std::string(tr("Missing")) + ")";
+                    else if (external) name += " (" + std::string(tr("External")) + ")";
+                    // Solution folders start open near the top; projects start collapsed, as in Rider.
+                    const bool expanded = isOpen("p:" + id, folder && depth < 2);
+                    ProjectRow row{folder ? Kind::solutionFolder : Kind::project, depth, expanded, "p:" + id, name,
+                                   project.at("path").get<std::string>(), project.value("relativePath", std::string{})};
+                    row.missing = !exists;
+                    row.external = external;
+                    projectRows_.push_back(std::move(row));
+                    if (!expanded) continue;
+                    for (const auto &item : project.at("items")) {
+                        const auto path = item.at("path").get<std::string>();
+                        ProjectRow entry{Kind::item, uint16_t(depth + 1), false, "i:" + id + "/" + path,
+                                         pathUtf8(utf8Path(path).filename()), path, item.value("relativePath", std::string{})};
+                        entry.missing = !item.at("exists").get<bool>();
+                        entry.external = item.at("external").get<bool>();
+                        projectRows_.push_back(std::move(entry));
+                    }
+                    add(id, uint16_t(depth + 1));
+                }
+            };
+            add("", 1);
+        }
+        projectRows_.push_back({Kind::label, 0, false, "workspace-files", tr("Workspace files"), {}, {}});
+    }
+    const bool unreal = unreal_.value("available", false);
+    std::function<void(const Tree &, const std::string &, uint16_t)> walk = [&](const Tree &node, const std::string &prefix, uint16_t depth) {
+        for (const auto &[name, child] : node.folders) {
+            const auto key = prefix + name;
+            const bool expanded = isOpen("f:" + key, prefix.empty() && (!unreal || name == "Source" || name == "Plugins"));
+            projectRows_.push_back({Kind::folder, depth, expanded, "f:" + key, name, key, {}});
+            if (expanded) walk(child, key + "/", uint16_t(depth + 1));
+        }
+        for (const auto &path : node.files)
+            projectRows_.push_back({Kind::file, depth, false, path, pathUtf8(utf8Path(path).filename()), path, {}});
+    };
+    walk(tree_, "", 0);
+}
+void Application::projectRows() {
+    // Reveal the active file by opening its folders, then rebuild only when the
+    // tree, filter, expansion or language changed. Rendering is fully clipped.
+    if (!revealPath_.empty() && !filesFilter_.active()) {
+        for (auto slash = revealPath_.find('/'); slash != std::string::npos; slash = revealPath_.find('/', slash + 1)) {
+            auto &open = projectOpen_["f:" + revealPath_.substr(0, slash)];
+            if (!open) { open = true; ++projectRowsRevision_; }
+        }
+        revealPath_.clear();
+    }
+    const auto signature = std::to_string(projectTreeGeneration_) + '\n' + std::to_string(projectRowsRevision_) + '\n' + locale_ +
+                           '\n' + (unreal_.value("available", false) ? "1" : "0") + '\n' + filesFilter_.query;
+    if (signature != projectRowsSignature_) { projectRowsSignature_ = signature; buildProjectRows(); }
+    using Kind = ProjectRow::Kind;
+    const auto &p = cyui::palette();
+    const float height = std::max(cyui::dp(16), ImGui::GetTextLineHeight());
+    const float indent = ImGui::GetStyle().IndentSpacing, arrow = ImGui::GetTreeNodeToLabelSpacing();
+    const float base = ImGui::GetCursorPosX();
+    std::string toggle;
     ImGuiListClipper clipper;
-    clipper.Begin(static_cast<int>(node.files.size()));
+    clipper.Begin(static_cast<int>(projectRows_.size()), height + ImGui::GetStyle().ItemSpacing.y);
     while (clipper.Step())
         for (int index = clipper.DisplayStart; index < clipper.DisplayEnd; ++index) {
-            const auto &path = node.files[static_cast<size_t>(index)];
-            bool selected = active_ == path;
-            auto name = pathUtf8(utf8Path(path).filename());
-            ImGui::PushID(path.c_str());
-            if (fileSelectable(name, path, selected, theme_)) {
-                selectedResource_=path;
-                openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
+            const auto &row = projectRows_[static_cast<size_t>(index)];
+            ImGui::PushID(row.key.c_str());
+            ImGui::SetCursorPosX(base + row.depth * indent);
+            if (row.kind == Kind::label) {
+                cyui::overline(row.name.c_str());
+            } else if (row.kind == Kind::file || row.kind == Kind::item) {
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + arrow);
+                const auto &target = row.kind == Kind::file ? row.path : row.relative;
+                const bool openable = row.kind == Kind::file || (!row.missing && !row.external && !row.relative.empty());
+                if (row.missing) ImGui::PushStyleColor(ImGuiCol_Text, cyui::vec(p.warning));
+                if (fileSelectable(row.name, row.path, !target.empty() && active_ == target, theme_)) {
+                    selectedResource_ = target;
+                    if (openable) openFromProject(target, ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
+                }
+                if (row.missing) ImGui::PopStyleColor();
+                if (row.kind == Kind::file && ImGui::BeginPopupContextItem()) { resourceMenu(row.path, false); ImGui::EndPopup(); }
+                cyui::tooltip(row.path.c_str());
+            } else {
+                const auto start = ImGui::GetCursorScreenPos();
+                const bool clicked = ImGui::Selectable("##node", row.kind == Kind::folder && selectedResource_ == row.path,
+                                                       ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, height));
+                auto draw = ImGui::GetWindowDrawList();
+                const ImU32 colour = row.missing ? ImU32(p.warning) : ImGui::GetColorU32(ImGuiCol_Text);
+                ImGui::RenderArrow(draw, {start.x + (arrow - ImGui::GetFontSize()) * .5f, start.y + (height - ImGui::GetFontSize()) * .5f},
+                                   colour, row.open ? ImGuiDir_Down : ImGuiDir_Right, .7f);
+                float x = start.x + arrow;
+                if (row.kind != Kind::solution) {
+                    const float size = std::min(cyui::dp(16), height);
+                    entryIcon(draw, {x, start.y + (height - size) * .5f}, size, row.path, row.kind != Kind::project);
+                    x += size + cyui::dp(5);
+                }
+                draw->AddText({x, start.y + (height - ImGui::GetTextLineHeight()) * .5f}, colour, row.name.c_str());
+                if (clicked) {
+                    if (row.kind == Kind::folder) selectedResource_ = row.path;
+                    if (row.kind == Kind::project && ImGui::IsMouseDoubleClicked(0) && !row.missing && !row.external && !row.relative.empty())
+                        open(row.relative);
+                    else toggle = row.key;
+                }
+                if (!row.path.empty()) cyui::tooltip(row.path.c_str());
+                if (row.kind == Kind::folder && ImGui::BeginPopupContextItem()) { resourceMenu(row.path, true); ImGui::EndPopup(); }
+                if (row.kind == Kind::project && ImGui::BeginPopupContextItem()) {
+                    extensionMenu("project");
+                    if (ImGui::MenuItem(tr("Open project file"), nullptr, false, !row.missing && !row.external && !row.relative.empty()))
+                        open(row.relative);
+                    if (ImGui::MenuItem(tr("Open in new window"), nullptr, false, !row.missing))
+                        newWindow(utf8Path(row.path));
+                    ImGui::EndPopup();
+                }
             }
-            if(ImGui::BeginPopupContextItem()) { resourceMenu(path,false);ImGui::EndPopup(); }
-            cyui::tooltip(path.c_str());
             ImGui::PopID();
         }
-    ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
-}
-void Application::solutionTree(const std::string &parent, int depth) {
-    if (depth > 64)
-        return;
-    for (const auto &project : solution_.at("projects")) {
-        if (project.at("parent") != parent)
-            continue;
-        const auto id = project.at("id").get<std::string>();
-        const bool folder = project.at("folder"), exists = project.at("exists"),
-                   external = project.at("external");
-        auto name = project.at("name").get<std::string>();
-        if (!exists)
-            name += " (" + std::string(tr("Missing")) + ")";
-        else if (external)
-            name += " (" + std::string(tr("External")) + ")";
-        ImGui::PushID(id.c_str());
-        if (!exists)
-            ImGui::PushStyleColor(ImGuiCol_Text, cyui::vec(cyui::palette().warning));
-        bool expanded =
-            resourceTreeNode(name, project.at("path"),
-                         ImGuiTreeNodeFlags_SpanAvailWidth | (folder ? 0 : ImGuiTreeNodeFlags_Leaf) |
-                             (depth < 1 ? ImGuiTreeNodeFlags_DefaultOpen : 0),
-                         theme_, folder);
-        if (!exists)
-            ImGui::PopStyleColor();
-        cyui::tooltip(project.at("path").get_ref<const std::string &>().c_str());
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !folder &&
-            exists && !external)
-            open(project.at("relativePath"));
-        if (ImGui::BeginPopupContextItem()) {
-            extensionMenu("project");
-            if (ImGui::MenuItem(tr("Open project file"), nullptr, false, exists && !folder && !external))
-                open(project.at("relativePath"));
-            if (ImGui::MenuItem(tr("Open in new window"), nullptr, false, exists && !folder))
-                newWindow(utf8Path(project.at("path")));
-            ImGui::EndPopup();
-        }
-        if (expanded) {
-            for (const auto &item : project.at("items")) {
-                auto path = item.at("path").get<std::string>();
-                if (fileSelectable(pathUtf8(utf8Path(path).filename()), path, false, theme_) &&
-                    item.at("exists").get<bool>() && !item.at("external").get<bool>())
-                    openFromProject(item.at("relativePath"),ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
-            }
-            solutionTree(id, depth + 1);
-            ImGui::TreePop();
-        }
-        ImGui::PopID();
+    if (!toggle.empty()) {
+        for (const auto &row : projectRows_)
+            if (row.key == toggle) { projectOpen_[toggle] = !row.open; break; }
+        ++projectRowsRevision_;
     }
 }
 void Application::projectPanel() {
@@ -1669,13 +1778,22 @@ void Application::projectPanel() {
     resourceFocused_=ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
     cyui::overline(pathUtf8(engine_->workspace().filename()).c_str());
     ImGui::SameLine();
-    cyui::alignRight(cyui::dp(24));
+    cyui::alignRight(cyui::dp(54));
+    // The solution/configuration header can be folded away to give the tree more room.
+    if (cyui::iconButton(projectHeaderHidden_ ? cyui::icon::chevronDown : cyui::icon::chevronUp,
+                         tr(projectHeaderHidden_ ? "Show solution details" : "Hide solution details"))) {
+        projectHeaderHidden_ = !projectHeaderHidden_;
+        codePreferencesDirty_ = true; codePreferencesChanged_ = ImGui::GetTime();
+    }
+    ImGui::SameLine();
     if (cyui::iconButton(cyui::icon::refresh, tr("Refresh")))
         refreshFiles();
-    ImGui::SetNextItemWidth(-1);
-    viewFilter("##filter", filesFilter_);
+    if (!projectHeaderHidden_ || filesFilter_.active()) {
+        ImGui::SetNextItemWidth(-1);
+        viewFilter("##filter", filesFilter_);
+    }
     cyui::divider();
-    if (solution_.is_object()) {
+    if (solution_.is_object() && !projectHeaderHidden_) {
         cyui::textDim("%s", pathUtf8(utf8Path(solution_.at("path")).filename()).c_str());
         ImGui::SetNextItemWidth(-1);
         if (ImGui::BeginCombo("##solution-config", solutionConfiguration_.c_str())) {
@@ -1709,35 +1827,15 @@ void Application::projectPanel() {
                              "accessible below."));
         }
     }
-    if(filesIndexing_)cyui::textDim("%s %zu",tr("Indexing files..."),files_.size());
-    ImGui::BeginChild("##files");
-    if (solution_.is_object() && !filesFilter_.active()) {
-        if (ImGui::TreeNodeEx(tr("Solution"), ImGuiTreeNodeFlags_DefaultOpen)) {
-            solutionTree("");
-            ImGui::TreePop();
-        }
-        cyui::divider();
-        cyui::overline(tr("Workspace files"));
+    if(filesIndexing_ || filesFuture_.valid()) {
+        cyui::textDim("%s %zu",tr("Indexing files..."),files_.size());
+        cyui::progressBar(-1.f,{ImGui::GetContentRegionAvail().x,cyui::dp(3)});
     }
-    if (files_.empty())
+    ImGui::BeginChild("##files");
+    if (files_.empty() && !solution_.is_object())
         cyui::emptyState(tr((filesFuture_.valid()||filesIndexing_) ? "Loading files..." : "No files"), tr("Open a workspace or refresh the file list."),
                          cyui::icon::folder);
-    else if (!filesFilter_.active()) {
-        tree(tree_, "");
-        revealPath_.clear();
-    } else {
-        for (const auto &path : files_)
-            if (filesFilter_.matches(path, path))
-            {
-                ImGui::PushID(path.c_str());
-                if (fileSelectable(path, path, active_ == path, theme_)) {
-                    selectedResource_=path;
-                    openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
-                }
-                if(ImGui::BeginPopupContextItem()) { resourceMenu(path,false);ImGui::EndPopup(); }
-                ImGui::PopID();
-            }
-    }
+    else projectRows();
     ImGui::EndChild();
     ImGui::End();
 }
@@ -1754,8 +1852,8 @@ void Application::editorPanel() {
     editorDock_ = ImGui::GetID("##document-dock");
     ImGui::DockSpace(editorDock_, ImVec2(0, 0),
                      ImGuiDockNodeFlags_PassthruCentralNode |
-                         (visible && !tabs_.empty() ? 0 : ImGuiDockNodeFlags_KeepAliveOnly));
-    if (visible && tabs_.empty()) {
+                         (visible && (!tabs_.empty() || vcsDiffWindow_) ? 0 : ImGuiDockNodeFlags_KeepAliveOnly));
+    if (visible && tabs_.empty() && !vcsDiffWindow_) {
         const auto available=ImGui::GetContentRegionAvail();
         const ImVec2 welcome{std::min(cyui::dp(460),std::max(cyui::dp(200),available.x-cyui::dp(48))),cyui::dp(190)};
         ImGui::SetCursorPos({std::max(cyui::dp(24),(available.x-welcome.x)*.5f),std::max(cyui::dp(24),(available.y-welcome.y)*.5f)});
@@ -1834,6 +1932,12 @@ void Application::editorPanel() {
             if(tab->diagnosticTruncated)cyui::textDim("%s",tr("Additional diagnostics are available in Problems."));
             cyui::divider(4);
             const auto undoBefore = tab->editor.GetUndoIndex();
+            // Characters that close a block or statement trigger Rider-style auto-format.
+            char32_t typedTrigger = 0;
+            if (formatOnType_ && tab->path == active_ && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+                !ImGui::GetIO().KeyCtrl && !ImGui::GetIO().KeyAlt)
+                for (const auto character : ImGui::GetIO().InputQueueCharacters)
+                    if (character == '}' || character == ';') typedTrigger = character;
             const auto occurrenceChild = ImGui::GetID(("##text" + tab->path).c_str());
             const bool renderedChange = drawCode(tab->codeEditor,("##text" + tab->path).c_str());
             if(!renderedChange && tab->editor.GetUndoIndex()==undoBefore)
@@ -1843,8 +1947,10 @@ void Application::editorPanel() {
 
             // Popup edits occur after the widget's Render change flag is computed.
             // Include their transactions so completion/replace reaches Engine now.
-            if (renderedChange || tab->editor.GetUndoIndex() != undoBefore)
+            if (renderedChange || tab->editor.GetUndoIndex() != undoBefore) {
                 changed(tab);
+                typedFormatTrigger(tab, typedTrigger);
+            }
             applySessionEditor(tab,tab->editor.GetUndoIndex() != undoBefore);
             editorMouseNavigation(tab);
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !(ImGui::GetActiveID() && ImGui::GetCurrentContext()->InputTextState.ID == ImGui::GetActiveID())) editorFocused_ = true;
@@ -1853,6 +1959,16 @@ void Application::editorPanel() {
         if (ImGui::BeginPopupContextWindow("##document-actions", ImGuiPopupFlags_MouseButtonRight |
                                                                      ImGuiPopupFlags_NoOpenOverItems)) {
             extensionMenu("editor");
+            if (tab->path==active_ && !tab->image) {
+                // Rider's editor menu offers Reformat Code directly under the cursor.
+                for (const char *command : {"refactor.format","refactor.formatSelection"}) {
+                    const auto entry=findCommand(command);
+                    std::string title=entry?entry->title:command;
+                    if(keymapProfile_=="rider")title=std::string_view(command)=="refactor.format"?"Reformat code":"Reformat file...";
+                    if (ImGui::MenuItem(tr(title.c_str()),keymap_.hint(command).c_str(),false,commandEnabled(command)))executeCommand(command);
+                }
+                ImGui::Separator();
+            }
             if (ImGui::MenuItem(tr("Open included file"),nullptr,false,
                                 tab->path==active_ && commandEnabled("navigate.include")))executeCommand("navigate.include");
             if (ImGui::MenuItem(tr("Find related C/C++ files..."),nullptr,false,
@@ -2653,10 +2769,19 @@ void Application::frame() {
     bool rebuiltLayout = false;
     if (!layoutReady_ || resetLayout_) {
         layoutReady_ = true;
-        if (resetLayout_ || smoke_ || !ImGui::DockBuilderGetNode(dock) ||
+        // Saved layouts from before the Rider-style zones put the project tree at
+        // the right. Rebuild each such workspace layout once; later edits persist.
+        const bool migrate = !layoutKey_.empty() && !riderLayouts_.contains(layoutKey_);
+        if (resetLayout_ || smoke_ || migrate || !ImGui::DockBuilderGetNode(dock) ||
             ImGui::DockBuilderGetNode(dock)->IsLeafNode()) {
             layout(dock);
             rebuiltLayout = true;
+        }
+        if (migrate) {
+            if (riderLayouts_.size() >= 512) riderLayouts_.erase(riderLayouts_.begin());
+            riderLayouts_.insert(layoutKey_);
+            codePreferencesDirty_ = true;
+            codePreferencesChanged_ = ImGui::GetTime();
         }
         resetLayout_ = false;
     }
@@ -2666,6 +2791,7 @@ void Application::frame() {
     userSnippetsPanel();
     searchPanel();
     editorPanel();
+    vcsDiffPanel();
     outputPanel();
     unrealPanel();
     cmakePanel();
@@ -2704,11 +2830,13 @@ void Application::frame() {
         showPanel("Unreal Engine", "unreal");
         focusUnreal_ = false;
     }
+    workspaceLoadingOverlay();
     optionsPanel();
     updateWorkspaceSession();
     palette();
     goToLine();
     renamePopup();
+    reformatDialog();
     if (closeAll_ && pendingClose_.empty() && !saveAsDocument_ && saveAsQueue_.empty()) { if (tabs_.empty()) closeAll_ = false; else closeTab(tabs_.back()->path); }
     documentDraftDialogs();
     gitWorktreeConfirmation();

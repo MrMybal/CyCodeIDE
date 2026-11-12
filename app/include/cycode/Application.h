@@ -260,6 +260,16 @@ class Application {
     std::string searchPreviewRunning_,searchPreviewLoaded_,searchPreviewError_,rightmostTab_,editorCommand_,editorCommandPath_;
     size_t selectedSearch_=size_t(-1),displayedSearchGeneration_=0;
     bool minimap_=false,backgroundTasksOpen_=false;
+    bool reformatOnSave_=false,reformatDialogOpen_=false,reformatSelection_=false,projectHeaderHidden_=false;
+    std::deque<std::string> formatSaveQueue_;
+    std::string formatSavePath_;
+    bool formatSaveReady_=false;
+    // Auto-format while typing: one silent range-format request at a time.
+    bool formatOnType_=true,formatTypeCaret_=false;
+    std::string formatTypePath_,formatTypeCaretPath_;
+    uint64_t formatTypeRevision_=0,formatTypeCaretRevision_=0;
+    size_t formatTypeAnchor_=0;
+    double formatTypeCaretTime_=0;
     struct Tree {
         std::map<std::string, Tree> folders;
         std::vector<std::string> files;
@@ -276,6 +286,18 @@ class Application {
     void languageServerControls();
     void configureLanguageServer(const std::string &, bool enabled);
     void setWorkspace(const std::filesystem::path &);
+    // Solution loading is split: parsing runs in the background, then the UI commits it.
+    struct PreparedWorkspace {
+        std::filesystem::path path;
+        std::shared_ptr<Engine> engine;
+        Json solution, unreal, msbuild;
+    };
+    PreparedWorkspace prepareWorkspace(const std::filesystem::path &) const;
+    void commitWorkspace(PreparedWorkspace);
+    void workspaceLoadingOverlay();
+    std::future<PreparedWorkspace> workspaceFuture_;
+    std::string workspaceLoadingPath_;
+    double workspaceLoadingStarted_ = 0;
     void beginWorkspaceSession(const std::filesystem::path &,const std::string &);
     void updateWorkspaceSession();
     void saveWorkspaceSession(bool closed);
@@ -311,14 +333,30 @@ class Application {
     void configureTitleBar();
     static SDL_HitTestResult SDLCALL windowHitTest(SDL_Window *, const SDL_Point *, void *);
     void dockToolPanel(const char *text, const char *id, ImGuiDir direction);
+    // Opens a tool window in its Rider zone unless the user placed it elsewhere.
+    void openToolWindow(const char *text, const char *id);
+    static ImGuiDir toolWindowZone(const std::string &id);
     void layout(ImGuiID);
     void projectPanel();
-    void solutionTree(const std::string &parent, int depth = 0);
     bool beginPanel(const char *text, const char *id,const char *helpId=nullptr);
     std::map<std::string,std::string> panelHelpAliases_;
     void showPanel(const char *text, const char *id);
     void windowTest();
-    void tree(Tree &, const std::string &);
+    // Flattened, clipped project tree (solution, projects and workspace files).
+    struct ProjectRow {
+        enum class Kind : uint8_t { solution, solutionFolder, project, item, label, folder, file };
+        Kind kind;
+        uint16_t depth = 0;
+        bool open = false;
+        std::string key, name, path, relative;
+        bool missing = false, external = false;
+    };
+    void buildProjectRows();
+    void projectRows();
+    std::vector<ProjectRow> projectRows_;
+    std::map<std::string, bool> projectOpen_;
+    uint64_t projectTreeGeneration_ = 0, projectRowsRevision_ = 0;
+    std::string projectRowsSignature_;
     void editorPanel();
     void searchPanel();
     void gitPanel();
@@ -592,7 +630,15 @@ class Application {
     Json debugParameters() const;
     void renamePopup();
     void beginRename();
-    void beginFormat(bool selection);
+    bool beginFormat(bool selection, const std::string &path = {});
+    void reformatDialog();
+    // Saves through the optional Rider-style reformat-on-save action.
+    void requestSave(const std::shared_ptr<Tab> &);
+    void updateFormatOnSave();
+    bool rangeFormatAvailable(const std::string &path) const;
+    void formatOnType(const std::shared_ptr<Tab> &, size_t firstLine, size_t lastLine);
+    void typedFormatTrigger(const std::shared_ptr<Tab> &, char32_t typed);
+    void updateFormatOnType();
     void changeTask(const std::string &, Json);
     void selectChangeFile(const std::string &, uint64_t beforeOffset = 0, uint64_t afterOffset = 0);
     static TextEditor::Palette editorPalette(const std::string &);
@@ -630,7 +676,10 @@ class Application {
     Json solution_;
     std::string solutionConfiguration_;
     ImGuiID editorDock_ = 0;
-    ImGuiID workspaceDock_ = 0, rightDock_ = 0, bottomDock_ = 0;
+    ImGuiID workspaceDock_ = 0, leftDock_ = 0, rightDock_ = 0, bottomDock_ = 0;
+    // Workspaces whose saved dock layout already uses the Rider-style zones.
+    std::string layoutKey_;
+    std::set<std::string> riderLayouts_;
     bool integratedTitleBar_ = true, titleBarActive_ = false, titleDragEnabled_ = false;
     SDL_Rect titleDrag_{};
     std::map<std::string, bool> panels_;
@@ -738,6 +787,9 @@ class Application {
     cyui::DiffDocument vcsDiff_;
     cyui::DiffState vcsDiffState_;
     bool vcsIsDiff_ = false;
+    bool vcsDiffWindow_ = false, vcsDiffFocus_ = false;
+    std::string vcsDiffPath_, vcsDiffTitle_;
+    void vcsDiffPanel();
     std::future<Json> buildFuture_, detectionFuture_;
     std::shared_ptr<std::atomic<bool>> searchCancellation_;
     std::string output_, lastError_, searchQuery_, pendingQuery_, commitMessage_,

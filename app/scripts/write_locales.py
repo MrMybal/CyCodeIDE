@@ -1138,4 +1138,16 @@ for key,value in {'Code font size': 'Taille de la police du code', 'Code line sp
 for key,value in {'Minimap': 'Minicarte', 'Show minimap': 'Afficher la minicarte', 'Show or hide the code minimap': 'Afficher ou masquer la minicarte du code', 'Ctrl + mouse wheel changes code size in every view. Click to reset all views to 100%.': 'Ctrl + molette change la taille du code dans toutes les vues. Cliquez pour rétablir 100 % partout.', 'Git commits': 'Commits Git', 'Commit...': 'Créer un commit…', 'Review changes': 'Examiner les modifications', 'Select a Git repository to view commits.': 'Sélectionnez un dépôt Git pour afficher les commits.', 'More tool windows': 'Autres panneaux d’outils', 'Filter files...': 'Filtrer les fichiers…'}.items():
     translations.setdefault(key,value)
 
+# Rider-style tool window stripes and Reformat Code / Reformat File actions.
+for key,value in {'Left tool windows': 'Panneaux d’outils de gauche', 'Right tool windows': 'Panneaux d’outils de droite', 'Search everywhere': 'Rechercher partout', 'Reformat code': 'Reformater le code', 'Reformat file...': 'Reformater le fichier…', 'Reformat file': 'Reformater le fichier', 'Reformat': 'Reformater', 'Selected text': 'Texte sélectionné', 'Whole file': 'Fichier entier', 'Reformat code on save': 'Reformater le code à l’enregistrement', "Saving a modified file first applies the language server formatting, like Rider's Actions on Save.": 'L’enregistrement d’un fichier modifié applique d’abord la mise en forme du serveur de langage, comme les actions à l’enregistrement de Rider.', 'Formatting uses the language server configured for this file.': 'La mise en forme utilise le serveur de langage configuré pour ce fichier.'}.items():
+    translations.setdefault(key,value)
+
+# Rider-style navigation, solution loading, project header and editor diffs.
+for key,value in {'Back': 'Précédent', 'Forward': 'Suivant', 'Navigating to symbol...': 'Navigation vers le symbole…', 'Opening solution...': 'Ouverture de la solution…', 'Reading projects and configurations': 'Lecture des projets et configurations', 'Show solution details': 'Afficher les détails de la solution', 'Hide solution details': 'Masquer les détails de la solution', 'All changes': 'Toutes les modifications', 'staged': 'indexé', 'Double-click: show diff. Ctrl+click: open file.': 'Double-clic : afficher le diff. Ctrl+clic : ouvrir le fichier.', 'Show diff': 'Afficher le diff', 'Open file': 'Ouvrir le fichier'}.items():
+    translations.setdefault(key,value)
+
+# Rider-style auto-format while typing.
+for key,value in {'Auto-format while typing': 'Mise en forme automatique pendant la saisie', 'Reformats the block on }, the statement on ; and pasted code with the language server, like Rider.': 'Reformate le bloc sur }, l’instruction sur ; et le code collé avec le serveur de langage, comme Rider.'}.items():
+    translations.setdefault(key,value)
+
 path.write_text(json.dumps({key: {'en': key, 'fr': value} for key,value in translations.items()}, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')

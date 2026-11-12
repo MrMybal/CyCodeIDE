@@ -33,6 +33,8 @@ void Application::optionsProperties() {
     add("clangd", clangd_);
     add("Restore last workspace session", restoreWorkspaceSession_);
     add("Editor minimap",minimap_);
+    add("Auto-format while typing",formatOnType_).help="Reformats the block on }, the statement on ; and pasted code with the language server, like Rider.";
+    add("Reformat code on save",reformatOnSave_).help="Saving a modified file first applies the language server formatting, like Rider's Actions on Save.";
     auto &codeSize=add("Code font size",double(codeFontSize_));
     codeSize.bounded=true;codeSize.minimum=8;codeSize.maximum=32;
     auto &codeSpacing=add("Code line spacing",double(codeLineSpacing_));
@@ -89,6 +91,14 @@ void Application::optionsProperties() {
                 restoreWorkspaceSession_ = std::get<bool>(value);
             else if (proposal.id == uiId("options/Editor minimap")) {
                 setMinimap(std::get<bool>(value));
+            }
+            else if (proposal.id == uiId("options/Auto-format while typing")) {
+                formatOnType_ = std::get<bool>(value);
+                codePreferencesDirty_ = true; codePreferencesChanged_ = ImGui::GetTime();
+            }
+            else if (proposal.id == uiId("options/Reformat code on save")) {
+                reformatOnSave_ = std::get<bool>(value);
+                codePreferencesDirty_ = true; codePreferencesChanged_ = ImGui::GetTime();
             }
             else if(proposal.id==uiId("options/Code font size"))codeFontSize_=float(std::get<double>(value));
             else if(proposal.id==uiId("options/Code line spacing"))codeLineSpacing_=float(std::get<double>(value));

@@ -7610,5 +7610,109 @@
   "More tool windows": {
     "en": "More tool windows",
     "fr": "Autres panneaux d’outils"
+  },
+  "Left tool windows": {
+    "en": "Left tool windows",
+    "fr": "Panneaux d’outils de gauche"
+  },
+  "Right tool windows": {
+    "en": "Right tool windows",
+    "fr": "Panneaux d’outils de droite"
+  },
+  "Search everywhere": {
+    "en": "Search everywhere",
+    "fr": "Rechercher partout"
+  },
+  "Reformat code": {
+    "en": "Reformat code",
+    "fr": "Reformater le code"
+  },
+  "Reformat file...": {
+    "en": "Reformat file...",
+    "fr": "Reformater le fichier…"
+  },
+  "Reformat file": {
+    "en": "Reformat file",
+    "fr": "Reformater le fichier"
+  },
+  "Reformat": {
+    "en": "Reformat",
+    "fr": "Reformater"
+  },
+  "Selected text": {
+    "en": "Selected text",
+    "fr": "Texte sélectionné"
+  },
+  "Whole file": {
+    "en": "Whole file",
+    "fr": "Fichier entier"
+  },
+  "Reformat code on save": {
+    "en": "Reformat code on save",
+    "fr": "Reformater le code à l’enregistrement"
+  },
+  "Saving a modified file first applies the language server formatting, like Rider's Actions on Save.": {
+    "en": "Saving a modified file first applies the language server formatting, like Rider's Actions on Save.",
+    "fr": "L’enregistrement d’un fichier modifié applique d’abord la mise en forme du serveur de langage, comme les actions à l’enregistrement de Rider."
+  },
+  "Formatting uses the language server configured for this file.": {
+    "en": "Formatting uses the language server configured for this file.",
+    "fr": "La mise en forme utilise le serveur de langage configuré pour ce fichier."
+  },
+  "Back": {
+    "en": "Back",
+    "fr": "Précédent"
+  },
+  "Forward": {
+    "en": "Forward",
+    "fr": "Suivant"
+  },
+  "Navigating to symbol...": {
+    "en": "Navigating to symbol...",
+    "fr": "Navigation vers le symbole…"
+  },
+  "Opening solution...": {
+    "en": "Opening solution...",
+    "fr": "Ouverture de la solution…"
+  },
+  "Reading projects and configurations": {
+    "en": "Reading projects and configurations",
+    "fr": "Lecture des projets et configurations"
+  },
+  "Show solution details": {
+    "en": "Show solution details",
+    "fr": "Afficher les détails de la solution"
+  },
+  "Hide solution details": {
+    "en": "Hide solution details",
+    "fr": "Masquer les détails de la solution"
+  },
+  "All changes": {
+    "en": "All changes",
+    "fr": "Toutes les modifications"
+  },
+  "staged": {
+    "en": "staged",
+    "fr": "indexé"
+  },
+  "Double-click: show diff. Ctrl+click: open file.": {
+    "en": "Double-click: show diff. Ctrl+click: open file.",
+    "fr": "Double-clic : afficher le diff. Ctrl+clic : ouvrir le fichier."
+  },
+  "Show diff": {
+    "en": "Show diff",
+    "fr": "Afficher le diff"
+  },
+  "Open file": {
+    "en": "Open file",
+    "fr": "Ouvrir le fichier"
+  },
+  "Auto-format while typing": {
+    "en": "Auto-format while typing",
+    "fr": "Mise en forme automatique pendant la saisie"
+  },
+  "Reformats the block on }, the statement on ; and pasted code with the language server, like Rider.": {
+    "en": "Reformats the block on }, the statement on ; and pasted code with the language server, like Rider.",
+    "fr": "Reformate le bloc sur }, l’instruction sur ; et le code collé avec le serveur de langage, comme Rider."
   }
 }

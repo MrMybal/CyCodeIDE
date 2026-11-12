@@ -61,6 +61,9 @@ void Application::shortcuts() {
         }
         keymap_.cancel(); lastShiftTap_ = -1; return;
     }
+    // Mouse back/forward buttons walk the navigation history, as in Rider.
+    for (const auto &[button, command] : {std::pair{3, "navigate.back"}, std::pair{4, "navigate.forward"}})
+        if (ImGui::IsMouseClicked(button) && commandEnabled(command)) { executeCommand(command); return; }
     // Core view filters own Ctrl/Cmd+F in their panel. Dear ImGui maps the
     // primary macOS modifier to Ctrl when ConfigMacOSXBehaviors is enabled.
     const bool input = ImGui::GetActiveID() != 0 && ImGui::GetCurrentContext()->InputTextState.ID == ImGui::GetActiveID();
@@ -291,6 +294,8 @@ bool Application::commandEnabled(const std::string &id) const {
     }
     if (id == "refactor.undo") return !refactorFuture_.valid() && refactorPlan_.is_object() && refactorPlan_.value("state", "") == "applied" && !refactorPlan_.contains("history");
     if (id == "refactor.apply") return !refactorFuture_.valid() && refactorPlan_.is_object() && refactorPlan_.value("state", "") == "preview" && !refactorPlan_.at("files").empty();
+    // Rider's Ctrl+Alt+Shift+L opens the Reformat File dialog, with or without a selection.
+    if (id == "refactor.formatSelection" && keymapProfile_ == "rider") return commandEnabled("refactor.format");
     if (id.starts_with("refactor.") || id == "navigate.members") {
         if (smoke_ || !engine_->supportsLanguage(active_) || refactorFuture_.valid()) return false;
         for (const auto &tab : tabs_) if (tab->path == active_ && ((id.starts_with("refactor.") && tab->readOnly) || (id == "refactor.formatSelection" && !tab->editor.MainCursorHasSelection()))) return false;
@@ -353,9 +358,9 @@ void Application::executeCommand(const std::string &id) {
         if(id=="file.openPaged"){openPaged(tab->path,0,0,false,true,true);return;}
         if(tab && tab->pagedProfile && pagedCommand(id,tab))return;
         if (executeExtensionCommand(id)) return;
-        if (id == "view.analysis") { showPanel("Analysis and inspections", "analysis"); return; }
-        if(id=="view.gitCommits"){vcsSection_="History";dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);refreshGit();return;}
-        if(id=="view.vcs"){dockToolPanel("Version control","vcs",ImGuiDir_Right);return;}
+        if (id == "view.analysis") { openToolWindow("Analysis and inspections", "analysis"); return; }
+        if(id=="view.gitCommits"){vcsSection_="History";openToolWindow("Git commits","gitCommits");refreshGit();return;}
+        if(id=="view.vcs"){openToolWindow("Version control","vcs");return;}
         if (id.starts_with("help.")) {
             std::string page = id.substr(5);
             std::string anchor;
@@ -423,9 +428,9 @@ void Application::executeCommand(const std::string &id) {
         else if (id == "file.folder") chooseFolder();
         else if (id == "file.window") newWindow(entry_);
         else if (id == "file.openWindow") chooseSolution(true);
-        else if (id == "file.save") save(tab);
+        else if (id == "file.save") requestSave(tab);
         else if (id == "file.saveAs") beginSaveAs(tab);
-        else if (id == "file.saveAll") saveAll();
+        else if (id == "file.saveAll") { for (const auto &item : tabs_) if (item->dirty) requestSave(item); }
         else if (id == "file.close") closeTab(active_);
         else if (id == "file.closeAll") closeAll_ = true;
         else if (id == "file.reopen") { auto path = closedFiles_.back(); closedFiles_.pop_back(); open(path); }
@@ -437,7 +442,10 @@ void Application::executeCommand(const std::string &id) {
             paletteMode_ = id == "search.actions" ? "actions" : id == "search.everywhere" ? "everywhere" : id == "navigate.recent" ? "recent" : id == "search.types" ? "types" : id == "search.symbols" ? "symbols" : id == "navigate.members" ? "members" : "files";
             paletteOpen_ = true;
         } else if (id == "refactor.rename") beginRename();
-        else if (id == "refactor.format" || id == "refactor.formatSelection") beginFormat(id == "refactor.formatSelection");
+        else if (id == "refactor.format")
+            // Rider's Reformat Code formats the selection when there is one, otherwise the file.
+            beginFormat(keymapProfile_ == "rider" && tab && !tab->image && !tab->pagedProfile && tab->editor.MainCursorHasSelection());
+        else if (id == "refactor.formatSelection") { if (keymapProfile_ == "rider") reformatDialogOpen_ = true; else beginFormat(true); }
         else if (id == "refactor.undo") changeTask("changes.undo", {{"id", refactorPlan_.at("id")}});
         else if (id == "refactor.apply") changeTask("changes.apply", {{"id", refactorPlan_.at("id")}});
         else if (id == "navigate.definition") navigate(false);
@@ -469,10 +477,10 @@ void Application::executeCommand(const std::string &id) {
         else if (id == "project.cancel") engine_->dispatch("project.cancel");
         else if (id == "project.test" || id == "project.install" || id == "project.script") task(id);
         else if (id == "vcs.refresh") refreshGit();
-        else if (id == "vcs.diff" || id == "vcs.blame" || id=="vcs.hunks") { dockToolPanel("Version control","vcs",ImGuiDir_Right); vcsTask(id,{{"path",active_}}); }
+        else if (id == "vcs.diff" || id == "vcs.blame" || id=="vcs.hunks") { openToolWindow("Version control","vcs"); vcsTask(id,{{"path",active_}}); }
         else if (id.starts_with("vcs.")) {
-            if(id=="vcs.history")dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);
-            else dockToolPanel("Version control","vcs",ImGuiDir_Right);
+            if(id=="vcs.history")openToolWindow("Git commits","gitCommits");
+            else openToolWindow("Version control","vcs");
             for (const auto &[command,section] : std::initializer_list<std::pair<const char *,const char *>>{{"changes","Changes"},{"branches","Branches"},{"history","History"},{"remotes","Remotes"},{"stashes","Stashes"},{"conflicts","Conflicts"}})
                 if (id == std::string("vcs.")+command) vcsSection_ = section;
             if (id == "vcs.conflicts") {
@@ -492,7 +500,7 @@ void Application::executeCommand(const std::string &id) {
         else if (id == "view.recovery") { showPanel("Recovery", "recovery");recoveryTask("recovery.list"); }
         else if (id == "view.options" || id == "view.keymap") { options_ = true; focusKeymap_ = id == "view.keymap"; }
         else if (id.starts_with("view.") && findCommand(id) && findCommand(id)->context == CommandContext::global) {
-            auto panel = id.substr(5); showPanel(findCommand(id)->title.c_str(), panel.c_str());
+            auto panel = id.substr(5); openToolWindow(findCommand(id)->title.c_str(), panel.c_str());
         } else if (tab) {
             tab->pendingSession = nullptr;
             auto &e = tab->editor;
@@ -553,7 +561,11 @@ void Application::executeCommand(const std::string &id) {
             else if (id == "view.fold") { if (keymapProfile_ == "visualstudio") e.ToggleAtLine(pos.line); else e.FoldAroundLine(pos.line); }
             else if (id == "view.unfold") e.UnfoldAroundLine(pos.line);
             else if (id == "view.unfoldAll") e.UnfoldAll();
-            if (undo != e.GetUndoIndex()) changed(tab);
+            if (undo != e.GetUndoIndex()) {
+                changed(tab);
+                // Rider reformats pasted code when auto-format is enabled.
+                if (id == "edit.paste" && !e.MainCursorHasSelection()) formatOnType(tab, pos.line, e.GetMainCursorPosition().line);
+            }
             focusTab_ = active_; e.SetFocus();
         }
     } catch (const std::exception &e) { error(e.what()); }

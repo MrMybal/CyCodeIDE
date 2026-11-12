@@ -32,7 +32,12 @@ bool Application::extensionVisible(const Json &entry) const {
 }
 std::vector<Command> Application::commandCatalogue() const {
     auto catalogue = commands();
-    for(auto &command:catalogue)if(command.id=="view.minimap"){command.title="Show minimap";command.context=CommandContext::global;}
+    for(auto &command:catalogue) {
+        if(command.id=="view.minimap"){command.title="Show minimap";command.context=CommandContext::global;}
+        // Rider names: Ctrl+Alt+L Reformat Code, Ctrl+Alt+Shift+L Reformat File dialog.
+        if(keymapProfile_=="rider" && command.id=="refactor.format")command.title="Reformat code";
+        if(keymapProfile_=="rider" && command.id=="refactor.formatSelection")command.title="Reformat file...";
+    }
     catalogue.push_back({"view.gitCommits","Git commits","View",CommandContext::global});
     catalogue.push_back({"file.keepOpen","Keep tab open","File",CommandContext::document});
     catalogue.push_back({"search.previous","Find previous","Search",CommandContext::document});

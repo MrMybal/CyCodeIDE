@@ -10,6 +10,14 @@ namespace cycode {
 void Application::vcsTask(const std::string &method, Json params) {
     if (vcsFuture_.valid() || taskFuture_.valid()) { error(tr("A task is already running.")); return; }
     auto engine = engine_; vcsOperation_ = method;
+    if (method == "vcs.diff") {
+        vcsDiffPath_ = params.value("path", std::string{});
+        vcsDiffTitle_ = (vcsDiffPath_.empty() ? std::string(tr("All changes")) : pathUtf8(utf8Path(vcsDiffPath_).filename())) +
+                        (params.value("staged", false) ? " (" + std::string(tr("staged")) + ")" : std::string{});
+    } else if (method == "vcs.show") {
+        vcsDiffPath_.clear();
+        vcsDiffTitle_ = std::string(tr("Commit")) + " " + params.value("revision", std::string{}).substr(0, 10);
+    }
     if (method.starts_with("vcs.")&&method!="vcs.configure") {
         const auto path=vcsRequestPath();
         if(gitFuture_.valid()||vcsContextPath_!=path) { refreshGit();error(tr("Waiting for version control context."));return; }
@@ -115,8 +123,15 @@ void Application::updateVcs() {
             vcsPreviewTitle_ = vcsOperation_; vcsPreviewCode_.setText(result.value("output",""));
             configureCodeEditor(vcsPreviewCode_); vcsPreviewCode_.setReadOnly(true);
             vcsIsDiff_ = vcsOperation_ == "vcs.diff" || vcsOperation_ == "vcs.show";
-            if (vcsIsDiff_) { vcsDiff_.setUnified(result.value("output",""), cyui::codeLanguageForPath(result.value("path",active_))); vcsDiffState_ = {}; } vcsSection_ = "Review";
-            showPanel("Version control","vcs");
+            if (vcsIsDiff_) {
+                vcsDiff_.setUnified(result.value("output",""), cyui::codeLanguageForPath(result.value("path",vcsDiffPath_.empty()?active_:vcsDiffPath_)));
+                vcsDiffState_ = {};
+                // Like Rider, a diff opens as an editor tab instead of inside the narrow tool window.
+                vcsDiffWindow_ = true; vcsDiffFocus_ = true;
+            } else {
+                vcsSection_ = "Review";
+                showPanel("Version control","vcs");
+            }
             if (result.value("exitCode",0)) error(tr("Task failed. See output."));
         } else {
             if(vcsOperation_=="vcs.applyHunks"){vcsHunks_=Json::object();vcsHunkSelection_.clear();vcsSection_="Changes";}
@@ -231,8 +246,8 @@ void Application::gitPanelContents(bool commits) {
             return ImGui::BeginTabItem(title.c_str(),nullptr,requested==name?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None);
         };
         if (begin("Changes")) {
-            if(cyui::button(tr("Commit..."))){vcsSection_="Commit";dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);}
-            ImGui::SameLine();if(cyui::button(tr("History"))){vcsSection_="History";dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);refreshGit();}
+            if(cyui::button(tr("Commit..."))){vcsSection_="Commit";openToolWindow("Git commits","gitCommits");}
+            ImGui::SameLine();if(cyui::button(tr("History"))){vcsSection_="History";openToolWindow("Git commits","gitCommits");refreshGit();}
             button("Diff","diff"); ImGui::SameLine(); button("Staged diff","diff",{{"staged",true}});
             if (ImGui::BeginTable("##changes",3,ImGuiTableFlags_RowBg|ImGuiTableFlags_Resizable|ImGuiTableFlags_ScrollY,{0,0})) {
                 ImGui::TableSetupColumn(tr("Status"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(28));
@@ -241,8 +256,16 @@ void Application::gitPanelContents(bool commits) {
                 for(const auto &file:git_.value("files",Json::array())) {
                     const auto path=file.at("path").get<std::string>(),status=file.at("status").get<std::string>();
                     ImGui::PushID(path.c_str());ImGui::TableNextRow();ImGui::TableNextColumn();cyui::textDim("%s",status.c_str());ImGui::TableNextColumn();
-                    if(fileSelectable(path,path,active_==path,theme_))openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
+                    // Rider: double-click shows the diff, Ctrl+click jumps to the source file.
+                    if(fileSelectable(path,path,vcsDiffWindow_ && vcsDiffPath_==path,theme_)) {
+                        if(ImGui::GetIO().KeyCtrl)openFromProject(path,true);
+                        else if(ImGui::IsMouseDoubleClicked(0) && !working && vcsSupports("diff"))vcsTask("vcs.diff",{{"path",path}});
+                    }
+                    cyui::tooltip(tr("Double-click: show diff. Ctrl+click: open file."));
                     if(ImGui::BeginPopupContextItem("##file-actions")) {
+                        if(ImGui::MenuItem(tr("Show diff"),nullptr,false,!working && vcsSupports("diff")))vcsTask("vcs.diff",{{"path",path}});
+                        if(ImGui::MenuItem(tr("Open file")))openFromProject(path,true);
+                        ImGui::Separator();
                         if(ImGui::MenuItem(tr("Review hunks")))vcsTask("vcs.hunks",{{"path",path}});
                         if(ImGui::MenuItem(tr("Staged hunks")))vcsTask("vcs.hunks",{{"path",path},{"staged",true}});
                         ImGui::EndPopup();
@@ -289,7 +312,7 @@ void Application::gitPanelContents(bool commits) {
             ImGui::InputTextMultiline("##commit-message",&commitMessage_,{0,cyui::dp(80)});
             {cyui::ScopedDisabled disabled(working || commitMessage_.empty() || !vcsSupports("commit"));
                 if(cyui::primaryButton(tr("Commit staged")))vcsTask("vcs.commit",{{"message",commitMessage_}});}
-            ImGui::SameLine();if(cyui::button(tr("Review changes")))dockToolPanel("Version control","vcs",ImGuiDir_Right);
+            ImGui::SameLine();if(cyui::button(tr("Review changes")))openToolWindow("Version control","vcs");
             ImGui::EndTabItem();
         }
         if (vcsSupports("history") && begin("History")) {

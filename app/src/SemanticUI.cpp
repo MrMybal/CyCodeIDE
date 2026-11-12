@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cyui/Core.h>
 #include <imgui_stdlib.h>
+#include <utility>
 
 namespace cycode {
 template<class T> static bool completed(std::future<T> &future) { return future.valid() && future.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
@@ -23,17 +24,153 @@ void Application::beginRename() {
         renameOpen_ = true; return;
     }
 }
-void Application::beginFormat(bool selection) {
-    for (const auto &tab : tabs_) if (tab->path == active_ && !tab->readOnly) {
-        Json params = {{"path", active_}, {"expectedRevision", tab->revision}, {"tabSize", tab->editor.GetTabSize()}, {"insertSpaces", tab->editor.IsInsertSpacesOnTabs()}};
+bool Application::beginFormat(bool selection, const std::string &path) {
+    if (refactorFuture_.valid()) return false;
+    const auto &target = path.empty() ? active_ : path;
+    for (const auto &tab : tabs_) if (tab->path == target && !tab->readOnly && !tab->image && !tab->pagedProfile) {
+        Json params = {{"path", target}, {"expectedRevision", tab->revision}, {"tabSize", tab->editor.GetTabSize()}, {"insertSpaces", tab->editor.IsInsertSpacesOnTabs()}};
         if (selection) {
             auto range = tab->editor.GetMainCursorSelection();
             if (range.end < range.start) std::swap(range.start, range.end);
-            if (range.start == range.end) return;
+            if (range.start == range.end) return false;
             auto position = [&](auto p) { return Json{{"line", p.line}, {"character", LanguageClient::utf16Length(tab->editor.GetSectionText({p.line, 0}, p))}}; };
             params["range"] = {{"start", position(range.start)}, {"end", position(range.end)}};
         }
-        changeTask("language.format", params); return;
+        changeTask("language.format", params); return true;
+    }
+    return false;
+}
+bool Application::rangeFormatAvailable(const std::string &path) const {
+    if (smoke_ || !engine_ || !engine_->supportsLanguage(path)) return false;
+    const auto servers = languageState_.find("servers");
+    if (servers == languageState_.end()) return false;
+    const auto server = servers->find(engine_->languageBackendFor(path));
+    if (server == servers->end() || !server->value("enabled", false) || !server->value("ready", false)) return false;
+    const auto methods = server->find("methods");
+    return methods == server->end() || methods->value("rangeFormat", false);
+}
+void Application::formatOnType(const std::shared_ptr<Tab> &tab, size_t firstLine, size_t lastLine) {
+    // Rider-style typing assistance: reformat the block or statement just completed.
+    // Busy, unsupported or stale requests are skipped silently; typing always wins.
+    if (!formatOnType_ || !tab || refactorFuture_.valid() || !formatSavePath_.empty() || !formatTypePath_.empty() ||
+        tab->readOnly || tab->image || tab->pagedProfile || isUntitledDocument(tab->path) ||
+        tab->editor.GetLineCount() > 20000 || !rangeFormatAvailable(tab->path))
+        return;
+    if (lastLine < firstLine) std::swap(firstLine, lastLine);
+    const auto lastText = tab->editor.GetLineText(lastLine);
+    Json params = {{"path", tab->path}, {"expectedRevision", tab->revision}, {"tabSize", tab->editor.GetTabSize()},
+                   {"insertSpaces", tab->editor.IsInsertSpacesOnTabs()},
+                   {"range", {{"start", {{"line", firstLine}, {"character", 0}}},
+                              {"end", {{"line", lastLine}, {"character", LanguageClient::utf16Length(lastText)}}}}}};
+    formatTypePath_ = tab->path;
+    formatTypeRevision_ = tab->revision;
+    changeTask("language.format", params);
+}
+void Application::typedFormatTrigger(const std::shared_ptr<Tab> &tab, char32_t typed) {
+    if (!typed || !formatOnType_ || tab->editor.MainCursorHasSelection()) return;
+    const auto caret = tab->editor.GetMainCursorPosition();
+    if (caret.index == 0 || tab->editor.GetSectionText({caret.line, caret.index - 1}, caret) != std::string(1, char(typed))) return;
+    size_t first = caret.line;
+    if (typed == '}') {
+        // Find the line of the matching opening brace so the whole block is reindented.
+        const auto before = tab->editor.GetSectionText({caret.line > 2000 ? caret.line - 2000 : 0, 0}, caret);
+        const size_t base = caret.line > 2000 ? caret.line - 2000 : 0;
+        int depth = 0;
+        size_t lines = 0;
+        bool found = false;
+        for (size_t i = before.size(); i-- > 0;) {
+            const char c = before[i];
+            if (c == '\n') ++lines;
+            else if (c == '}') ++depth;
+            else if (c == '{' && --depth == 0) { found = true; break; }
+        }
+        if (found) first = caret.line - lines;
+        if (first < base) first = base;
+    }
+    formatOnType(tab, first, caret.line);
+}
+void Application::updateFormatOnType() {
+    if (!formatTypeCaret_) return;
+    std::shared_ptr<Tab> tab;
+    for (const auto &item : tabs_) if (item->path == formatTypeCaretPath_) tab = item;
+    if (!tab || ImGui::GetTime() - formatTypeCaretTime_ > 2.) { formatTypeCaret_ = false; return; }
+    if (tab->revision == formatTypeCaretRevision_) return; // Wait for the formatted text to reach the editor.
+    formatTypeCaret_ = false;
+    // Keep the caret after the same non-blank character, whatever whitespace moved.
+    const auto text = tab->editor.GetText();
+    size_t count = 0, line = 0, index = 0;
+    TextEditor::DocPos target{0, 0};
+    for (size_t byte = 0; byte < text.size() && count < formatTypeAnchor_;) {
+        const auto c = static_cast<unsigned char>(text[byte]);
+        const size_t width = c < 0x80 ? 1 : c < 0xe0 ? 2 : c < 0xf0 ? 3 : 4;
+        if (c == '\n') { ++line; index = 0; }
+        else {
+            ++index;
+            if (c != ' ' && c != '\t' && c != '\r') ++count;
+        }
+        byte += width;
+        if (count == formatTypeAnchor_) target = {line, index};
+    }
+    if (count == formatTypeAnchor_ && tab->path == active_) tab->editor.SetCursor(target);
+}
+void Application::reformatDialog() {
+    std::shared_ptr<Tab> tab;
+    for (const auto &item : tabs_) if (item->path == active_) tab = item;
+    const bool selection = tab && !tab->image && !tab->pagedProfile && tab->editor.MainCursorHasSelection();
+    if (reformatDialogOpen_) { ImGui::OpenPopup(tr("Reformat file")); reformatDialogOpen_ = false; reformatSelection_ = selection; }
+    if (!ImGui::BeginPopupModal(tr("Reformat file"), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+    if (tab) cyui::textDim("%s", tab->displayPath.c_str());
+    cyui::sectionTitle(tr("Scope"));
+    {
+        cyui::ScopedDisabled disabled(!selection);
+        if (ImGui::RadioButton(tr("Selected text"), reformatSelection_ && selection)) reformatSelection_ = true;
+    }
+    if (ImGui::RadioButton(tr("Whole file"), !reformatSelection_ || !selection)) reformatSelection_ = false;
+    cyui::sectionTitle(tr("Options"));
+    if (ImGui::Checkbox(tr("Reformat code on save"), &reformatOnSave_)) { codePreferencesDirty_ = true; codePreferencesChanged_ = ImGui::GetTime(); ++optionsRevision_; }
+    cyui::tooltip(tr("Saving a modified file first applies the language server formatting, like Rider's Actions on Save."));
+    if (ImGui::Checkbox(tr("Auto-format while typing"), &formatOnType_)) { codePreferencesDirty_ = true; codePreferencesChanged_ = ImGui::GetTime(); ++optionsRevision_; }
+    cyui::tooltip(tr("Reformats the block on }, the statement on ; and pasted code with the language server, like Rider."));
+    cyui::textFaint("%s", tr("Formatting uses the language server configured for this file."));
+    cyui::space(6);
+    const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter);
+    {
+        cyui::ScopedDisabled disabled(!tab || refactorFuture_.valid() || !commandEnabled("refactor.format"));
+        if ((cyui::primaryButton(tr("Reformat")) || enter) && tab && !refactorFuture_.valid() && commandEnabled("refactor.format")) {
+            beginFormat(reformatSelection_ && selection);
+            ImGui::CloseCurrentPopup();
+        }
+    }
+    ImGui::SameLine();
+    if (cyui::button(tr("Cancel")) || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+}
+void Application::requestSave(const std::shared_ptr<Tab> &tab) {
+    if (!tab) return;
+    const bool eligible = reformatOnSave_ && engine_ && engine_->supportsLanguage(tab->path) && tab->dirty && !tab->readOnly && !tab->image && !tab->pagedProfile &&
+                          !isUntitledDocument(tab->path) && !tab->path.starts_with("debug://") && !tab->path.starts_with("sdk://");
+    if (!eligible) { save(tab); return; }
+    if (formatSavePath_ != tab->path && std::find(formatSaveQueue_.begin(), formatSaveQueue_.end(), tab->path) == formatSaveQueue_.end())
+        formatSaveQueue_.push_back(tab->path);
+}
+void Application::updateFormatOnSave() {
+    auto find = [&](const std::string &path) {
+        std::shared_ptr<Tab> found;
+        for (const auto &tab : tabs_) if (tab->path == path) found = tab;
+        return found;
+    };
+    // Applied formatting reaches the tab's revision on the frame after changes.apply.
+    if (formatSaveReady_) {
+        formatSaveReady_ = false;
+        if (const auto tab = find(std::exchange(formatSavePath_, {}))) save(tab);
+    }
+    if (!formatSavePath_.empty() || refactorFuture_.valid()) return;
+    while (!formatSaveQueue_.empty()) {
+        const auto path = formatSaveQueue_.front(); formatSaveQueue_.pop_front();
+        const auto tab = find(path);
+        if (!tab) continue;
+        if (beginFormat(false, path)) { formatSavePath_ = path; return; }
+        save(tab);
     }
 }
 void Application::renamePopup() {
@@ -84,10 +221,44 @@ void Application::updateSemantic() {
             if (symbolSentKey_ == symbolWantedKey_) symbolError_ = e.what();
         }
     }
+    updateFormatOnSave();
+    updateFormatOnType();
     if (!completed(refactorFuture_)) return;
+    const bool formatType = !formatTypePath_.empty();
+    // Reformat on save never interrupts saving: unsupported files, review-only
+    // plans and language-server errors fall back to saving the text unchanged.
+    const bool formatSave = !formatSavePath_.empty();
     try {
         auto result = refactorFuture_.get();
         const auto method = refactorOperation_;
+        if (formatType && (method == "language.format" || method == "changes.apply")) {
+            std::shared_ptr<Tab> tab;
+            for (const auto &item : tabs_) if (item->path == formatTypePath_) tab = item;
+            if (method == "language.format") {
+                // Apply only if nothing was typed since the request.
+                if (tab && tab->revision == formatTypeRevision_ && !result.at("files").empty() &&
+                    result.value("annotations", Json::array()).empty())
+                    changeTask("changes.apply", {{"id", result.at("id")}});
+                else formatTypePath_.clear();
+                return;
+            }
+            formatTypePath_.clear();
+            if (tab) {
+                const auto caret = tab->editor.GetMainCursorPosition();
+                size_t count = 0;
+                for (const unsigned char c : tab->editor.GetSectionText({0, 0}, caret))
+                    if (c != ' ' && c != '\t' && c != '\r' && c != '\n' && (c < 0x80 || c >= 0xc0)) ++count;
+                formatTypeAnchor_ = count; formatTypeCaret_ = true; formatTypeCaretPath_ = tab->path;
+                formatTypeCaretRevision_ = tab->revision; formatTypeCaretTime_ = ImGui::GetTime();
+            }
+            return;
+        }
+        if (formatSave && method == "language.format") {
+            if (!result.at("files").empty() && result.value("annotations", Json::array()).empty()) changeTask("changes.apply", {{"id", result.at("id")}});
+            else formatSaveReady_ = true;
+            return;
+        }
+        if (formatSave && method == "changes.apply") { refactorPlan_ = result; formatSaveReady_ = true; return; }
         if(method=="changes.historyStatus")nativeHistory_=std::move(result);
         else if (method == "changes.preview") {
             refactorPreview_ = result;
@@ -122,7 +293,11 @@ void Application::updateSemantic() {
             if (!previous.empty()) open(previous);
             cyui::notify(tr(method == "changes.undo" ? "Refactoring undone" : "Changes applied to live buffers"), cyui::Tone::success);
         }
-    } catch (const std::exception &e) { error(e.what()); }
+    } catch (const std::exception &e) {
+        if (formatSave) formatSaveReady_ = true;
+        else if (formatType) formatTypePath_.clear();
+        else error(e.what());
+    }
 }
 void Application::refactorPanel() {
     if (!beginPanel("Refactoring", "refactoring")) return;
