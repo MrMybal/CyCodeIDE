@@ -84,6 +84,7 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
   configure_file("${CYCODE_CORE_ROOT}/app/src/HelpTopics.h" "${CMAKE_CURRENT_BINARY_DIR}/help-routing/HelpTopics.h" COPYONLY)
   target_sources(cycode_ui PRIVATE src/SnippetsUI.cpp)
   target_sources(cycode_ui PRIVATE src/UserSnippetsUI.cpp)
+  target_sources(cycode_ui PRIVATE src/InterfaceUI.cpp src/EditorInteractionUI.cpp src/SearchUI.cpp src/FilePresentationUI.cpp)
   target_sources(cycode_ui PRIVATE src/ModuleUI.cpp src/ImageView.cpp src/ImageTextureGL.cpp src/ImagesUI.cpp)
   target_sources(cycode_ui PRIVATE src/ExtensionsUI.cpp)
   target_sources(cycode_ui PRIVATE src/PluginPackagesUI.cpp)
@@ -130,6 +131,7 @@ add_subdirectory("${CYCODE_EDITOR_ROOT}/editor" "${CMAKE_CURRENT_BINARY_DIR}/edi
   if(CYCODE_BUILD_DOCUMENTATION)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_custom_target(CyCode_documentation
+      COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/scripts/verify_ui_help.py" --core "${CYCODE_CORE_ROOT}"
       COMMAND "${Python3_EXECUTABLE}" "${CYCODE_CORE_ROOT}/app/.CyDocBuild/build.py"
         --ide-root "${CYCODE_ROOT}" --output "${CMAKE_BINARY_DIR}/Documentation" --output "$<TARGET_FILE_DIR:CyCode>/app/Documentation"
       WORKING_DIRECTORY "${CYCODE_CORE_ROOT}"

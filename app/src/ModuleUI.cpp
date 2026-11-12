@@ -32,12 +32,25 @@ void Application::optionsProperties() {
     scale.maximum = 2.;
     add("clangd", clangd_);
     add("Restore last workspace session", restoreWorkspaceSession_);
+    add("Editor minimap",minimap_);
+    auto &codeSize=add("Code font size",double(codeFontSize_));
+    codeSize.bounded=true;codeSize.minimum=8;codeSize.maximum=32;
+    auto &codeSpacing=add("Code line spacing",double(codeLineSpacing_));
+    codeSpacing.bounded=true;codeSpacing.minimum=1;codeSpacing.maximum=2;
+#ifdef _WIN32
+    add("Integrated title bar",integratedTitleBar_);
+#endif
     auto &buildLimit = add("Build time limit (seconds)", int64_t(configuredBuildTimeout()));
     buildLimit.bounded = true;
     buildLimit.integerMinimum = 1;
     buildLimit.integerMaximum = 86400;
     buildLimit.help = "Applies to CMake, MSBuild and Unreal build processes. Cancel remains available.";
     const auto validate = [&](cyui::ItemId id, const cyui::PropertyValue &value) -> std::string {
+        if(id==uiId("options/Code font size") || id==uiId("options/Code line spacing")) {
+            const auto number=std::get<double>(value);
+            const bool font=id==uiId("options/Code font size");
+            if(!std::isfinite(number) || number<(font?8.:1.) || number>(font?32.:2.))return tr("Invalid code font setting");
+        }
         if (id == uiId("options/Text size")) {
             const auto size = std::get<double>(value);
             if (!std::isfinite(size) || size < .8 || size > 2.)
@@ -74,8 +87,18 @@ void Application::optionsProperties() {
                 clangd_ = std::get<std::string>(value);
             else if (proposal.id == uiId("options/Restore last workspace session"))
                 restoreWorkspaceSession_ = std::get<bool>(value);
+            else if (proposal.id == uiId("options/Editor minimap")) {
+                setMinimap(std::get<bool>(value));
+            }
+            else if(proposal.id==uiId("options/Code font size"))codeFontSize_=float(std::get<double>(value));
+            else if(proposal.id==uiId("options/Code line spacing"))codeLineSpacing_=float(std::get<double>(value));
+            else if (proposal.id == uiId("options/Integrated title bar")) {
+                integratedTitleBar_=std::get<bool>(value);
+                configureTitleBar();
+            }
             else if (proposal.id == uiId("options/Build time limit (seconds)"))
                 settings_["buildTimeoutSeconds"] = std::get<int64_t>(value);
+            if(proposal.id==uiId("options/Code font size") || proposal.id==uiId("options/Code line spacing")){codePreferencesDirty_=true;codePreferencesChanged_=ImGui::GetTime();}
             ++optionsRevision_;
         }
 }

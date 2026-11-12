@@ -91,7 +91,7 @@ void Application::restoreSessionTab(const std::shared_ptr<Tab> &tab, const Json 
         if(view!=item.end() && validPagedSession(*view)) {
             tab->pagedPresentation=*view;
             tab->pagedLocation={{"line",view->at("line").get<uint64_t>()+1},{"column",view->at("character").get<uint64_t>()+1},{"utf16",true}};
-            tab->pagedScroll=view->at("scrollLine");tab->pagedScrollColumn=view->at("scrollColumn");tab->pagedScale=view->at("scale").get<float>();
+            tab->pagedScroll=view->at("scrollLine");tab->pagedScrollColumn=view->at("scrollColumn");tab->pagedScale=codeZoom_;
         } else {
             tab->pagedPresentation=nullptr;tab->pagedScrollColumn.reset();tab->pagedScale.reset();
             tab->pagedLocation={{"line",item.at("line").get<uint64_t>()+1},{"column",item.at("column").get<uint64_t>()+1},{"utf16",true}};

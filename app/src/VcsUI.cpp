@@ -1,6 +1,7 @@
 #include "cycode/Application.h"
 #include "cycode/EditorLanguage.h"
 #include "cycode/EditorTheme.h"
+#include "cycode/FileIcons.h"
 #include <algorithm>
 #include <cyui/Core.h>
 #include <imgui_stdlib.h>
@@ -115,6 +116,7 @@ void Application::updateVcs() {
             configureCodeEditor(vcsPreviewCode_); vcsPreviewCode_.setReadOnly(true);
             vcsIsDiff_ = vcsOperation_ == "vcs.diff" || vcsOperation_ == "vcs.show";
             if (vcsIsDiff_) { vcsDiff_.setUnified(result.value("output",""), cyui::codeLanguageForPath(result.value("path",active_))); vcsDiffState_ = {}; } vcsSection_ = "Review";
+            showPanel("Version control","vcs");
             if (result.value("exitCode",0)) error(tr("Task failed. See output."));
         } else {
             if(vcsOperation_=="vcs.applyHunks"){vcsHunks_=Json::object();vcsHunkSelection_.clear();vcsSection_="Changes";}
@@ -133,7 +135,11 @@ void Application::updateVcs() {
 }
 static bool conflictStatus(const std::string &status) { return status.find('U') != std::string::npos || status == "AA" || status == "DD"; }
 void Application::gitPanel() {
-    if (!beginPanel("Version control","vcs")) return;
+    if(beginPanel("Version control","vcs")){gitPanelContents(false);ImGui::End();}
+    if(beginPanel("Git commits","gitCommits","vcs")){gitPanelContents(true);ImGui::End();}
+}
+void Application::gitPanelContents(bool commits) {
+    if(commits && provider_!="git"){cyui::emptyState(tr("Git commits"),tr("Select a Git repository to view commits."),cyui::icon::sync);return;}
     gitRepositoryControls();
     const bool working = vcsFuture_.valid() || taskFuture_.valid();
     ImGui::SetNextItemWidth(cyui::dp(140));
@@ -155,7 +161,7 @@ void Application::gitPanel() {
         if (vcsInfo_.value("hasUpstream",false)) { ImGui::SameLine(); cyui::textDim("  +%d / -%d",vcsInfo_.value("ahead",0),vcsInfo_.value("behind",0)); }
     }
     if(ImGui::GetContentRegionAvail().x>cyui::dp(680))ImGui::SameLine();
-    ImGui::SetNextItemWidth(cyui::dp(220));ImGui::InputTextWithHint("##vcs-mapping-root",tr("Project / repository folder"),&vcsMappingRoot_);
+    ImGui::SetNextItemWidth(std::min(cyui::dp(220),ImGui::GetContentRegionAvail().x));ImGui::InputTextWithHint("##vcs-mapping-root",tr("Project / repository folder"),&vcsMappingRoot_);
     if(provider_!="git") {
         cyui::textDim("%s",vcsContext_.value("title",provider_).c_str());
         if(!vcsContext_.value("available",true))cyui::callout(cyui::Tone::warning,tr("Configured provider is unavailable"));
@@ -195,19 +201,19 @@ void Application::gitPanel() {
             const auto reviewTitle=std::string(tr("Review"))+"###provider-review";
             if(ImGui::BeginTabItem(reviewTitle.c_str(),nullptr,requested=="Review"?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None)) {
                 cyui::textDim("%s",vcsPreviewTitle_.c_str());
-                if(vcsIsDiff_)cyui::diffViewer("##provider-review",vcsDiffState_,vcsDiff_);
-                else {vcsPreviewCode_.native().SetShowMiniMapEnabled(false);vcsPreviewCode_.draw("##provider-review");}
+                if(vcsIsDiff_)drawDiff("##provider-review",vcsDiffState_,vcsDiff_);
+                else {vcsPreviewCode_.native().SetShowMiniMapEnabled(false);drawCode(vcsPreviewCode_,"##provider-review");}
                 ImGui::EndTabItem();
             }
         }
         ImGui::EndTabBar();
         }
-        ImGui::End();return;
+        return;
     }
     if (!git_.value("repository",false)) {
         cyui::emptyState(tr("No Git repository"),tr("Open a folder containing a Git repository."),cyui::icon::sync);
         if (provider_ == "git") { cyui::ScopedDisabled disabled(working); if (cyui::button(tr("Initialize Git repository"))) vcsTask("vcs.init"); }
-        ImGui::End(); return;
+        return;
     }
     auto button = [&](const char *title,const std::string &action,Json params = {}) {
         cyui::ScopedDisabled disabled(working || !vcsSupports(action));
@@ -215,27 +221,40 @@ void Application::gitPanel() {
     };
     if (ImGui::BeginTabBar("##vcs-sections")) {
         // SetSelected is a one-frame request; user tab clicks remain free afterwards.
-        const auto requested = vcsSection_; vcsSection_.clear();
-        auto begin = [&](const char *name) { const auto title=std::string(tr(name))+"###vcs-section-"+name;return ImGui::BeginTabItem(title.c_str(),nullptr,requested == name ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None); };
+        const bool commitRequest=vcsSection_=="History" || vcsSection_=="Commit";
+        const auto requested=commitRequest==commits?vcsSection_:std::string{};
+        if(commitRequest==commits)vcsSection_.clear();
+        auto begin = [&](const char *name) {
+            const bool bottom=std::string_view(name)=="History" || std::string_view(name)=="Commit";
+            if(bottom!=commits)return false;
+            const auto title=std::string(tr(name))+"###vcs-section-"+name;
+            return ImGui::BeginTabItem(title.c_str(),nullptr,requested==name?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None);
+        };
         if (begin("Changes")) {
-            ImGui::SetNextItemWidth(cyui::dp(350)); ImGui::InputTextWithHint("##commit",tr("Commit message"),&commitMessage_); ImGui::SameLine();
-            { cyui::ScopedDisabled disabled(working || commitMessage_.empty() || !vcsSupports("commit")); if (cyui::primaryButton(tr("Commit staged"))) vcsTask("vcs.commit",{{"message",commitMessage_}}); }
-            button("Diff","diff"); ImGui::SameLine(); button("Staged diff","diff",{{"staged",true}}); ImGui::SameLine(); button("History","log");
+            if(cyui::button(tr("Commit..."))){vcsSection_="Commit";dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);}
+            ImGui::SameLine();if(cyui::button(tr("History"))){vcsSection_="History";dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);refreshGit();}
+            button("Diff","diff"); ImGui::SameLine(); button("Staged diff","diff",{{"staged",true}});
             if (ImGui::BeginTable("##changes",3,ImGuiTableFlags_RowBg|ImGuiTableFlags_Resizable|ImGuiTableFlags_ScrollY,{0,0})) {
-                ImGui::TableSetupColumn(tr("Status"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(50)); ImGui::TableSetupColumn(tr("File")); ImGui::TableSetupColumn(tr("Actions"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(270)); ImGui::TableHeadersRow();
-                for (const auto &file : git_.value("files",Json::array())) {
-                    auto path = file.at("path").get<std::string>(), status = file.at("status").get<std::string>();
-                    ImGui::PushID(path.c_str()); ImGui::TableNextRow(); ImGui::TableNextColumn(); cyui::textDim("%s",status.c_str()); ImGui::TableNextColumn();
-                    if (ImGui::Selectable(path.c_str())) open(path);
-                    ImGui::TableNextColumn();
-                    if (conflictStatus(status) && vcsSupports("conflicts")) {
-                        if(provider_=="git")button("Resolve conflict","conflict.list");
-                        else button("Resolve conflict","conflicts",{{"path",path}});
+                ImGui::TableSetupColumn(tr("Status"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(28));
+                ImGui::TableSetupColumn(tr("File"),ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn(tr("Actions"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(82));ImGui::TableHeadersRow();
+                for(const auto &file:git_.value("files",Json::array())) {
+                    const auto path=file.at("path").get<std::string>(),status=file.at("status").get<std::string>();
+                    ImGui::PushID(path.c_str());ImGui::TableNextRow();ImGui::TableNextColumn();cyui::textDim("%s",status.c_str());ImGui::TableNextColumn();
+                    if(fileSelectable(path,path,active_==path,theme_))openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
+                    if(ImGui::BeginPopupContextItem("##file-actions")) {
+                        if(ImGui::MenuItem(tr("Review hunks")))vcsTask("vcs.hunks",{{"path",path}});
+                        if(ImGui::MenuItem(tr("Staged hunks")))vcsTask("vcs.hunks",{{"path",path},{"staged",true}});
+                        ImGui::EndPopup();
                     }
-                    else { button("Stage","stage",{{"path",path}}); ImGui::SameLine(); button("Unstage","unstage",{{"path",path}}); }
-                    ImGui::SameLine(); button("Diff","diff",{{"path",path}});
-                    if(ImGui::BeginPopupContextItem("##file-actions")){if(ImGui::MenuItem(tr("Review hunks")))vcsTask("vcs.hunks",{{"path",path}});if(ImGui::MenuItem(tr("Staged hunks")))vcsTask("vcs.hunks",{{"path",path},{"staged",true}});ImGui::EndPopup();}
-                    ImGui::PopID();
+                    ImGui::TableNextColumn();
+                    auto action=[&](const char *icon,const char *title,const char *method,Json args) {
+                        cyui::ScopedDisabled disabled(working || !vcsSupports(method));
+                        if(cyui::iconButton(icon,tr(title),false,0,cyui::dp(22,22)))vcsTask(std::string("vcs.")+method,std::move(args));
+                    };
+                    if(conflictStatus(status) && vcsSupports("conflicts"))action(cyui::icon::warning,"Resolve conflict",provider_=="git"?"conflict.list":"conflicts",provider_=="git"?Json::object():Json{{"path",path}});
+                    else {action(cyui::icon::add,"Stage","stage",{{"path",path}});ImGui::SameLine(0,cyui::dp(2));action(cyui::icon::remove,"Unstage","unstage",{{"path",path}});}
+                    ImGui::SameLine(0,cyui::dp(2));action(cyui::icon::edit,"Diff","diff",{{"path",path}});ImGui::PopID();
                 }
                 ImGui::EndTable();
             }
@@ -264,6 +283,15 @@ void Application::gitPanel() {
             ImGui::TextWrapped("%s",tr("Switching and merging require saved buffers and a clean tracked working tree."));
             ImGui::EndTabItem();
         }
+        if(begin("Commit")) {
+            cyui::textDim("%s",tr("Commit message"));
+            ImGui::SetNextItemWidth(std::max(cyui::dp(100),ImGui::GetContentRegionAvail().x));
+            ImGui::InputTextMultiline("##commit-message",&commitMessage_,{0,cyui::dp(80)});
+            {cyui::ScopedDisabled disabled(working || commitMessage_.empty() || !vcsSupports("commit"));
+                if(cyui::primaryButton(tr("Commit staged")))vcsTask("vcs.commit",{{"message",commitMessage_}});}
+            ImGui::SameLine();if(cyui::button(tr("Review changes")))dockToolPanel("Version control","vcs",ImGuiDir_Right);
+            ImGui::EndTabItem();
+        }
         if (vcsSupports("history") && begin("History")) {
             if (ImGui::BeginTable("##history",4,ImGuiTableFlags_RowBg|ImGuiTableFlags_Resizable|ImGuiTableFlags_ScrollY,{0,0})) {
                 ImGui::TableSetupColumn(tr("Commit"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(90)); ImGui::TableSetupColumn(tr("Author")); ImGui::TableSetupColumn(tr("Date")); ImGui::TableSetupColumn(tr("Message")); ImGui::TableHeadersRow();
@@ -271,8 +299,8 @@ void Application::gitPanel() {
                     auto hash = commit.at("hash").get<std::string>(); ImGui::PushID(hash.c_str()); ImGui::TableNextRow(); ImGui::TableNextColumn();
                     if (ImGui::Selectable(hash.substr(0,10).c_str())) vcsTask("vcs.show",{{"revision",hash}});
                     if(provider_=="git"&&ImGui::BeginPopupContextItem("##replay-commit")) {
-                        if(ImGui::MenuItem(tr("Cherry-pick commit"))) {vcsReplayCommit_=hash;vcsReplayAction_=0;invalidateGitReplay();vcsSection_="Replay";}
-                        if(ImGui::MenuItem(tr("Revert commit"))) {vcsReplayCommit_=hash;vcsReplayAction_=1;invalidateGitReplay();vcsSection_="Replay";}
+                        if(ImGui::MenuItem(tr("Cherry-pick commit"))) {vcsReplayCommit_=hash;vcsReplayAction_=0;invalidateGitReplay();vcsSection_="Replay";showPanel("Version control","vcs");}
+                        if(ImGui::MenuItem(tr("Revert commit"))) {vcsReplayCommit_=hash;vcsReplayAction_=1;invalidateGitReplay();vcsSection_="Replay";showPanel("Version control","vcs");}
                         ImGui::EndPopup();
                     }
                     ImGui::TableNextColumn(); ImGui::TextUnformatted(commit.at("author").get<std::string>().c_str()); ImGui::TableNextColumn(); ImGui::TextUnformatted(commit.at("date").get<std::string>().c_str());
@@ -351,19 +379,18 @@ void Application::gitPanel() {
                     const auto &hunks=vcsHunks_.at("hunks");ImGuiListClipper clipper;clipper.Begin(int(hunks.size()),ImGui::GetFrameHeightWithSpacing());
                     while(clipper.Step())for(int row=clipper.DisplayStart;row<clipper.DisplayEnd;++row){const auto &h=hunks.at(size_t(row));const auto i=h.at("index").get<size_t>();bool selected=vcsHunkSelection_.contains(i);ImGui::PushID(int(i));
                         if(ImGui::Checkbox(h.at("header").get_ref<const std::string &>().c_str(),&selected)){if(selected){vcsHunkSelection_.insert(i);if(i<vcsHunkDiff_.hunks().size())vcsHunkDiffState_.focus=vcsHunkDiff_.hunks()[i];}else vcsHunkSelection_.erase(i);}ImGui::PopID();}
-                    ImGui::EndChild();ImGui::TableNextColumn();cyui::diffViewer("##hunk-review",vcsHunkDiffState_,vcsHunkDiff_,{0,height});ImGui::EndTable();
+                    ImGui::EndChild();ImGui::TableNextColumn();drawDiff("##hunk-review",vcsHunkDiffState_,vcsHunkDiff_,{0,height});ImGui::EndTable();
                 }
             }
             ImGui::EndTabItem();
         }
         if (!vcsPreviewTitle_.empty() && begin("Review")) {
             cyui::textDim("%s",vcsPreviewTitle_.c_str());
-            if (vcsIsDiff_) cyui::diffViewer("##git-review", vcsDiffState_, vcsDiff_);
-            else { vcsPreview_.SetShowMiniMapEnabled(false); vcsPreviewCode_.draw("##git-review"); }
+            if (vcsIsDiff_) drawDiff("##git-review", vcsDiffState_, vcsDiff_);
+            else { vcsPreview_.SetShowMiniMapEnabled(false); drawCode(vcsPreviewCode_,"##git-review"); }
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
     }
-    ImGui::End();
 }
 } // namespace cycode

@@ -26,6 +26,63 @@ static void frame(const std::function<void()> &draw, ImGuiKey key = ImGuiKey_Non
 }
 namespace cycode {
 struct ApplicationModuleTests {
+    static void interactionContracts(LaunchOptions options) {
+        const auto workspace=options.workspace.parent_path()/"interaction-workspace";
+        std::filesystem::create_directories(workspace);
+        for(const auto *name:{"first.cpp","second.cpp","third.cpp"})
+            std::ofstream(workspace/name)<<"int value = 1;\n";
+        std::ofstream(workspace/"unicode.cpp",std::ios::binary)<<"\xc3\xa9" "clair \xf0\x9f\x98\x80\nnext \xc3\xa9" "clair\n";
+        options.workspace=workspace;
+        Application app(options,nullptr);
+        app.openFromProject("first.cpp");
+        require(app.tabs_.size()==1 && app.tabs_.back()->preview,"Single click did not create a preview");
+        app.openFromProject("second.cpp");
+        require(app.tabs_.size()==1 && app.tabs_.back()->path=="second.cpp","Preview clicks accumulated tabs");
+        app.openFromProject("first.cpp",true);
+        require(app.tabs_.size()==2 && !app.tabs_.back()->preview,"Ctrl-click did not retain a separate tab");
+        const auto second=*std::find_if(app.tabs_.begin(),app.tabs_.end(),[](const auto &t){return t->path=="second.cpp";});
+        second->editor.SetCursor({0,0});second->editor.ReplaceTextPreservingTabs("// edited\n");app.changed(second);
+        app.openFromProject("third.cpp");
+        require(app.tabs_.size()==3 && second->dirty && !second->preview,"Opening a preview lost or replaced modified code");
+        require(app.rightmostTab_=="third.cpp" && app.focusTab_=="third.cpp","New file was not queued for visible rightmost selection");
+        const auto snapshot=app.workspaceSessionSnapshot();
+        require(std::none_of(snapshot.at("tabs").begin(),snapshot.at("tabs").end(),[](const Json &v){return v.at("path")=="third.cpp";}),"An unpinned preview leaked into session restoration");
+        app.openFromProject("third.cpp",true);
+        require(!app.tabs_.back()->preview,"Ctrl-click on the current preview did not pin it");
+        app.panels_["project"]=true;app.panels_["build"]=true;app.panels_["mcp"]=true;
+        app.toggleToolWindows();
+        require(app.panels_.at("project") && !app.panels_.at("build") && !app.panels_.at("mcp"),"Tool-window toggle hid the project or left tools open");
+        app.toggleToolWindows();
+        require(app.panels_.at("build") && app.panels_.at("mcp"),"Hidden tools were not restored");
+        app.open("unicode.cpp");const auto unicode=app.tabs_.back();
+        app.openDocumentFind(unicode);
+        unicode->findQuery="\xc3\xa9" "clair";
+        app.findInDocument(unicode);
+        require(unicode->editor.GetCursorText(0)==unicode->findQuery,"Find did not select the complete UTF-8 word");
+        app.findInDocument(unicode);
+        require(unicode->editor.GetMainCursorSelection().start.line==1,"Find next did not advance to the next match");
+        app.findInDocument(unicode,true);
+        require(unicode->editor.GetMainCursorSelection().start.line==0,"Find previous did not return to the first match");
+        unicode->findReplacement="word";
+        app.findInDocument(unicode,false,true,true);
+        require(unicode->editor.GetText().find(unicode->findQuery)==std::string::npos,"Replace all missed a UTF-8 match");
+        require(app.engine_->dispatch("documents.read",{{"path","unicode.cpp"}}).at("text")==unicode->editor.GetText(),"Find/replace created a second unsynchronized document");
+        unicode->editor.Undo();app.changed(unicode);
+        require(unicode->editor.GetText().starts_with(unicode->findQuery),"Replace all was not one undoable edit");
+        app.setMinimap(false,false);app.executeCommand("view.minimap");
+        require(app.minimap_ && unicode->editor.IsShowMiniMapEnabled(),"Minimap option was not applied");
+        app.open("first.cpp");
+        require(app.tabs_.front()->editor.IsShowMiniMapEnabled(),"Minimap option was not shared with existing code tabs");
+        const auto sourceText=unicode->editor.GetText();const auto undoIndex=unicode->editor.GetUndoIndex();
+        app.setCodeZoom(1.5f);
+        require(std::all_of(app.tabs_.begin(),app.tabs_.end(),[](const auto &t){return t->image || t->editor.GetFontScale()==1.5f;}),"Code zoom remained local to a tab");
+        require(app.searchPreview_.textScale()==1.5f && app.vcsPreviewCode_.textScale()==1.5f,"Code zoom was not shared with previews");
+        std::ofstream(workspace/"new-view.cpp")<<"int another = 2;\n";
+        app.open("new-view.cpp");require(app.tabs_.back()->editor.GetFontScale()==1.5f,"A new view reset the shared code zoom");
+        require(unicode->editor.GetText()==sourceText && unicode->editor.GetUndoIndex()==undoIndex,"Code zoom changed document text or undo history");
+        app.setCodeZoom(1.f);
+
+    }
     static void run(const std::filesystem::path &root) {
         const auto folder = root / "runtime/module-fixture";
         std::filesystem::create_directories(folder / "workspace");
@@ -36,6 +93,7 @@ struct ApplicationModuleTests {
         std::ofstream(folder / "workspace/events.log") << "Log: Warning: fixture\n";
         LaunchOptions options; options.installation = folder; options.workspace = folder / "workspace";
         options.smoke = true; options.testSession = true;
+        interactionContracts(options);
         Application app(options, nullptr); // No SDL initialization or operating-system window.
         unsigned char *pixels=nullptr;int width=0,height=0;
         ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels,&width,&height);

@@ -71,7 +71,7 @@ void Application::updatePaged() {
         }
         tab->revision=status.revision;tab->readOnly=status.readOnly;
         tab->dirty=status.dirty || tab->paged->unsettled();
-        if(tab->pagedScale) {auto options=tab->paged->view().options();options.textScale=*tab->pagedScale;tab->paged->view().setOptions(options);tab->pagedScale.reset();}
+        if(tab->pagedScale) {auto options=tab->paged->view().options();options.textScale=codeZoom_;tab->paged->view().setOptions(options);tab->pagedScale.reset();}
         if (!status.busy && tab->pagedLocation.is_object() && !tab->pagedNavigation.valid()) {
             const auto location=tab->pagedLocation;tab->pagedLocation=nullptr;
             const auto scroll=tab->pagedScroll,scrollColumn=tab->pagedScrollColumn;
@@ -182,7 +182,7 @@ void Application::pagedPanel(const std::shared_ptr<Tab> &tab) {
         ImGui::PopID();
     }
     using C=cyui::PagedCodeCommand;
-    for(const auto action:editor.draw(("##paged-"+std::to_string(tab->identity)).c_str())) {
+    for(const auto action:drawPaged(editor,("##paged-"+std::to_string(tab->identity)).c_str())) {
         if(action==C::save)save(tab);else if(action==C::find)tab->pagedFind=true;
         else if(action==C::findNext)editor.find(false);else if(action==C::findPrevious)editor.find(true);
     }
@@ -216,7 +216,7 @@ void Application::pagedRecoveryControls() {
         const auto id=pagedCheckpoint_.at("checkpoint").get<std::string>(),path=pagedCheckpoint_.at("path").get<std::string>();
         cyui::textDim("%s | %s | %llu / %llu",path.c_str(),id.c_str(),static_cast<unsigned long long>(pagedCheckpoint_.at("offset").get<uint64_t>()),static_cast<unsigned long long>(pagedCheckpoint_.at("bytes").get<uint64_t>()));
         if(!pagedCheckpoint_.value("diskMatchesBaseline",false))cyui::callout(cyui::Tone::warning,tr("Checkpoint baseline differs from disk. Reconcile the source before restoration."));
-        cyui::codeViewer("##paged-checkpoint-preview",pagedCheckpointView_,pagedCheckpointCode_,cyui::dp(0,180));
+        drawCodeView("##paged-checkpoint-preview",pagedCheckpointView_,pagedCheckpointCode_,cyui::dp(0,180));
         {cyui::ScopedDisabled disabled(pagedRecoveryFuture_.valid());
           if(cyui::button(tr("First preview page")))pagedRecoveryTask("documents.previewPagedCheckpoint",{{"checkpoint",id},{"length",65536}});
           ImGui::SameLine();{cyui::ScopedDisabled more(!pagedCheckpoint_.value("hasMore",false));if(cyui::button(tr("Next preview page")))pagedRecoveryTask("documents.previewPagedCheckpoint",{{"checkpoint",id},{"offset",pagedCheckpoint_.at("nextOffset")},{"length",65536}});}}

@@ -81,7 +81,7 @@ void Application::informationPanel() {
             const ImVec2 size{0, std::clamp(measured.y + ImGui::GetFrameHeightWithSpacing() * 3, cyui::dp(95), cyui::dp(380))};
             if (kind == "code") {
                 view.code.setText(text, cyui::codeLanguageFromName(part.value("language", "")));
-                cyui::codeViewer(slot.c_str(), view.codeState, view.code, size);
+                drawCodeView(slot.c_str(), view.codeState, view.code, size);
             } else {
                 view.document.setMarkdown(text);
                 // Link events remain inert, matching the existing information policy.

@@ -131,7 +131,9 @@ void Application::shortcuts() {
     }
 }
 bool Application::commandEnabled(const std::string &id) const {
-    if (id == "view.analysis") return bool(engine_);
+    if (id == "view.minimap" || id == "view.gitCommits" || id == "view.toolWindows" || id == "view.backgroundTasks" || id == "view.analysis") return bool(engine_);
+    if(id=="file.keepOpen") {for(const auto &tab:tabs_)if(tab->path==active_)return tab->preview;return false;}
+    if(id=="search.previous") {for(const auto &tab:tabs_)if(tab->path==active_)return !tab->image && (!tab->pagedProfile || (tab->paged && !tab->paged->status().busy));return false;}
     if(id=="file.openPaged") {
         for(const auto &tab:tabs_)if(tab->path==active_)return !tab->image && !tab->pagedProfile && !tab->dirty && !tab->readOnly &&
             !isUntitledDocument(tab->path) && tab->path.find("://")==std::string::npos;
@@ -340,10 +342,20 @@ void Application::executeCommand(const std::string &id) {
     std::shared_ptr<Tab> tab;
     for (const auto &item : tabs_) if (item->path == active_) tab = item;
     try {
+        if(id=="view.toolWindows"){toggleToolWindows();return;}
+        if(id=="view.backgroundTasks"){backgroundTasksOpen_=true;return;}
+        if(id=="file.keepOpen"){if(tab)tab->preview=false;return;}
+        if(id=="search.previous"){findInDocument(tab,true);return;}
+        if(id=="view.minimap") {
+            setMinimap(!minimap_);
+            return;
+        }
         if(id=="file.openPaged"){openPaged(tab->path,0,0,false,true,true);return;}
         if(tab && tab->pagedProfile && pagedCommand(id,tab))return;
         if (executeExtensionCommand(id)) return;
         if (id == "view.analysis") { showPanel("Analysis and inspections", "analysis"); return; }
+        if(id=="view.gitCommits"){vcsSection_="History";dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);refreshGit();return;}
+        if(id=="view.vcs"){dockToolPanel("Version control","vcs",ImGuiDir_Right);return;}
         if (id.starts_with("help.")) {
             std::string page = id.substr(5);
             std::string anchor;
@@ -355,7 +367,9 @@ void Application::executeCommand(const std::string &id) {
                     const std::string_view name(window->Name);
                     const auto marker = name.find("###");
                     if (marker != std::string_view::npos) {
-                        const auto topic = app_help::context(name.substr(marker + 3));
+                        const auto panel=std::string(name.substr(marker+3));
+                        const auto route=panelHelpAliases_.find(panel);
+                        const auto topic=app_help::context(route==panelHelpAliases_.end()?panel:route->second);
                         page = topic.page; anchor = topic.anchor; break;
                     }
                 }
@@ -417,8 +431,8 @@ void Application::executeCommand(const std::string &id) {
         else if (id == "file.reopen") { auto path = closedFiles_.back(); closedFiles_.pop_back(); open(path); }
         else if (id == "file.exit") requestQuit();
         else if (id == "search.workspace") showPanel("Search", "search");
-        else if (id == "search.document" || id == "search.replace") { focusTab_ = active_; tab->editor.SetFocus(); tab->editor.OpenFindReplaceWindow(); }
-        else if (id == "search.next") { focusTab_ = active_; tab->editor.FindNext(); tab->editor.SetFocus(); }
+        else if (id == "search.document" || id == "search.replace") openDocumentFind(tab,id=="search.replace");
+        else if (id == "search.next") findInDocument(tab);
         else if (id == "search.files" || id == "search.actions" || id == "search.everywhere" || id == "navigate.recent" || id == "search.types" || id == "search.symbols" || id == "navigate.members") {
             paletteMode_ = id == "search.actions" ? "actions" : id == "search.everywhere" ? "everywhere" : id == "navigate.recent" ? "recent" : id == "search.types" ? "types" : id == "search.symbols" ? "symbols" : id == "navigate.members" ? "members" : "files";
             paletteOpen_ = true;
@@ -455,9 +469,10 @@ void Application::executeCommand(const std::string &id) {
         else if (id == "project.cancel") engine_->dispatch("project.cancel");
         else if (id == "project.test" || id == "project.install" || id == "project.script") task(id);
         else if (id == "vcs.refresh") refreshGit();
-        else if (id == "vcs.diff" || id == "vcs.blame" || id=="vcs.hunks") { showPanel("Version control","vcs"); vcsTask(id,{{"path",active_}}); }
+        else if (id == "vcs.diff" || id == "vcs.blame" || id=="vcs.hunks") { dockToolPanel("Version control","vcs",ImGuiDir_Right); vcsTask(id,{{"path",active_}}); }
         else if (id.starts_with("vcs.")) {
-            showPanel("Version control","vcs");
+            if(id=="vcs.history")dockToolPanel("Git commits","gitCommits",ImGuiDir_Down);
+            else dockToolPanel("Version control","vcs",ImGuiDir_Right);
             for (const auto &[command,section] : std::initializer_list<std::pair<const char *,const char *>>{{"changes","Changes"},{"branches","Branches"},{"history","History"},{"remotes","Remotes"},{"stashes","Stashes"},{"conflicts","Conflicts"}})
                 if (id == std::string("vcs.")+command) vcsSection_ = section;
             if (id == "vcs.conflicts") {
@@ -476,7 +491,7 @@ void Application::executeCommand(const std::string &id) {
         else if (id == "view.reset") resetLayout_ = true;
         else if (id == "view.recovery") { showPanel("Recovery", "recovery");recoveryTask("recovery.list"); }
         else if (id == "view.options" || id == "view.keymap") { options_ = true; focusKeymap_ = id == "view.keymap"; }
-        else if (id.starts_with("view.") && findCommand(id)->context == CommandContext::global) {
+        else if (id.starts_with("view.") && findCommand(id) && findCommand(id)->context == CommandContext::global) {
             auto panel = id.substr(5); showPanel(findCommand(id)->title.c_str(), panel.c_str());
         } else if (tab) {
             tab->pendingSession = nullptr;

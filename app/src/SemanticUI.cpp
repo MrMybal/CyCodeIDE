@@ -204,13 +204,13 @@ void Application::refactorPanel() {
             }
         }
         ImGui::Checkbox(tr("Wrap lines"), &previewWrap_);
-        if (!previewWrap_) cyui::diffViewer("##change-preview", refactorDiffState_, refactorDiff_);
+        if (!previewWrap_) drawDiff("##change-preview", refactorDiffState_, refactorDiff_);
         else
         if (ImGui::BeginTable("##change-preview", 2, ImGuiTableFlags_Resizable)) {
             ImGui::TableNextColumn(); ImGui::TextUnformatted(tr("Before"));
-            { cyui::ScopedFont mono(cyui::monoFont()); beforePreviewCode_.draw("##before-preview"); }
+            { cyui::ScopedFont mono(cyui::monoFont()); drawCode(beforePreviewCode_,"##before-preview"); }
             ImGui::TableNextColumn(); ImGui::TextUnformatted(tr("After"));
-            { cyui::ScopedFont mono(cyui::monoFont()); afterPreviewCode_.draw("##after-preview"); }
+            { cyui::ScopedFont mono(cyui::monoFont()); drawCode(afterPreviewCode_,"##after-preview"); }
             ImGui::EndTable();
         }
     }

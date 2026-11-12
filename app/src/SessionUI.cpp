@@ -68,6 +68,10 @@ void Application::beginWorkspaceSession(const std::filesystem::path &legacy, con
             std::erase_if(recentFiles_,[](const auto &path){return isUntitledDocument(path);});
             for (const auto &[panel, visible] : saved.at("panels").items())
                 panels_[panel] = visible.get<bool>();
+            // Older layouts enabled nearly every tool window on first use.
+            // Migrate that bulk default without disturbing normal custom layouts.
+            if(std::count_if(panels_.begin(),panels_.end(),[](const auto &p){return p.second;})>=12)
+                for(auto &[id,visible]:panels_)visible=id=="project";
         } else
             loadLegacy();
     } catch (const std::exception &e) {
@@ -102,6 +106,7 @@ Json Application::workspaceSessionSnapshot() const {
         records.push_back(std::move(item));
     };
     for (const auto &tab : tabs_) {
+        if(tab->preview && !tab->dirty)continue;
         if (!sessionPath(tab->path)) continue;
         if (tab->pendingSession.is_object()) {
             auto item = tab->pendingSession;

@@ -5,6 +5,8 @@
 #include <map>
 #include <optional>
 #include <string_view>
+#include <imgui_internal.h>
+#include <limits>
 namespace cycode {
 namespace {
 using Json = nlohmann::json;
@@ -119,8 +121,54 @@ DiagnosticAnnotationResult applyDiagnosticAnnotations(TextEditor &editor, const 
         }
     // Bound work in severity order, then paint in reverse order so errors retain
     // their tooltip/colour when a provider reports overlapping hints.
-    for (auto it = annotations.rbegin(); it != annotations.rend(); ++it)
-        editor.AddSquiggle(it->start, it->end, annotationType, it->color, it->tooltip);
+    for (auto it = annotations.rbegin(); it != annotations.rend(); ++it) {
+        // Keep the native glyph anchors and tooltip; the host paints a thin line
+        // below the text instead of the widget's large wave through descenders.
+        editor.AddSquiggle(it->start,it->end,annotationType,cyui::alpha(it->color,0.f),it->tooltip,TextEditor::SquiggleStyle::background);
+        result.underlines.push_back({it->start,it->end,cyui::alpha(it->color,.7f)});
+    }
     return result;
+}
+
+void drawDiagnosticUnderlines(TextEditor &editor,const std::vector<DiagnosticUnderline> &spans,ImGuiID childId) {
+    if(spans.empty())return;
+    ImGuiWindow *child=nullptr;
+    for(auto candidate:ImGui::GetCurrentWindow()->DC.ChildWindows)if(candidate->ChildId==childId){child=candidate;break;}
+    if(!child || child->Hidden || !child->Active || child->SkipItems)return;
+    const float unit=cyui::dp(1),width=editor.GetGlyphWidth();
+    auto draw=child->DrawList;
+    for(size_t row=editor.GetFirstVisibleRow();row<=editor.GetLastVisibleRow();++row) {
+        const auto start=editor.VisPos2DocPos({row,0});
+        if(!editor.IsLineVisible(start.line))continue;
+        const auto origin=editor.DocPos2ScreenPos(start);
+        const auto visual=editor.DocPos2VisPos(start);
+        if(visual.row!=row)continue;
+        const float base=origin.x-visual.column*width;
+        auto minimum=child->InnerClipRect.Min;minimum.x=std::max(minimum.x,base+child->Scroll.x);
+        if(minimum.x>=child->InnerClipRect.Max.x)continue;
+        draw->PushClipRect(minimum,child->InnerClipRect.Max,true);
+        for(const auto &span:spans) {
+            if(span.start.line!=start.line)continue;
+            const auto a=editor.DocPos2VisPos(span.start),b=editor.DocPos2VisPos(span.end);
+            if(row<a.row || row>b.row)continue;
+            const auto lo=row==a.row?a.column:visual.column;
+            size_t hi=b.column;
+            if(row!=b.row) {
+                const auto end=editor.VisPos2DocPos({row,std::numeric_limits<size_t>::max()});
+                if(end.line!=start.line || !end.index)continue;
+                const auto previous=editor.DocPos2VisPos({start.line,end.index-1});
+                if(previous.row!=row)continue;
+                const auto text=editor.GetSectionText({start.line,end.index-1},end);
+                const std::string_view glyph(text);
+                ImWchar cp=0;TextEditor::CodePoint::read(glyph.begin(),glyph.end(),&cp);
+                hi=previous.column+(cp=='\t'?editor.GetTabSize()-previous.column%editor.GetTabSize():TextEditor::CodePoint::getGlyphWidth(cp));
+            }
+            if(hi<=lo)continue;
+            const float left=std::max(base+lo*width,minimum.x),right=std::min(base+hi*width,child->InnerClipRect.Max.x);
+            const float y=origin.y+editor.GetLineHeight()-unit*1.5f;
+            for(float x=left;x<right;x+=unit*4)draw->AddLine({x,y},{std::min(x+unit*2,right),y},span.color,unit*.8f);
+        }
+        draw->PopClipRect();
+    }
 }
 } // namespace cycode

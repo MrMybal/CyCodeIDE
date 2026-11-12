@@ -226,19 +226,14 @@ void Application::resourcePanel() {
                     resourceAssetPaths_[id] = path;
                     const bool folder = entry.at("directory");
                     auto name = entry.at("name").get<std::string>();
-                    if (applicationIconAvailable(folder ? cyui::icon::folder : cyui::icon::document))
-                        name = std::string(folder ? cyui::icon::folder : cyui::icon::document) + "  " + name;
+
                     items.push_back({id, current.empty() ? 0 : uiId("resource/" + current), name,
                                      pathUtf8(utf8Path(path).extension()), 0, folder,
                                      resourceFavorites_.contains(path)});
                 }
                 resourceAssets_.folder = current.empty() ? 0 : uiId("resource/" + current);
-                if (resourceSearchFocus_) {
-                    ImGui::SetKeyboardFocusHere();
-                    resourceSearchFocus_ = false;
-                }
                 const auto result =
-                    cyui::assetBrowser("##workspace-resources", resourceAssets_, items,
+                    resourceBrowser("##workspace-resources", items,
                                        {0, std::max(cyui::dp(140), ImGui::GetContentRegionAvail().y)});
                 if (resourceAssets_.folder != (current.empty() ? 0 : uiId("resource/" + current))) {
                     resourceFolder_ =
@@ -258,7 +253,7 @@ void Application::resourcePanel() {
                             resourceFolder_ = path;
                             resourceItems_ = Json::object();
                         } else
-                            open(path);
+                            openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
                     } else if (result.action == cyui::AssetAction::rename)
                         beginResource("move", path, path);
                     else if (result.action == cyui::AssetAction::remove)

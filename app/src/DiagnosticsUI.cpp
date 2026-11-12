@@ -34,6 +34,7 @@ void Application::updateDiagnostics() {
             tab->diagnosticKey.clear();
             tab->diagnosticCount = 0;
             tab->diagnosticTruncated = false;
+            tab->diagnosticUnderlines.clear();
             continue;
         }
         const auto &p = cyui::palette();
@@ -48,6 +49,7 @@ void Application::updateDiagnostics() {
         tab->diagnosticKey = key;
         tab->diagnosticCount = result.count;
         tab->diagnosticTruncated = result.truncated;
+        tab->diagnosticUnderlines=result.underlines;
     }
 }
 } // namespace cycode

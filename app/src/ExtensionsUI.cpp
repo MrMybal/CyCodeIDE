@@ -32,6 +32,12 @@ bool Application::extensionVisible(const Json &entry) const {
 }
 std::vector<Command> Application::commandCatalogue() const {
     auto catalogue = commands();
+    for(auto &command:catalogue)if(command.id=="view.minimap"){command.title="Show minimap";command.context=CommandContext::global;}
+    catalogue.push_back({"view.gitCommits","Git commits","View",CommandContext::global});
+    catalogue.push_back({"file.keepOpen","Keep tab open","File",CommandContext::document});
+    catalogue.push_back({"search.previous","Find previous","Search",CommandContext::document});
+    catalogue.push_back({"view.toolWindows","Show or hide tool windows","View",CommandContext::global});
+    catalogue.push_back({"view.backgroundTasks","Background tasks","View",CommandContext::global});
     catalogue.push_back({"view.analysis", "Analysis and inspections", "View", CommandContext::global});
     catalogue.push_back({"file.openPaged","Open with paged text","File",CommandContext::document});
     catalogue.push_back({"file.checkpointPaged","Checkpoint active paged text","File",CommandContext::document});
@@ -61,7 +67,7 @@ void Application::synchronizeExtensions() {
         }
     }
     std::vector<Command> extra;
-    Json defaults = Json::object();
+    Json defaults = {{"view.toolWindows",Json::array({"Ctrl+Shift+F12"})},{"search.previous",Json::array({"Shift+F3"})}};
     for (const auto &entry :
          pluginInfo_.value("knownCommands", pluginInfo_.value("commands", Json::array()))) {
         const auto scope = entry.value("context", std::string("global"));

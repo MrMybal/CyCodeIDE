@@ -6,6 +6,7 @@
 #include "cycode/UpdateStorage.h"
 #include "cycode/UpdateHistory.h"
 #include "cycode/EditorOccurrences.h"
+#include "cycode/DiagnosticAnnotations.h"
 #include "cycode/LanguageClient.h"
 #include "cycode/Syntax.h"
 #include "cycode/EditorSnippet.h"
@@ -204,6 +205,10 @@ class Application {
         EditorSnippet snippet;
         Syntax syntax;
         std::uint64_t revision = 0;
+        bool preview = false;
+        bool findOpen=false,findFocus=false,findReplace=false,findSensitive=false,findWords=false,findExtended=false,findWrap=true,findTruncated=false;
+        size_t findCount=0;
+        std::string findQuery,findReplacement,findKey,findMessage;
         bool dirty = false;
         bool readOnly = false;
         size_t completionGeneration = 0;
@@ -233,8 +238,28 @@ class Application {
         std::string diagnosticKey;
         size_t diagnosticCount=0;
         bool diagnosticTruncated=false;
+        std::vector<DiagnosticUnderline> diagnosticUnderlines;
         bool visible=false;
     };
+    void openFromProject(const std::string &,bool keep=false);
+    void focusDocumentTab(const std::shared_ptr<Tab> &,const std::string &);
+    void editorContextMenu(const std::shared_ptr<Tab> &,TextEditor::DocPos);
+    void editorMouseNavigation(const std::shared_ptr<Tab> &);
+    void openDocumentFind(const std::shared_ptr<Tab> &,bool replace=false);
+    void documentFindBar(const std::shared_ptr<Tab> &);
+    void findInDocument(const std::shared_ptr<Tab> &,bool previous=false,bool replace=false,bool all=false);
+    void updateSearchPreview(const Json &);
+    void interfaceStyle();
+    void popupElevation();
+    void toggleToolWindows();
+    std::vector<std::string> backgroundTasks() const;
+    std::set<std::string> hiddenToolPanels_;
+    cyui::TextFilter editorMenuFilter_,searchResultsFilter_;
+    cyui::CodeEditor searchPreview_;
+    std::future<Json> searchPreviewFuture_;
+    std::string searchPreviewRunning_,searchPreviewLoaded_,searchPreviewError_,rightmostTab_,editorCommand_,editorCommandPath_;
+    size_t selectedSearch_=size_t(-1),displayedSearchGeneration_=0;
+    bool minimap_=false,backgroundTasksOpen_=false;
     struct Tree {
         std::map<std::string, Tree> folders;
         std::vector<std::string> files;
@@ -266,19 +291,41 @@ class Application {
     double lastSessionSave_=0;
     bool sessionRestoreFocus_=true,restoreWorkspaceSession_=true;
     void menu();
-    void topBar();
+    uint64_t commandMenu(const char *,cyui::TextFilter &,const std::vector<cyui::FilterMenuItem> &);
+    bool drawCode(cyui::CodeEditor &,const char *);
+    cyui::CodeViewResult drawCodeView(const char *,cyui::CodeViewState &,const cyui::CodeDocument &,ImVec2 size={});
+    cyui::DiffResult drawDiff(const char *,cyui::DiffState &,const cyui::DiffDocument &,ImVec2 size={});
+    std::vector<cyui::PagedCodeCommand> drawPaged(PagedTextEditor &,const char *);
+    void setCodeZoom(float,bool persist=true);
+    void setMinimap(bool,bool persist=true);
+    void updateCodePreferences();
+    float codeZoom_=1.f;
+    bool codePreferencesDirty_=false;
+    double codePreferencesChanged_=0,lastCodePreferencesPoll_=-1;
+    std::filesystem::file_time_type codePreferencesStamp_{};
+    float codeFontSize_=12.f,codeLineSpacing_=1.2f;
+    float searchResultsFraction_=.42f;
+    bool searchSideBySide_=false;
     void statusBar();
     void rail();
+    void configureTitleBar();
+    static SDL_HitTestResult SDLCALL windowHitTest(SDL_Window *, const SDL_Point *, void *);
+    void dockToolPanel(const char *text, const char *id, ImGuiDir direction);
     void layout(ImGuiID);
     void projectPanel();
     void solutionTree(const std::string &parent, int depth = 0);
-    bool beginPanel(const char *text, const char *id);
+    bool beginPanel(const char *text, const char *id,const char *helpId=nullptr);
+    std::map<std::string,std::string> panelHelpAliases_;
     void showPanel(const char *text, const char *id);
     void windowTest();
     void tree(Tree &, const std::string &);
     void editorPanel();
     void searchPanel();
     void gitPanel();
+    void gitPanelContents(bool commits);
+    void entryIcon(ImDrawList *,ImVec2,float,const std::string &,bool folder) const;
+    bool resourceTreeNode(const std::string &,const std::string &,ImGuiTreeNodeFlags,const std::string &,bool folder);
+    cyui::AssetResult resourceBrowser(const char *,const std::vector<cyui::AssetItem> &,ImVec2);
     std::string vcsRequestPath() const;
     void gitRepositoryControls();
     void gitWorktreeControls();
@@ -583,6 +630,9 @@ class Application {
     Json solution_;
     std::string solutionConfiguration_;
     ImGuiID editorDock_ = 0;
+    ImGuiID workspaceDock_ = 0, rightDock_ = 0, bottomDock_ = 0;
+    bool integratedTitleBar_ = true, titleBarActive_ = false, titleDragEnabled_ = false;
+    SDL_Rect titleDrag_{};
     std::map<std::string, bool> panels_;
     std::string focusPanel_;
     bool testWindows_ = false;

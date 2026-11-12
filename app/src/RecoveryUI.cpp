@@ -195,7 +195,7 @@ void Application::recoveryPanel() {
             }
             if (recoveryPreview_.at("truncated").get<bool>())
                 cyui::textDim("%s", tr("Preview truncated; restoration includes the complete buffer."));
-            cyui::codeViewer("##recovery-code", recoveryCodeState_, recoveryCode_,
+            drawCodeView("##recovery-code", recoveryCodeState_, recoveryCode_,
                              {0, std::max(cyui::dp(100), ImGui::GetContentRegionAvail().y)});
         } else
             cyui::textDim("%s", tr("Select an inactive checkpoint to preview and restore it."));

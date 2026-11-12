@@ -244,7 +244,7 @@ void Application::projectTemplatePanel() {
             }
             ImGui::EndChild();
             ImGui::TableNextColumn();
-            cyui::codeViewer("##template-code", templateCodeState_, templateCode_, {0, height});
+            drawCodeView("##template-code", templateCodeState_, templateCode_, {0, height});
             ImGui::EndTable();
         }
     } else

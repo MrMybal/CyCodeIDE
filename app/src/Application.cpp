@@ -21,6 +21,7 @@
 #include <imgui_stdlib.h>
 #include <random>
 #include <sstream>
+#include <utility>
 namespace cycode {
 template <class T> static bool ready(std::future<T> &f) {
     return f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
@@ -94,13 +95,14 @@ Application::Application(LaunchOptions options, SDL_Window *window)
         workspace = root_;
     setWorkspace(workspace);
     loadBranding();
+    configureTitleBar();
     updateStartupTime_=ImGui::GetTime();
     if (!options.openFile.empty())
         open(options.openFile, options.openLine, options.openColumn, true);
-    else if (sessionRestoreQueue_.empty() && std::filesystem::exists(workspace / "app/examples/hello/main.cpp"))
-        open("app/examples/hello/main.cpp");
+
 }
 Application::~Application() {
+    if (titleBarActive_ && window_) SDL_SetWindowHitTest(window_, nullptr, nullptr);
     if (engine_) stopAnalysis();
     if (pagedRecoveryFuture_.valid()) pagedRecoveryFuture_.wait();
     for (const auto &tab:tabs_) {
@@ -141,7 +143,7 @@ Application::~Application() {
     engine_->configureLanguage(clangd_, false, false);
     for (const auto &tab : tabs_) for (auto *future : {&tab->completion,&tab->completionAccept,&tab->highlighting}) if (future->valid()) future->wait();
     for (auto &future : retiredCompletions_) if (future.valid()) future.wait();
-    for (auto *future : {&filesFuture_, &searchFuture_, &gitFuture_, &taskFuture_, &navigationFuture_,
+    for (auto *future : {&filesFuture_, &searchFuture_, &searchPreviewFuture_, &gitFuture_, &taskFuture_, &navigationFuture_,
                          &buildFuture_, &presetFuture_, &detectionFuture_, &structure_.future, &occurrences_.future, &symbolFuture_, &symbolResolveFuture_, &informationFuture_, &hierarchyFuture_, &codeActionsFuture_, &refactorFuture_, &terminalFuture_, &debugFuture_, &vcsFuture_, &snippetFuture_, &userSnippetsFuture_, &counterpartFuture_})
         if (future->valid())
             future->wait();
@@ -184,6 +186,12 @@ void Application::loadSettings() {
     if(settings_.contains("skippedUpdate") && settings_.at("skippedUpdate").is_string())skippedUpdate_=settings_.at("skippedUpdate").get<std::string>();
     try {if(!skippedUpdate_.empty())(void)updates::version(skippedUpdate_);}catch(...){skippedUpdate_.clear();}
     restoreWorkspaceSession_=settings_.value("restoreWorkspaceSession",true);
+    minimap_=settings_.value("minimap",false);
+    codeFontSize_=std::clamp(settings_.value("codeFontSize",12.f),8.f,32.f);
+    codeZoom_=std::clamp(settings_.value("codeZoom",1.f),.5f,3.f);
+    codeLineSpacing_=std::clamp(settings_.value("codeLineSpacing",1.2f),1.f,2.f);
+    searchSideBySide_=settings_.value("searchSideBySide",false);
+    integratedTitleBar_=settings_.value("integratedTitleBar",true);
     theme_ = settings_.value("theme", theme_);
     if (settings_.value("schemaVersion", 1) < 2 && theme_ == "navy")
         theme_ = "graphite";
@@ -205,7 +213,7 @@ void Application::loadSettings() {
 void Application::saveSettings() {
     const auto buildLimit=desktopBuildTimeout(settings_);
     std::filesystem::create_directories(root_ / "data/settings");
-    settings_ = {{"schemaVersion", 3}, {"checkUpdatesAtStartup",checkUpdatesAtStartup_}, {"skippedUpdate",skippedUpdate_},      {"theme", theme_},   {"language", locale_},
+    settings_ = {{"schemaVersion", 3}, {"codeZoom",codeZoom_}, {"codeFontSize",codeFontSize_}, {"codeLineSpacing",codeLineSpacing_}, {"searchSideBySide",searchSideBySide_}, {"integratedTitleBar",integratedTitleBar_}, {"minimap",minimap_}, {"checkUpdatesAtStartup",checkUpdatesAtStartup_}, {"skippedUpdate",skippedUpdate_},      {"theme", theme_},   {"language", locale_},
                  {"textScale", textScale_}, {"clangd", clangd_}, {"workspace", pathUtf8(entry_)},
                  {"keymap", keymapProfile_}, {"keymapOverrides", keymapOverrides_}, {"buildTimeoutSeconds",buildLimit},{"restoreWorkspaceSession",restoreWorkspaceSession_}};
     auto destination = root_ / "data/settings/ui-preferences.json";
@@ -325,6 +333,10 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     const bool inspectMsbuild = !nextUnreal.value("available",false) && (!std::filesystem::is_directory(path) || (!std::filesystem::exists(nextEngine->workspace()/"CMakeLists.txt") && !std::filesystem::exists(nextEngine->workspace()/"app/CMakeLists.txt")));
     const auto nextMsbuild = inspectMsbuild ? nextEngine->dispatch("msbuild.inspect") : Json::object();
     if (engine_) {
+        if(searchPreviewFuture_.valid()) {
+            if(searchPreviewFuture_.wait_for(std::chrono::seconds(0))!=std::future_status::ready)throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
+            try{searchPreviewFuture_.get();}catch(const std::exception &){}
+        }
         if (pagedRecoveryFuture_.valid()) throw std::runtime_error(tr("Wait for current tasks before switching workspace."));
         for(const auto &tab:tabs_)if(tab->pagedOpening.valid() || tab->pagedNavigation.valid() ||
             (tab->paged && (tab->paged->status().busy || tab->paged->unsettled())))
@@ -374,6 +386,9 @@ void Application::setWorkspace(const std::filesystem::path &path) {
     sessionRestoreQueue_.clear();
     liveBuildState_=Json::object();liveBuildText_.clear();liveBuildError_.clear();lastLiveBuildPoll_=-1;
     tabs_.clear();
+    panels_.clear();panels_["project"]=true;rightmostTab_.clear();hiddenToolPanels_.clear();
+    workspaceDock_=rightDock_=bottomDock_=0;
+    searchPreviewLoaded_.clear();searchPreviewError_.clear();selectedSearch_=size_t(-1);
     saveAsQueue_.clear();saveAsDocument_=0;saveAsOpen_=false;saveAsError_.clear();
     languageDecisions_.clear();
     languageSettingsBackend_.clear();languageSettingsError_.clear();
@@ -711,7 +726,9 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
     tab->syntax.update(tab->editor,tab->path,tab->editor.GetText());
     tab->editor.SetTabSize(4);
     tab->editor.SetInsertSpacesOnTabs(true);
-    tab->editor.SetShowMiniMapEnabled(false);
+    tab->editor.SetShowMiniMapEnabled(minimap_);
+    tab->codeEditor.setTextScale(codeZoom_);
+    tab->editor.SetFindReplaceEnabled(false);
     tab->editor.SetLineFoldingEnabled(true);
     tab->editor.SetReadOnlyEnabled(tab->readOnly);
     tab->editor.SetLineDecorator(2, [this, weak = std::weak_ptr<Tab>(tab)](TextEditor::Decorator &line) {
@@ -737,6 +754,9 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
         ImGui::EndDisabled();
     });
     std::weak_ptr<Tab> weak = tab;
+    tab->editor.SetTextContextMenuCallback([this,weak](TextEditor::PopupData &data) {
+        if(const auto owner=weak.lock())editorContextMenu(owner,data.pos);
+    });
     TextEditor::AutoCompleteConfig completion;
     completion.suggestionWidth = 48;
     completion.noSuggestionsLabel = tr("No matching suggestions");
@@ -863,6 +883,7 @@ void Application::open(const std::string &path, size_t line, size_t column, bool
 }
 void Application::changed(const std::shared_ptr<Tab> &tab) {
     if (tab->readOnly || tab->pagedProfile) return;
+    tab->preview=false;
     clearDiagnosticAnnotations(tab->editor);tab->diagnosticKey.clear();tab->diagnosticCount=0;tab->diagnosticTruncated=false;
     tab->editor.ClearSemanticTokens(); tab->highlightRevision=0; tab->highlightCount=0; tab->highlightRetryAt=ImGui::GetTime()+.3;
     try {
@@ -960,9 +981,10 @@ void Application::retireTabView(const std::string &path) {
         retiredCompletions_.push_back(std::move((*found)->completion));
     if ((*found)->completionAccept.valid()) retiredCompletions_.push_back(std::move((*found)->completionAccept));
     if ((*found)->highlighting.valid()) retiredCompletions_.push_back(std::move((*found)->highlighting));
+    const bool preview=(*found)->preview;
     tabs_.erase(found);
     sessionDraftTabs_.erase(path);
-    if (!isUntitledDocument(path)) closedFiles_.push_back(path);
+    if (!preview && !isUntitledDocument(path)) closedFiles_.push_back(path);
     if (closedFiles_.size() > 100) closedFiles_.erase(closedFiles_.begin());
     if (active_ == path)
         active_ = tabs_.empty() ? "" : tabs_.front()->path;
@@ -982,11 +1004,11 @@ void Application::update() {
             else {
                 output_ += result.value("output", std::string{});
                 applyUnreal(result.at("project"));
-                unrealAnalysisState_ = result.value("exitCode", -1) == 0 ? "ready" : "failed";
+                unrealAnalysisState_ = result.value("exitCode", -1) == 0 && !result.value("cancelled",false) && !result.value("truncated",false) && !result.contains("inspectionError") && result.at("project").value("compilationDatabase",Json::object()).value("available",false) ? "ready" : "failed";
                 if (unrealAnalysisState_ == "failed") error(tr("Unreal analysis failed. See Build output."));
-                engine_->configureLanguage(clangd_, !smoke_, true);
+                engine_->configureLanguage(clangd_, !smoke_ && unrealAnalysisState_=="ready", true);
             }
-        } catch (const std::exception &e) { unrealAnalysisState_ = "failed"; error(e.what()); engine_->configureLanguage(clangd_, !smoke_, true); }
+        } catch (const std::exception &e) { unrealAnalysisState_ = "failed"; error(e.what()); engine_->configureLanguage(clangd_, false, false); }
     }
     std::erase_if(retiredCompletions_, [](auto &future) {
         if (!ready(future))
@@ -1338,7 +1360,7 @@ void Application::update() {
         try {
             auto result = searchFuture_.get();
             if (runningSearchGeneration_ == searchGeneration_)
-                search_ = std::move(result);
+                {search_ = std::move(result);displayedSearchGeneration_=runningSearchGeneration_;selectedSearch_=size_t(-1);}
         } catch (const std::exception &e) {
             error(e.what());
         }
@@ -1350,7 +1372,7 @@ void Application::update() {
         searchCancellation_ = std::make_shared<std::atomic<bool>>(false);
         auto cancellation = searchCancellation_;
         auto parameters = Json{
-            {"query", searchQuery_}, {"caseSensitive", caseSensitive_}, {"regex", regex_}, {"limit", 500}};
+            {"query", searchQuery_}, {"caseSensitive", caseSensitive_}, {"regex", regex_}, {"limit", 2000}};
         searchFuture_ = std::async(std::launch::async, [engine, parameters, cancellation] {
             return engine->searchText(parameters, cancellation.get());
         });
@@ -1453,6 +1475,7 @@ void Application::chooseSolution(bool separate) {
         state, window_, filters, 3, pathUtf8(engine_->workspace()).c_str(), false);
 }
 void Application::newWindow(const std::filesystem::path &entry) {
+    if(codePreferencesDirty_){saveSettings();codePreferencesDirty_=false;}
 #ifdef _WIN32
     auto executable = utf8Path(SDL_GetBasePath()) / "CyCodeIDE.exe";
 #else
@@ -1484,8 +1507,9 @@ void Application::newWindow(const std::filesystem::path &entry) {
     else
         SDL_DestroyProcess(process);
 }
-bool Application::beginPanel(const char *text, const char *id) {
-    auto [found, inserted] = panels_.try_emplace(id, true);
+bool Application::beginPanel(const char *text, const char *id,const char *helpId) {
+    if(helpId)panelHelpAliases_[id]=helpId;
+    auto [found, inserted] = panels_.try_emplace(id, false);
     if (!found->second)
         return false;
     if (focusPanel_ == id) {
@@ -1494,7 +1518,7 @@ bool Application::beginPanel(const char *text, const char *id) {
     }
     if (ImGui::Begin(label(text, id).c_str(), &found->second)) {
         if (cyui::iconButton(cyui::icon::help, tr("Context help"))) {
-            try { app_help::open(root_, "app/Documentation", locale_, app_help::topic(id), app_help::topicAnchor(id), smoke_ || testSession_); }
+            try { const auto route=helpId?helpId:id;app_help::open(root_, "app/Documentation", locale_, app_help::topic(route), app_help::topicAnchor(route), smoke_ || testSession_); }
             catch (const std::exception &exception) { error(exception.what()); }
         }
         return true;
@@ -1508,123 +1532,20 @@ void Application::showPanel(const char *text, const char *id) {
     focusPanel_ = id;
     ImGui::SetWindowFocus(label(text, id).c_str());
 }
-void Application::menu() {
-    if (!ImGui::BeginMainMenuBar()) return;
-    for (const auto *category : {"File", "Edit", "Search", "Navigate", "Refactor", "Build", "Run", "View", "Project", "Version control", "Extensions", "Help"}) {
-        if (!ImGui::BeginMenu(tr(category))) continue;
-        std::vector<cyui::FilterMenuItem> items;
-        const auto catalogue=commandCatalogue();
-        for (const auto &command : commandCatalogue()) if (command.category == category &&
-            !(std::string(category)=="Version control"&&provider_!="git"&&command.id.starts_with("vcs.")&&command.id!="vcs.changes"&&command.id!="vcs.refresh"&&command.id!="vcs.diff"&&command.id!="vcs.blame"))
-            items.push_back({uiId("command/" + command.id), command.title, keymap_.hint(command.id), command.id,
-                             commandEnabled(command.id), false, {}});
-        const std::map<std::string,std::string> locations={{"File","file"},{"Edit","edit"},{"View","view"},{"Navigate","navigate"},{"Build","build"},{"Run","run"},{"Project","project"},{"Version control","vcs"},{"Extensions","extensions"}};
-        if(locations.contains(category))for(const auto &entry:pluginInfo_.value("menus",Json::array()))if(entry.at("location")==locations.at(category)&&extensionVisible(entry)) {
-            const std::string id=entry.at("command");const auto itemId=uiId("command/"+id);
-            std::erase_if(items,[&](const auto &item) { return item.id==itemId; });
-            items.push_back({itemId,entry.value("title",id),keymap_.hint(id),id,commandEnabled(id),false,{}});
-        }
-        const auto request = cyui::filterMenu(category, menuFilters_[category], items);
-        if (request) for (const auto &command : catalogue) if (uiId("command/" + command.id) == request) { executeCommand(command.id); break; }
-        ImGui::EndMenu();
-    }
-    ImGui::EndMainMenuBar();
-}
-void Application::topBar() {
-    cyui::beginTopBar("##top", 44);
-    if(brandingLogo_) {
-        const float size=cyui::dp(26);
-        ImGui::Image(brandingLogo_->data.texture,{size*brandingLogo_->data.width/brandingLogo_->data.height,size});
-        ImGui::SameLine();
-    }
-    {
-        cyui::ScopedFont bold(cyui::boldFont(), 1.1f);
-        cyui::textColoured(cyui::palette().accent, "CYCODE");
-    }
-    ImGui::SameLine();
-    cyui::badge(CYCODE_IDE_VERSION, cyui::Tone::neutral);
-    ImGui::SameLine();
-    cyui::toolbarSeparator();
-    ImGui::SameLine();
-    if (cyui::iconTextButton(cyui::icon::folder, pathUtf8(engine_->workspace().filename()).c_str()))
-        chooseFolder();
-    ImGui::SameLine();
-    cyui::textFaint("/");
-    ImGui::SameLine();
-    cyui::textDim("%s", (unreal_.value("available", false)
-                             ? unrealTarget_ + " | " + unrealConfiguration_ + " | " + unrealPlatform_
-                             : configuration_)
-                            .c_str());
-    ImGui::SameLine();
-    cyui::toolbarSeparator();
-    ImGui::SameLine();
-    if (cyui::iconButton(cyui::icon::save, (std::string(tr("Save")) + " (" + keymap_.hint("file.save") + ")").c_str()))
-        executeCommand("file.save");
-    ImGui::SameLine();
-    if (cyui::iconButton(cyui::icon::repair, (std::string(tr("Build project")) + " (" + keymap_.hint("build.run") + ")").c_str(), taskFuture_.valid()))
-        executeCommand("build.run");
-    ImGui::SameLine();
-    cyui::alignRight(cyui::dp(335));
-    if (cyui::ghostButton((std::string(tr("Go to file...")) + "   " + keymap_.hint("search.files")).c_str(), cyui::dp(260, 28)))
-        executeCommand("search.files");
-    ImGui::SameLine();
-    if (cyui::iconButton(cyui::icon::settings, tr("Options")))
-        options_ = true;
-    cyui::endTopBar();
-}
-void Application::statusBar() {
-    cyui::beginStatusBar("##status");
-    cyui::statusText(cyui::Tone::accent, "%s", busy() ? tr("Working...") : tr("Ready"));
-    if (unrealAnalysisState_ == "preparing") { ImGui::SameLine(); cyui::textDim("%s", tr("Preparing Unreal code analysis...")); }
-    if (auto pending = keymap_.pending(ImGui::GetTime()); !pending.empty()) { ImGui::SameLine(); cyui::textDim("%s", pending.c_str()); }
-    ImGui::SameLine();
-    cyui::textFaint(" | ");
-    ImGui::SameLine();
-    cyui::textDim("%s", git_.value("repository", false) ? git_.value("branch", std::string{}).c_str()
-                                                        : tr("No repository"));
-    for (const auto &tab : tabs_)
-        if (tab->path == active_) {
-            ImGui::SameLine();
-            cyui::alignRight(cyui::dp(420));
-            if (tab->image) { cyui::textDim("%s",tr("Image preview")); continue; }
-            if(tab->pagedProfile) {
-                const auto pos=tab->paged?tab->paged->view().selection().caret:cyui::PagedCodePosition{};
-                cyui::textDim("%s | %llu:%llu | UTF-16",tr("Paged UTF-8"),static_cast<unsigned long long>(pos.line+1),static_cast<unsigned long long>(pos.character+1));continue;
-            }
-            auto pos = tab->editor.GetMainCursorPosition();
-            cyui::textDim("%s  |  Ln %zu, Col %zu  |  UTF-8", tab->editor.GetLanguageName().c_str(),
-                          pos.line + 1, pos.index + 1);
-        }
-    cyui::endStatusBar();
-}
-void Application::rail() {
-    cyui::beginSidebar("##rail", 48);
-    auto button = [&](const char *icon, const char *text, const char *panel) {
-        if (cyui::iconButton(icon, tr(text), false, 0, cyui::dp(32, 34)))
-            showPanel(text, panel);
-        cyui::space(6);
-    };
-    button(cyui::icon::folder, "Project", "project");
-    button(cyui::icon::search, "Search", "search");
-    button(cyui::icon::sync, "Version control", "vcs");
-    button(cyui::icon::repair, "Build", "build");
-    button(cyui::icon::library, "Extensions", "extensions");
-    button(cyui::icon::connect, "MCP", "mcp");
-    cyui::endSidebar();
-}
 void Application::layout(ImGuiID dock) {
     for (auto &[id, visible] : panels_)
-        visible = id != "refactoring" && id != "terminal" && id != "debugger" && id != "codeActions" && id != "hierarchy" && id != "cmakePresets";
+        visible = id == "project";
     ImGui::DockBuilderRemoveNode(dock);
     ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace);
     ImGui::DockBuilderSetNodeSize(dock, ImGui::GetMainViewport()->WorkSize);
     auto center = dock;
-    auto left = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left, .23f, nullptr, &center);
+    rightDock_ = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, .27f, nullptr, &center);
     auto bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, .29f, nullptr, &center);
-    ImGui::DockBuilderDockWindow(label("Project", "project").c_str(), left);
-    ImGui::DockBuilderDockWindow(label("Search", "search").c_str(), left);
-    ImGui::DockBuilderDockWindow(label("Files", "resources").c_str(), left);
-    ImGui::DockBuilderDockWindow(label("Structure", "structure").c_str(), left);
+    bottomDock_=bottom;
+    ImGui::DockBuilderDockWindow(label("Project", "project").c_str(), rightDock_);
+    // Workspace search is a floating results/preview window, not a narrow sidebar.
+    ImGui::DockBuilderDockWindow(label("Files", "resources").c_str(), rightDock_);
+    ImGui::DockBuilderDockWindow(label("Structure", "structure").c_str(), rightDock_);
     ImGui::DockBuilderDockWindow("##editors", center);
     for (const auto &[text, id] :
          std::vector<std::pair<const char *, const char *>>{{"Build", "build"},
@@ -1635,6 +1556,7 @@ void Application::layout(ImGuiID dock) {
                                                             {"Project tasks", "projectTasks"},
                                                             {"Tests", "tests"},
                                                             {"Version control", "vcs"},
+                                                            {"Git commits", "gitCommits"},
                                                             {"Problems", "problems"},
                                                             {"Analysis and inspections", "analysis"},
                                                             {"References", "references"},
@@ -1647,7 +1569,8 @@ void Application::layout(ImGuiID dock) {
                                                             {"Extensions", "extensions"},
                                                             {"Recovery", "recovery"},
                                                             {"MCP", "mcp"}})
-        ImGui::DockBuilderDockWindow(label(text, id).c_str(), bottom);
+        ImGui::DockBuilderDockWindow(label(text, id).c_str(),
+            std::set<std::string>{"vcs","problems","tests","recovery","references","information","hierarchy","codeActions","analysis","extensions","mcp"}.contains(id)?rightDock_:bottom);
     ImGui::DockBuilderFinish(dock);
     layoutReady_ = true;
 }
@@ -1657,7 +1580,7 @@ void Application::tree(Tree &node, const std::string &prefix) {
         ImGui::PushID(key.c_str());
         if (revealPath_.starts_with(key + '/'))
             ImGui::SetNextItemOpen(true);
-        bool open = fileTreeNode(name, key,
+        bool open = resourceTreeNode(name, key,
                                  ImGuiTreeNodeFlags_SpanAvailWidth |
                                      (prefix.empty() && (!unreal_.value("available", false) ||
                                                          name == "Source" || name == "Plugins")
@@ -1672,6 +1595,7 @@ void Application::tree(Tree &node, const std::string &prefix) {
         }
         ImGui::PopID();
     }
+    ImGui::Indent(ImGui::GetTreeNodeToLabelSpacing());
     ImGuiListClipper clipper;
     clipper.Begin(static_cast<int>(node.files.size()));
     while (clipper.Step())
@@ -1682,12 +1606,13 @@ void Application::tree(Tree &node, const std::string &prefix) {
             ImGui::PushID(path.c_str());
             if (fileSelectable(name, path, selected, theme_)) {
                 selectedResource_=path;
-                open(path);
+                openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
             }
             if(ImGui::BeginPopupContextItem()) { resourceMenu(path,false);ImGui::EndPopup(); }
             cyui::tooltip(path.c_str());
             ImGui::PopID();
         }
+    ImGui::Unindent(ImGui::GetTreeNodeToLabelSpacing());
 }
 void Application::solutionTree(const std::string &parent, int depth) {
     if (depth > 64)
@@ -1707,7 +1632,7 @@ void Application::solutionTree(const std::string &parent, int depth) {
         if (!exists)
             ImGui::PushStyleColor(ImGuiCol_Text, cyui::vec(cyui::palette().warning));
         bool expanded =
-            fileTreeNode(name, project.at("path"),
+            resourceTreeNode(name, project.at("path"),
                          ImGuiTreeNodeFlags_SpanAvailWidth | (folder ? 0 : ImGuiTreeNodeFlags_Leaf) |
                              (depth < 1 ? ImGuiTreeNodeFlags_DefaultOpen : 0),
                          theme_, folder);
@@ -1730,7 +1655,7 @@ void Application::solutionTree(const std::string &parent, int depth) {
                 auto path = item.at("path").get<std::string>();
                 if (fileSelectable(pathUtf8(utf8Path(path).filename()), path, false, theme_) &&
                     item.at("exists").get<bool>() && !item.at("external").get<bool>())
-                    open(item.at("relativePath"));
+                    openFromProject(item.at("relativePath"),ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
             }
             solutionTree(id, depth + 1);
             ImGui::TreePop();
@@ -1807,7 +1732,7 @@ void Application::projectPanel() {
                 ImGui::PushID(path.c_str());
                 if (fileSelectable(path, path, active_ == path, theme_)) {
                     selectedResource_=path;
-                    open(path);
+                    openFromProject(path,ImGui::GetIO().KeyCtrl || ImGui::IsMouseDoubleClicked(0));
                 }
                 if(ImGui::BeginPopupContextItem()) { resourceMenu(path,false);ImGui::EndPopup(); }
                 ImGui::PopID();
@@ -1831,8 +1756,13 @@ void Application::editorPanel() {
                      ImGuiDockNodeFlags_PassthruCentralNode |
                          (visible && !tabs_.empty() ? 0 : ImGuiDockNodeFlags_KeepAliveOnly));
     if (visible && tabs_.empty()) {
-        cyui::space(80);
-        cyui::heading("CyCode", 1);
+        const auto available=ImGui::GetContentRegionAvail();
+        const ImVec2 welcome{std::min(cyui::dp(460),std::max(cyui::dp(200),available.x-cyui::dp(48))),cyui::dp(190)};
+        ImGui::SetCursorPos({std::max(cyui::dp(24),(available.x-welcome.x)*.5f),std::max(cyui::dp(24),(available.y-welcome.y)*.5f)});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,cyui::dp(20,16));
+        ImGui::BeginChild("##welcome",welcome,ImGuiChildFlags_AlwaysUseWindowPadding,ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleVar();
+        cyui::heading("CyCodeIDE", 1);
         cyui::textDim("%s", tr("A workspace for your code."));
         cyui::space(12);
         if (cyui::primaryButton(tr("Open solution...")))
@@ -1840,20 +1770,22 @@ void Application::editorPanel() {
         ImGui::SameLine();
         if (cyui::button(tr("Open workspace...")))
             chooseFolder();
+        ImGui::EndChild();
     }
     ImGui::End();
     std::string close;
-    for (auto &tab : tabs_) {
+    const auto renderedTabs=tabs_;
+    for (const auto &tab : renderedTabs) {
+        if(tab->dirty)tab->preview=false;
         bool opened = true;
         auto title = tabTitle(tab);
         ImGui::SetNextWindowDockID(editorDock_, ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(cyui::dp(850, 650), ImGuiCond_FirstUseEver);
-        if (focusTab_ == tab->path) {
-            ImGui::SetNextWindowFocus();
-            focusTab_.clear();
-        }
+        focusDocumentTab(tab,title);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,cyui::dp(10,8));
         const bool rendered =
             ImGui::Begin(title.c_str(), &opened, ImGuiWindowFlags_NoFocusOnAppearing | (tab->dirty ? ImGuiWindowFlags_UnsavedDocument : 0));
+        ImGui::PopStyleVar();
         documentIcon(tab->path, theme_);
         tab->visible=rendered;
         if (rendered) {
@@ -1861,20 +1793,28 @@ void Application::editorPanel() {
                 active_ = tab->path;
             cyui::space(4);
             if (!tab->image && (!tab->pagedProfile || tab->paged)) {
-                const float scale=tab->paged?tab->paged->view().options().textScale:tab->codeEditor.textScale();
+                const float scale=codeZoom_;
                 const auto zoom = std::to_string(static_cast<int>(scale * 100.f + .5f)) +
                                   "%###code-zoom";
                 if (cyui::ghostButton(zoom.c_str())) {
-                    if(tab->paged){auto options=tab->paged->view().options();options.textScale=1.f;tab->paged->view().setOptions(options);}
-                    else tab->codeEditor.setTextScale(1.f);
+                    setCodeZoom(1.f);
                 }
-                cyui::tooltip(tr("Ctrl + mouse wheel zooms code in this view. Click to reset to 100%."));
+                cyui::tooltip(tr("Ctrl + mouse wheel changes code size in every view. Click to reset all views to 100%."));
                 ImGui::SameLine();
+            }
+            if(!tab->image && !tab->pagedProfile) {
+                auto show=minimap_;if(cyui::toggleButton(tr("Minimap"),&show))setMinimap(show);
+                cyui::tooltip(tr("Show or hide the code minimap"));ImGui::SameLine();
             }
             cyui::textFaint("  %s", tab->displayPath.c_str());
             if (tab->image) imagePanel(tab);
             else if(tab->pagedProfile)pagedPanel(tab);
             else {
+            documentFindBar(tab);
+            if(cppFile(tab->path) && unreal_.value("available",false) && unrealAnalysisState_=="failed") {
+                cyui::callout(cyui::Tone::warning,tr("Unreal code analysis needs a valid compilation database."));
+                if(cyui::button(tr("Prepare Unreal code analysis")))executeCommand("unreal.prepare");
+            }
             if (tab->snippet.active()) {
                 ImGui::SameLine();cyui::badge((std::string(tr("Snippet parameter"))+" "+std::to_string(tab->snippet.index())).c_str(),cyui::Tone::accent);
                 cyui::tooltip(tr("Tab: next | Shift+Tab: previous | Esc: finish"));
@@ -1895,7 +1835,9 @@ void Application::editorPanel() {
             cyui::divider(4);
             const auto undoBefore = tab->editor.GetUndoIndex();
             const auto occurrenceChild = ImGui::GetID(("##text" + tab->path).c_str());
-            const bool renderedChange = tab->codeEditor.draw(("##text" + tab->path).c_str());
+            const bool renderedChange = drawCode(tab->codeEditor,("##text" + tab->path).c_str());
+            if(!renderedChange && tab->editor.GetUndoIndex()==undoBefore)
+                drawDiagnosticUnderlines(tab->editor,tab->diagnosticUnderlines,occurrenceChild);
             if (!renderedChange && tab->editor.GetUndoIndex() == undoBefore && tab->path == active_ && occurrencesCurrent())
                 drawOccurrenceAnnotations(tab->editor,occurrences_.annotations,occurrenceChild);
 
@@ -1904,6 +1846,7 @@ void Application::editorPanel() {
             if (renderedChange || tab->editor.GetUndoIndex() != undoBefore)
                 changed(tab);
             applySessionEditor(tab,tab->editor.GetUndoIndex() != undoBefore);
+            editorMouseNavigation(tab);
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !(ImGui::GetActiveID() && ImGui::GetCurrentContext()->InputTextState.ID == ImGui::GetActiveID())) editorFocused_ = true;
             }
         }
@@ -1929,47 +1872,11 @@ void Application::editorPanel() {
     if (!close.empty())
         closeTab(close);
     ImGui::PopStyleVar();
-}
-void Application::searchPanel() {
-    if (!beginPanel("Search", "search"))
-        return;
-    if (focusSearch_) { ImGui::SetKeyboardFocusHere(); focusSearch_ = false; }
-    bool changed = ImGui::InputTextWithHint("##query", tr("Find in workspace..."), &searchQuery_);
-    changed |= ImGui::Checkbox(tr("Case sensitive"), &caseSensitive_);
-    ImGui::SameLine();
-    changed |= ImGui::Checkbox(tr("Regex"), &regex_);
-    if (changed) {
-        if (searchCancellation_)
-            *searchCancellation_ = true;
-        searchChanged_ = ImGui::GetTime();
-        ++searchGeneration_;
-        searchQueued_ = true;
+    if(!editorCommand_.empty()) {
+        const auto command=std::exchange(editorCommand_,{}),path=std::exchange(editorCommandPath_,{});
+        if(command=="ui.openPath")openFromProject(path,true);
+        else if(std::any_of(tabs_.begin(),tabs_.end(),[&](const auto &tab){return tab->path==path;})) {active_=path;executeCommand(command);}
     }
-    if (searchFuture_.valid())
-        cyui::spinner("##searching");
-    cyui::divider();
-    if (!search_.contains("matches"))
-        cyui::emptyState(tr("Search your project"),
-                         tr("Results include unsaved documents."), cyui::icon::search);
-    else {
-        cyui::textDim("%zu %s", search_["matches"].size(), tr("matches"));
-        if (search_.value("truncated", false))
-            cyui::badge(tr("Results limited"), cyui::Tone::warning);
-        if (search_.value("unsavedRegexExcluded", false))
-            cyui::callout(cyui::Tone::warning, tr("Regex excludes modified buffers."));
-        ImGui::BeginChild("##results");
-        for (const auto &hit : search_["matches"]) {
-            auto path = hit["path"].get<std::string>();
-            auto line = hit["line"].get<size_t>();
-            auto title = path + ":" + std::to_string(line) + "  " + hit["text"].get<std::string>();
-            ImGui::PushID(title.c_str());
-            if (ImGui::Selectable(title.c_str()))
-                open(path, line, hit["column"].get<size_t>());
-            ImGui::PopID();
-        }
-        ImGui::EndChild();
-    }
-    ImGui::End();
 }
 void Application::outputPanel() {
     if (!beginPanel("Build", "build"))
@@ -2733,14 +2640,16 @@ void Application::frame() {
     cyui::setLocale(locale_.c_str());
     if (!options_) cancelPropertyDrafts(optionsInspector_);
     update();
+    updateCodePreferences();
     shortcuts();
     if (testWindows_)
         windowTest();
+    interfaceStyle();
     menu();
-    topBar();
     statusBar();
     rail();
     auto dock = cyui::dockSpace("##workspace");
+    workspaceDock_=dock;
     bool rebuiltLayout = false;
     if (!layoutReady_ || resetLayout_) {
         layoutReady_ = true;
@@ -2782,7 +2691,6 @@ void Application::frame() {
     recoveryPanel();
     mcpPanel();
     if (rebuiltLayout) {
-        panels_["build"] = true;
         focusPanel_.clear();
         if (!active_.empty()) focusTab_ = active_;
         else ImGui::SetWindowFocus("##editors");
@@ -2912,6 +2820,7 @@ void Application::frame() {
             }
         }
     }
+    popupElevation();
     cyui::renderNotifications();
 }
 } // namespace cycode

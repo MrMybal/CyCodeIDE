@@ -7334,5 +7334,281 @@
   "To recover an interrupted update, run the staged CyCodeIDEUpdater.exe inside data/updates/download-... . Keep pending.json and all backups.": {
     "en": "To recover an interrupted update, run the staged CyCodeIDEUpdater.exe inside data/updates/download-... . Keep pending.json and all backups.",
     "fr": "Pour récupérer une mise à jour interrompue, lancez le CyCodeIDEUpdater.exe conservé dans data/updates/download-... . Conservez pending.json et toutes les sauvegardes."
+  },
+  "Tabs": {
+    "en": "Tabs",
+    "fr": "Onglets"
+  },
+  "Clipboard": {
+    "en": "Clipboard",
+    "fr": "Presse-papiers"
+  },
+  "Lines and formatting": {
+    "en": "Lines and formatting",
+    "fr": "Lignes et mise en forme"
+  },
+  "Selection": {
+    "en": "Selection",
+    "fr": "Sélection"
+  },
+  "Related files": {
+    "en": "Related files",
+    "fr": "Fichiers associés"
+  },
+  "Navigation history": {
+    "en": "Navigation history",
+    "fr": "Historique de navigation"
+  },
+  "Current file": {
+    "en": "Current file",
+    "fr": "Fichier actif"
+  },
+  "Project search": {
+    "en": "Project search",
+    "fr": "Recherche dans le projet"
+  },
+  "Settings and layout": {
+    "en": "Settings and layout",
+    "fr": "Paramètres et disposition"
+  },
+  "Editor display": {
+    "en": "Editor display",
+    "fr": "Affichage de l’éditeur"
+  },
+  "Tool windows": {
+    "en": "Tool windows",
+    "fr": "Panneaux d’outils"
+  },
+  "Build tasks": {
+    "en": "Build tasks",
+    "fr": "Tâches de compilation"
+  },
+  "Run configurations": {
+    "en": "Run configurations",
+    "fr": "Configurations d’exécution"
+  },
+  "Keep tab open": {
+    "en": "Keep tab open",
+    "fr": "Conserver l’onglet ouvert"
+  },
+  "Copy file path": {
+    "en": "Copy file path",
+    "fr": "Copier le chemin du fichier"
+  },
+  "Code navigation requires a configured language server.": {
+    "en": "Code navigation requires a configured language server.",
+    "fr": "La navigation dans le code nécessite un serveur de langage configuré."
+  },
+  "Close search": {
+    "en": "Close search",
+    "fr": "Fermer la recherche"
+  },
+  "Match case": {
+    "en": "Match case",
+    "fr": "Respecter la casse"
+  },
+  "Whole word": {
+    "en": "Whole word",
+    "fr": "Mot entier"
+  },
+  "Wrap around": {
+    "en": "Wrap around",
+    "fr": "Boucler la recherche"
+  },
+  "Extended escapes": {
+    "en": "Extended escapes",
+    "fr": "Séquences d’échappement"
+  },
+  "Too many replacements. Narrow the search.": {
+    "en": "Too many replacements. Narrow the search.",
+    "fr": "Trop de remplacements. Précisez la recherche."
+  },
+  "Start of document reached": {
+    "en": "Start of document reached",
+    "fr": "Début du document atteint"
+  },
+  "End of document reached": {
+    "en": "End of document reached",
+    "fr": "Fin du document atteint"
+  },
+  "replacements": {
+    "en": "replacements",
+    "fr": "remplacements"
+  },
+  "Replace with": {
+    "en": "Replace with",
+    "fr": "Remplacer par"
+  },
+  "Searching workspace...": {
+    "en": "Searching workspace...",
+    "fr": "Recherche dans le projet…"
+  },
+  "Loading search preview...": {
+    "en": "Loading search preview...",
+    "fr": "Chargement de l’aperçu…"
+  },
+  "Detecting project tools...": {
+    "en": "Detecting project tools...",
+    "fr": "Détection des outils du projet…"
+  },
+  "Project analysis": {
+    "en": "Project analysis",
+    "fr": "Analyse du projet"
+  },
+  "background tasks": {
+    "en": "background tasks",
+    "fr": "tâches en cours"
+  },
+  "Background tasks": {
+    "en": "Background tasks",
+    "fr": "Tâches en cours"
+  },
+  "No background tasks": {
+    "en": "No background tasks",
+    "fr": "Aucune tâche en cours"
+  },
+  "Cancel search": {
+    "en": "Cancel search",
+    "fr": "Annuler la recherche"
+  },
+  "Show or hide tool windows": {
+    "en": "Show or hide tool windows",
+    "fr": "Afficher ou masquer les panneaux d’outils"
+  },
+  "Show or hide tool windows (Ctrl+Shift+F12)": {
+    "en": "Show or hide tool windows (Ctrl+Shift+F12)",
+    "fr": "Afficher ou masquer les panneaux d’outils (Ctrl+Shift+F12)"
+  },
+  "Select a result to preview it.": {
+    "en": "Select a result to preview it.",
+    "fr": "Sélectionnez un résultat pour afficher son aperçu."
+  },
+  "Editor minimap": {
+    "en": "Editor minimap",
+    "fr": "Minicarte du code"
+  },
+  "Unreal code analysis needs a valid compilation database.": {
+    "en": "Unreal code analysis needs a valid compilation database.",
+    "fr": "L’analyse du code Unreal nécessite une base de compilation valide."
+  },
+  "Formatting": {
+    "en": "Formatting",
+    "fr": "Mise en forme"
+  },
+  "Code changes": {
+    "en": "Code changes",
+    "fr": "Modifications du code"
+  },
+  "Project files": {
+    "en": "Project files",
+    "fr": "Fichiers du projet"
+  },
+  "Project tools": {
+    "en": "Project tools",
+    "fr": "Outils de projet"
+  },
+  "Reference guides": {
+    "en": "Reference guides",
+    "fr": "Guides de référence"
+  },
+  "Cancel Unreal analysis": {
+    "en": "Cancel Unreal analysis",
+    "fr": "Annuler l’analyse Unreal"
+  },
+  "Cancel project analysis": {
+    "en": "Cancel project analysis",
+    "fr": "Annuler l’analyse du projet"
+  },
+  "Paged results open in the source view; no full-text preview copy.": {
+    "en": "Paged results open in the source view; no full-text preview copy.",
+    "fr": "Les résultats paginés s’ouvrent dans la vue source, sans copie complète pour l’aperçu."
+  },
+  "Menu": {
+    "en": "Menu",
+    "fr": "Menu"
+  },
+  "Integrated title bar": {
+    "en": "Integrated title bar",
+    "fr": "Barre de titre intégrée"
+  },
+  "Minimize": {
+    "en": "Minimize",
+    "fr": "Réduire"
+  },
+  "Maximize": {
+    "en": "Maximize",
+    "fr": "Agrandir"
+  },
+  "Restore window": {
+    "en": "Restore window",
+    "fr": "Restaurer la fenêtre"
+  },
+  "Close window": {
+    "en": "Close window",
+    "fr": "Fermer la fenêtre"
+  },
+  "Bottom tool windows": {
+    "en": "Bottom tool windows",
+    "fr": "Panneaux d’outils du bas"
+  },
+  "Code font size": {
+    "en": "Code font size",
+    "fr": "Taille de la police du code"
+  },
+  "Code line spacing": {
+    "en": "Code line spacing",
+    "fr": "Interligne du code"
+  },
+  "Invalid code font setting": {
+    "en": "Invalid code font setting",
+    "fr": "Réglage de police du code invalide"
+  },
+  "Preview below results": {
+    "en": "Preview below results",
+    "fr": "Aperçu sous les résultats"
+  },
+  "Preview beside results": {
+    "en": "Preview beside results",
+    "fr": "Aperçu à côté des résultats"
+  },
+  "Stepping": {
+    "en": "Stepping",
+    "fr": "Exécution pas à pas"
+  },
+  "Execution": {
+    "en": "Execution",
+    "fr": "Exécution"
+  },
+  "Show minimap": {
+    "en": "Show minimap",
+    "fr": "Afficher la minicarte"
+  },
+  "Show or hide the code minimap": {
+    "en": "Show or hide the code minimap",
+    "fr": "Afficher ou masquer la minicarte du code"
+  },
+  "Ctrl + mouse wheel changes code size in every view. Click to reset all views to 100%.": {
+    "en": "Ctrl + mouse wheel changes code size in every view. Click to reset all views to 100%.",
+    "fr": "Ctrl + molette change la taille du code dans toutes les vues. Cliquez pour rétablir 100 % partout."
+  },
+  "Git commits": {
+    "en": "Git commits",
+    "fr": "Commits Git"
+  },
+  "Commit...": {
+    "en": "Commit...",
+    "fr": "Créer un commit…"
+  },
+  "Review changes": {
+    "en": "Review changes",
+    "fr": "Examiner les modifications"
+  },
+  "Select a Git repository to view commits.": {
+    "en": "Select a Git repository to view commits.",
+    "fr": "Sélectionnez un dépôt Git pour afficher les commits."
+  },
+  "More tool windows": {
+    "en": "More tool windows",
+    "fr": "Autres panneaux d’outils"
   }
 }
