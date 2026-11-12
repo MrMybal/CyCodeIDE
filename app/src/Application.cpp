@@ -806,7 +806,22 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
             draw->AddTriangleFilled({at.x+line.width*.6f,at.y+cyui::dp(2)},{at.x+line.width,at.y+line.height*.5f},{at.x+line.width*.6f,at.y+line.height-cyui::dp(2)},cyui::palette().warning);
         ImGui::BeginDisabled(tab->readOnly || isUntitledDocument(tab->path) || debugFuture_.valid());
         if (ImGui::InvisibleButton("##breakpoint",{line.width,line.height})) toggleBreakpoint(tab->path,line.line+1);
-        if (ImGui::IsItemHovered()) cyui::tooltip((std::string(tr("Toggle breakpoint"))+" ("+keymap_.hint("debug.breakpoint")+")").c_str());
+        if (ImGui::IsItemHovered()) {
+            // Rider previews the breakpoint where a click in the gutter would put it.
+            if (!breakpoint) draw->AddCircleFilled({at.x+line.width*.36f,at.y+line.height*.5f},cyui::dp(4.3f),cyui::alpha(cyui::palette().error,.35f));
+            cyui::tooltip((std::string(tr(breakpoint?"Remove breakpoint":"Toggle breakpoint"))+" ("+keymap_.hint("debug.breakpoint")+")").c_str());
+        }
+        if (breakpoint && ImGui::BeginPopupContextItem("##breakpoint-menu")) {
+            if (ImGui::MenuItem(tr(enabled ? "Disable breakpoint" : "Enable breakpoint"))) {
+                auto points = debugState_.value("breakpoints",Json::object()).value(tab->path,Json::array());
+                for (auto &point : points) if (point.value("line",0) == int(line.line+1)) point["enabled"] = !enabled;
+                debugTask("debug.breakpoints",{{"path",tab->path},{"breakpoints",points}});
+            }
+            if (ImGui::MenuItem(tr("Remove breakpoint"))) toggleBreakpoint(tab->path,line.line+1);
+            ImGui::Separator();
+            if (ImGui::MenuItem(tr("Conditions and all breakpoints..."))) openToolWindow("Debugger","debugger");
+            ImGui::EndPopup();
+        }
         ImGui::EndDisabled();
     });
     std::weak_ptr<Tab> weak = tab;

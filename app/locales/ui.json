@@ -7782,5 +7782,21 @@
   "Cancel reformatting": {
     "en": "Cancel reformatting",
     "fr": "Annuler le reformatage"
+  },
+  "Remove breakpoint": {
+    "en": "Remove breakpoint",
+    "fr": "Supprimer le point d’arrêt"
+  },
+  "Disable breakpoint": {
+    "en": "Disable breakpoint",
+    "fr": "Désactiver le point d’arrêt"
+  },
+  "Enable breakpoint": {
+    "en": "Enable breakpoint",
+    "fr": "Activer le point d’arrêt"
+  },
+  "Conditions and all breakpoints...": {
+    "en": "Conditions and all breakpoints...",
+    "fr": "Conditions et tous les points d’arrêt…"
   }
 }

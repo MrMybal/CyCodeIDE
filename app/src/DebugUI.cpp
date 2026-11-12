@@ -63,7 +63,8 @@ void Application::debugTask(const std::string &method, Json params) {
         }
         return engine->dispatch(method,params);
     });
-    if (method != "debug.variables" && method != "debug.source") showPanel("Debugger","debugger");
+    // Toggling a breakpoint in the gutter must not pop the debugger open, as in Rider.
+    if (method != "debug.variables" && method != "debug.source" && method != "debug.breakpoints") showPanel("Debugger","debugger");
 }
 void Application::startDebug(bool build) {
     if (debugFuture_.valid() || taskFuture_.valid()) return;
