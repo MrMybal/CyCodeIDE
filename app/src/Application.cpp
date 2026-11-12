@@ -787,9 +787,13 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
     tab->editor.SetFindReplaceEnabled(false);
     tab->editor.SetLineFoldingEnabled(true);
     tab->editor.SetReadOnlyEnabled(tab->readOnly);
-    tab->editor.SetLineDecorator(2, [this, weak = std::weak_ptr<Tab>(tab)](TextEditor::Decorator &line) {
+    tab->editor.SetLineDecorator(3, [this, weak = std::weak_ptr<Tab>(tab)](TextEditor::Decorator &line) {
         auto tab = weak.lock(); if (!tab) return;
         const auto at = ImGui::GetCursorScreenPos(); auto draw = ImGui::GetWindowDrawList();
+        // A visible breakpoint gutter, like Rider's, between line numbers and code.
+        const auto &gutter = cyui::palette();
+        draw->AddRectFilled(at, {at.x + line.width, at.y + line.height}, cyui::alpha(gutter.bg0, .6f));
+        draw->AddLine({at.x + line.width - cyui::dp(1), at.y}, {at.x + line.width - cyui::dp(1), at.y + line.height}, cyui::alpha(gutter.lineStrong, .7f), cyui::dp(1));
         bool breakpoint = false, enabled = true, verified = false;
         if (debugState_.contains("breakpoints")) {
             const auto &points = debugState_.at("breakpoints");
@@ -798,7 +802,7 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
                 for (const auto &point : debugState_.at("verifiedBreakpoints").at(tab->path)) if (point.value("line",0) == int(line.line+1)) verified = point.value("verified",false);
         }
         if (breakpoint) {
-            const ImVec2 center{at.x+line.width*.36f,at.y+line.height*.5f}; const auto color = enabled ? cyui::palette().error : cyui::palette().textFaint;
+            const ImVec2 center{at.x+line.width*.45f,at.y+line.height*.5f}; const auto color = enabled ? cyui::palette().error : cyui::palette().textFaint;
             if (verified || debugState_.value("state","idle") == "idle") draw->AddCircleFilled(center,cyui::dp(4.3f),color);
             else draw->AddCircle(center,cyui::dp(4.3f),color,12,cyui::dp(1.4f));
         }
@@ -806,9 +810,10 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
             draw->AddTriangleFilled({at.x+line.width*.6f,at.y+cyui::dp(2)},{at.x+line.width,at.y+line.height*.5f},{at.x+line.width*.6f,at.y+line.height-cyui::dp(2)},cyui::palette().warning);
         ImGui::BeginDisabled(tab->readOnly || isUntitledDocument(tab->path) || debugFuture_.valid());
         if (ImGui::InvisibleButton("##breakpoint",{line.width,line.height})) toggleBreakpoint(tab->path,line.line+1);
-        if (ImGui::IsItemHovered()) {
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
             // Rider previews the breakpoint where a click in the gutter would put it.
-            if (!breakpoint) draw->AddCircleFilled({at.x+line.width*.36f,at.y+line.height*.5f},cyui::dp(4.3f),cyui::alpha(cyui::palette().error,.35f));
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            if (!breakpoint) draw->AddCircleFilled({at.x+line.width*.45f,at.y+line.height*.5f},cyui::dp(4.3f),cyui::alpha(cyui::palette().error,.4f));
             cyui::tooltip((std::string(tr(breakpoint?"Remove breakpoint":"Toggle breakpoint"))+" ("+keymap_.hint("debug.breakpoint")+")").c_str());
         }
         if (breakpoint && ImGui::BeginPopupContextItem("##breakpoint-menu")) {
