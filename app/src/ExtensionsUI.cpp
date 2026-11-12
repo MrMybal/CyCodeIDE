@@ -110,7 +110,22 @@ void Application::applyKeymap(const std::string &profile, Json overrides) {
             ++it;
     }
     // Retain unavailable extensions' overrides in preferences, ready for their next activation.
-    keymap_.load(profile, overrides);
+    // Rider numbers its tool windows; user overrides and existing shortcuts take precedence.
+    Json effective = overrides;
+    if (profile == "rider") {
+        const std::vector<std::pair<const char *, const char *>> numbered = {
+            {"view.references", "Alt+3"}, {"view.build", "Alt+4"}, {"view.debugger", "Alt+5"}, {"view.problems", "Alt+6"},
+            {"view.structure", "Alt+7"}, {"view.gitCommits", "Alt+9"}, {"view.vcs", "Alt+0"}};
+        for (const auto &[command, shortcut] : numbered) {
+            if (effective.contains(command)) continue;
+            bool used = false;
+            for (const auto &[key, shortcuts] : effective.items())
+                for (const auto &value : shortcuts) used |= value.is_string() && value.get_ref<const std::string &>() == shortcut;
+            if (!used) effective[command] = Json::array({shortcut});
+        }
+    }
+    try { keymap_.load(profile, effective); }
+    catch (const std::exception &) { keymap_.load(profile, overrides); }
 }
 bool Application::extensionCommandEnabled(const std::string &id) const {
     if (id.starts_with("extension.panel.")) {

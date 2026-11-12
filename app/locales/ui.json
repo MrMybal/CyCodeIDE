@@ -7714,5 +7714,73 @@
   "Reformats the block on }, the statement on ; and pasted code with the language server, like Rider.": {
     "en": "Reformats the block on }, the statement on ; and pasted code with the language server, like Rider.",
     "fr": "Reformate le bloc sur }, l’instruction sur ; et le code collé avec le serveur de langage, comme Rider."
+  },
+  "Select opened file": {
+    "en": "Select opened file",
+    "fr": "Sélectionner le fichier ouvert"
+  },
+  "External files": {
+    "en": "External files",
+    "fr": "Fichiers externes"
+  },
+  "All files": {
+    "en": "All files",
+    "fr": "Tous les fichiers"
+  },
+  "Include in commit": {
+    "en": "Include in commit",
+    "fr": "Inclure dans le commit"
+  },
+  "Changes committed": {
+    "en": "Changes committed",
+    "fr": "Modifications commitées"
+  },
+  "Commit failed. See Build output.": {
+    "en": "Commit failed. See Build output.",
+    "fr": "Le commit a échoué. Consultez la sortie Build."
+  },
+  "Reformatting is already running.": {
+    "en": "Reformatting is already running.",
+    "fr": "Un reformatage est déjà en cours."
+  },
+  "No files to reformat": {
+    "en": "No files to reformat",
+    "fr": "Aucun fichier à reformater"
+  },
+  "Changed-line formatting requires a Git repository.": {
+    "en": "Changed-line formatting requires a Git repository.",
+    "fr": "Le reformatage des lignes modifiées nécessite un dépôt Git."
+  },
+  "Reformatted": {
+    "en": "Reformatted",
+    "fr": "Reformatés"
+  },
+  "Unchanged": {
+    "en": "Unchanged",
+    "fr": "Inchangés"
+  },
+  "Only lines changed according to Git are reformatted.": {
+    "en": "Only lines changed according to Git are reformatted.",
+    "fr": "Seules les lignes modifiées selon Git sont reformatées."
+  },
+  "Files that are not open are saved after formatting. Open documents keep their changes unsaved.": {
+    "en": "Files that are not open are saved after formatting. Open documents keep their changes unsaved.",
+    "fr": "Les fichiers non ouverts sont enregistrés après la mise en forme. Les documents ouverts gardent leurs modifications non enregistrées."
+  },
+  "Only changed lines (Git)": {
+    "en": "Only changed lines (Git)",
+    "fr": "Lignes modifiées uniquement (Git)"
+  },
+  "Reformat changed lines (Git)": {
+    "en": "Reformat changed lines (Git)",
+    "fr": "Reformater les lignes modifiées (Git)"
+  },
+  "Reformatting files...": {
+    "en": "Reformatting files...",
+    "fr": "Reformatage des fichiers…"
+  },
+  "Cancel reformatting": {
+    "en": "Cancel reformatting",
+    "fr": "Annuler le reformatage"
   }
 }

@@ -358,6 +358,18 @@ void Application::executeCommand(const std::string &id) {
         if(id=="file.openPaged"){openPaged(tab->path,0,0,false,true,true);return;}
         if(tab && tab->pagedProfile && pagedCommand(id,tab))return;
         if (executeExtensionCommand(id)) return;
+        // Like Rider's Alt+number, a tool window shortcut hides the window when it already has focus.
+        if (id.starts_with("view.")) {
+            const auto panel = id.substr(5);
+            const auto window = ImGui::FindWindowByName(("###" + panel).c_str());
+            const auto focused = ImGui::GetCurrentContext()->NavWindow;
+            if (panels_.contains(panel) && panels_[panel] && window && focused && focused->RootWindowDockTree == window->RootWindowDockTree &&
+                focused->RootWindow == window) {
+                panels_[panel] = false;
+                if (!active_.empty()) focusTab_ = active_;
+                return;
+            }
+        }
         if (id == "view.analysis") { openToolWindow("Analysis and inspections", "analysis"); return; }
         if(id=="view.gitCommits"){vcsSection_="History";openToolWindow("Git commits","gitCommits");refreshGit();return;}
         if(id=="view.vcs"){openToolWindow("Version control","vcs");return;}

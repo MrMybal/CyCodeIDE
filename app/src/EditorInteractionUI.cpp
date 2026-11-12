@@ -91,6 +91,20 @@ void Application::editorMouseNavigation(const std::shared_ptr<Tab> &tab) {
         !ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) ||
         !tab->editor.IsMousePosOverGlyph(io.MousePos)) return;
     ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    {
+        // Rider shows the Ctrl+click target as a link before the click.
+        const auto hovered = tab->editor.GetDocPosAtMousePos(io.MousePos);
+        const auto start = tab->editor.FindWordStart(hovered, true), end = tab->editor.FindWordEnd(hovered, true);
+        if (start.line == end.line && start.index < end.index) {
+            const auto from = tab->editor.DocPos2ScreenPos(start), to = tab->editor.DocPos2ScreenPos(end);
+            const float y = from.y + tab->editor.GetLineHeight() - cyui::dp(2);
+            auto draw = ImGui::GetForegroundDrawList(ImGui::GetWindowViewport());
+            const auto window = ImGui::GetCurrentWindow();
+            draw->PushClipRect(window->InnerRect.Min, window->InnerRect.Max, true);
+            draw->AddLine({from.x, y}, {to.x, y}, cyui::palette().accent, cyui::dp(1.2f));
+            draw->PopClipRect();
+        }
+    }
     if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) return;
     const auto position = tab->editor.GetDocPosAtMousePos(io.MousePos);
     // Replace the widget's Ctrl-click multicursor gesture with IDE navigation.

@@ -149,6 +149,18 @@ void Application::resourceMenu(const std::string &path, bool folder) {
     cyui::ScopedDisabled disabled(resourceFuture_.valid());
     const auto parent = folder ? path : pathUtf8(utf8Path(path).parent_path());
     const auto prefix = parent.empty() ? std::string{} : parent + "/";
+    {
+        // Rider: Reformat Code on a file or directory, optionally limited to Git changes.
+        cyui::ScopedDisabled formatting(bulkFormatFuture_.valid());
+        if (ImGui::MenuItem(tr("Reformat code"))) {
+            auto paths = formatTargets(path, folder, false);
+            if (!folder) beginBulkFormat(std::move(paths), false, path);
+            else requestBulkFormat(std::move(paths), false, path);
+        }
+        if (provider_ == "git" && ImGui::MenuItem(tr("Reformat changed lines (Git)")))
+            requestBulkFormat(formatTargets(path, folder, true), true, path);
+        ImGui::Separator();
+    }
     if (ImGui::MenuItem(tr("New file...")))
         beginResource("createFile", prefix);
     if (ImGui::MenuItem(tr("New folder...")))

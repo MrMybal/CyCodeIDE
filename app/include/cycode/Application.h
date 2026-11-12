@@ -268,7 +268,7 @@ class Application {
     bool formatOnType_=true,formatTypeCaret_=false;
     std::string formatTypePath_,formatTypeCaretPath_;
     uint64_t formatTypeRevision_=0,formatTypeCaretRevision_=0;
-    size_t formatTypeAnchor_=0;
+    size_t formatTypeAnchor_=0,formatTypeLines_=0,formatTypeColumn_=0;
     double formatTypeCaretTime_=0;
     struct Tree {
         std::map<std::string, Tree> folders;
@@ -295,6 +295,10 @@ class Application {
     PreparedWorkspace prepareWorkspace(const std::filesystem::path &) const;
     void commitWorkspace(PreparedWorkspace);
     void workspaceLoadingOverlay();
+    void startupFrame();
+    void openStartupFile();
+    std::string startupOpenFile_;
+    size_t startupOpenLine_ = 0, startupOpenColumn_ = 0;
     std::future<PreparedWorkspace> workspaceFuture_;
     std::string workspaceLoadingPath_;
     double workspaceLoadingStarted_ = 0;
@@ -344,7 +348,7 @@ class Application {
     void windowTest();
     // Flattened, clipped project tree (solution, projects and workspace files).
     struct ProjectRow {
-        enum class Kind : uint8_t { solution, solutionFolder, project, item, label, folder, file };
+        enum class Kind : uint8_t { solution, solutionFolder, project, projectFolder, item, label, folder, file };
         Kind kind;
         uint16_t depth = 0;
         bool open = false;
@@ -356,7 +360,8 @@ class Application {
     std::vector<ProjectRow> projectRows_;
     std::map<std::string, bool> projectOpen_;
     uint64_t projectTreeGeneration_ = 0, projectRowsRevision_ = 0;
-    std::string projectRowsSignature_;
+    std::string projectRowsSignature_, projectCursor_;
+    bool projectScrollToCursor_ = false;
     void editorPanel();
     void searchPanel();
     void gitPanel();
@@ -639,6 +644,19 @@ class Application {
     void formatOnType(const std::shared_ptr<Tab> &, size_t firstLine, size_t lastLine);
     void typedFormatTrigger(const std::shared_ptr<Tab> &, char32_t typed);
     void updateFormatOnType();
+    // Rider "Reformat Code" on files, folders and projects, optionally limited to Git-changed lines.
+    std::vector<std::string> formatTargets(const std::string &path, bool folder, bool changedOnly) const;
+    void beginBulkFormat(std::vector<std::string> paths, bool changedLines, const std::string &title);
+    void requestBulkFormat(std::vector<std::string> paths, bool changedLines, const std::string &title);
+    void updateBulkFormat();
+    void bulkFormatConfirmation();
+    std::future<Json> bulkFormatFuture_;
+    std::shared_ptr<std::atomic<size_t>> bulkFormatProgress_;
+    std::shared_ptr<std::atomic<bool>> bulkFormatCancel_;
+    size_t bulkFormatTotal_ = 0;
+    std::string bulkFormatTitle_, bulkFormatRequestTitle_;
+    std::vector<std::string> bulkFormatRequest_;
+    bool bulkFormatAsk_ = false, bulkFormatRequestChanged_ = false, reformatChanged_ = false;
     void changeTask(const std::string &, Json);
     void selectChangeFile(const std::string &, uint64_t beforeOffset = 0, uint64_t afterOffset = 0);
     static TextEditor::Palette editorPalette(const std::string &);
@@ -787,7 +805,9 @@ class Application {
     cyui::DiffDocument vcsDiff_;
     cyui::DiffState vcsDiffState_;
     bool vcsIsDiff_ = false;
-    bool vcsDiffWindow_ = false, vcsDiffFocus_ = false;
+    bool vcsDiffWindow_ = false, vcsDiffFocus_ = false, vcsCommitRunning_ = false;
+    std::deque<std::pair<std::string, Json>> vcsCommitQueue_;
+    std::set<std::string> vcsCommitExcluded_;
     std::string vcsDiffPath_, vcsDiffTitle_;
     void vcsDiffPanel();
     std::future<Json> buildFuture_, detectionFuture_;

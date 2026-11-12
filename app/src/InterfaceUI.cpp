@@ -486,6 +486,7 @@ void Application::toggleToolWindows() {
 std::vector<std::string> Application::backgroundTasks() const {
     std::vector<std::string> result;
     if (workspaceFuture_.valid()) result.push_back("Opening solution...");
+    if (bulkFormatFuture_.valid()) result.push_back("Reformatting files...");
     if (filesFuture_.valid() || filesIndexing_) result.push_back("Indexing files...");
     if (unrealAnalysisFuture_.valid()) result.push_back("Preparing Unreal code analysis...");
     if (searchFuture_.valid()) result.push_back("Searching workspace...");
@@ -525,10 +526,13 @@ void Application::statusBar() {
         for(const auto &task:tasks) {
             ImGui::TextUnformatted(tr(task.c_str()));
             const bool measured=task=="Project analysis" && analysisView_.status.value("total",uint64_t(0))>0;
-            cyui::progressBar(measured?std::clamp(analysisView_.status.value("progress",0.f)/100.f,0.f,1.f):-1.f,cyui::dp(290,5));
+            const bool formatting=task=="Reformatting files..." && bulkFormatProgress_ && bulkFormatTotal_;
+            cyui::progressBar(formatting?float(bulkFormatProgress_->load())/float(bulkFormatTotal_):
+                measured?std::clamp(analysisView_.status.value("progress",0.f)/100.f,0.f,1.f):-1.f,cyui::dp(290,5));
             cyui::space(5);
         }
         if(taskFuture_.valid() && commandEnabled("build.cancel") && cyui::button(tr("Cancel build")))executeCommand("build.cancel");
+        if(bulkFormatFuture_.valid() && bulkFormatCancel_ && cyui::button(tr("Cancel reformatting")))*bulkFormatCancel_=true;
         if(searchFuture_.valid() && cyui::button(tr("Cancel search"))) {if(searchCancellation_)*searchCancellation_=true;++searchGeneration_;searchQueued_=false;}
         if(unrealAnalysisFuture_.valid() && cyui::button(tr("Cancel Unreal analysis")) && unrealAnalysisCancellation_)*unrealAnalysisCancellation_=true;
         if(analysisView_.prepare.valid() && cyui::button(tr("Cancel project analysis")))engine_->dispatch("analysis.cancel",{{"operationId",analysisView_.operation}});

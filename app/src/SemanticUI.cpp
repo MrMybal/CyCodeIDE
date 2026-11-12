@@ -40,6 +40,165 @@ bool Application::beginFormat(bool selection, const std::string &path) {
     }
     return false;
 }
+namespace {
+// Changed line ranges (zero-based, inclusive) of the new file in a unified diff.
+std::vector<std::pair<size_t, size_t>> changedRanges(const std::string &diff) {
+    std::vector<std::pair<size_t, size_t>> ranges;
+    size_t position = 0;
+    while ((position = diff.find("\n@@ -", position)) != std::string::npos) {
+        ++position;
+        const auto plus = diff.find(" +", position);
+        const auto end = diff.find(" @@", position);
+        if (plus == std::string::npos || end == std::string::npos || plus > end) continue;
+        const auto spec = diff.substr(plus + 2, end - plus - 2);
+        const auto comma = spec.find(',');
+        try {
+            const size_t start = std::stoul(spec.substr(0, comma));
+            const size_t count = comma == std::string::npos ? 1 : std::stoul(spec.substr(comma + 1));
+            if (count && start) ranges.push_back({start - 1, start - 1 + count - 1});
+        } catch (const std::exception &) {}
+    }
+    return ranges;
+}
+size_t utf16LineLength(const std::string &text, size_t line) {
+    size_t current = 0, start = 0;
+    while (current < line) {
+        const auto next = text.find('\n', start);
+        if (next == std::string::npos) return 0;
+        start = next + 1; ++current;
+    }
+    auto end = text.find('\n', start);
+    if (end == std::string::npos) end = text.size();
+    if (end > start && text[end - 1] == '\r') --end;
+    return LanguageClient::utf16Length(text.substr(start, end - start));
+}
+} // namespace
+std::vector<std::string> Application::formatTargets(const std::string &path, bool folder, bool changedOnly) const {
+    std::vector<std::string> paths;
+    const auto under = [&](const std::string &candidate) {
+        if (!folder) return candidate == path;
+        return path.empty() || path == "." || candidate.starts_with(path + "/");
+    };
+    if (changedOnly) {
+        for (const auto &file : git_.value("files", Json::array())) {
+            const auto candidate = file.at("path").get<std::string>(), status = file.at("status").get<std::string>();
+            if (under(candidate) && status.find('D') == std::string::npos) paths.push_back(candidate);
+        }
+    } else if (!folder) paths.push_back(path);
+    else for (const auto &candidate : files_) if (under(candidate)) paths.push_back(candidate);
+    std::erase_if(paths, [&](const auto &candidate) { return !engine_->supportsLanguage(candidate) || isUntitledDocument(candidate); });
+    return paths;
+}
+void Application::beginBulkFormat(std::vector<std::string> paths, bool changedLines, const std::string &title) {
+    if (bulkFormatFuture_.valid()) { cyui::notify(tr("Reformatting is already running."), cyui::Tone::neutral); return; }
+    std::set<std::string> openTabs, pagedTabs;
+    for (const auto &tab : tabs_) (tab->pagedProfile ? pagedTabs : openTabs).insert(tab->path);
+    std::erase_if(paths, [&](const auto &path) { return pagedTabs.contains(path) || !engine_->supportsLanguage(path); });
+    if (paths.empty()) { cyui::notify(tr("No files to reformat"), cyui::Tone::neutral); return; }
+    Json vcs = Json::object();
+    std::map<std::string, std::string> statuses;
+    if (changedLines) {
+        if (provider_ != "git" || !vcsContext_.contains("gitIdentity")) { error(tr("Changed-line formatting requires a Git repository.")); return; }
+        vcs = {{"provider", provider_}, {"contextPath", vcsRequestPath()},
+               {"repository", vcsContext_.value("gitRepository", std::string("."))}, {"expectedRepository", vcsContext_.at("gitIdentity")}};
+        for (const auto &file : git_.value("files", Json::array())) statuses[file.at("path")] = file.at("status");
+    }
+    bulkFormatTitle_ = title;
+    bulkFormatTotal_ = paths.size();
+    bulkFormatProgress_ = std::make_shared<std::atomic<size_t>>(0);
+    bulkFormatCancel_ = std::make_shared<std::atomic<bool>>(false);
+    auto engine = engine_;
+    auto progress = bulkFormatProgress_;
+    auto cancel = bulkFormatCancel_;
+    bulkFormatFuture_ = std::async(std::launch::async, [engine, paths, changedLines, vcs, statuses, openTabs, progress, cancel] {
+        Json report = {{"formatted", 0}, {"unchanged", 0}, {"failed", 0}, {"errors", Json::array()}};
+        for (const auto &path : paths) {
+            if (*cancel) break;
+            try {
+                const bool open = openTabs.contains(path);
+                const auto opened = engine->dispatch("documents.open", {{"path", path}});
+                if (!open && opened.value("dirty", false)) throw std::runtime_error("unsaved changes in another view");
+                bool whole = !changedLines;
+                std::vector<std::pair<size_t, size_t>> ranges;
+                if (changedLines) {
+                    const auto status = statuses.contains(path) ? statuses.at(path) : std::string{};
+                    if (status == "??" || status.starts_with("A")) whole = true;
+                    else {
+                        auto parameters = vcs;
+                        parameters["path"] = path;
+                        ranges = changedRanges(engine->dispatch("vcs.diff", parameters).value("output", std::string{}));
+                    }
+                }
+                bool changed = false;
+                const auto format = [&](const std::pair<size_t, size_t> *range) {
+                    const auto document = engine->dispatch("documents.read", {{"path", path}});
+                    Json parameters = {{"path", path}, {"expectedRevision", document.at("revision")}, {"tabSize", 4}, {"insertSpaces", true}};
+                    if (range)
+                        parameters["range"] = {{"start", {{"line", range->first}, {"character", 0}}},
+                                               {"end", {{"line", range->second},
+                                                        {"character", utf16LineLength(document.at("text").get_ref<const std::string &>(), range->second)}}}};
+                    const auto plan = engine->dispatch("language.format", parameters);
+                    if (!plan.at("files").empty() && plan.value("annotations", Json::array()).empty()) {
+                        engine->dispatch("changes.apply", {{"id", plan.at("id")}});
+                        changed = true;
+                    }
+                };
+                if (whole) format(nullptr);
+                // Bottom-up keeps the earlier hunks' line numbers valid.
+                else for (auto range = ranges.rbegin(); range != ranges.rend() && !*cancel; ++range) format(&*range);
+                if (!open) {
+                    const auto current = engine->dispatch("documents.read", {{"path", path}});
+                    if (changed) engine->dispatch("documents.save", {{"path", path}, {"expectedRevision", current.at("revision")}});
+                    const auto saved = changed ? engine->dispatch("documents.read", {{"path", path}}) : current;
+                    engine->dispatch("documents.close", {{"path", path}, {"discard", false}, {"expectedRevision", saved.at("revision")}});
+                }
+                report[changed ? "formatted" : "unchanged"] = report.at(changed ? "formatted" : "unchanged").get<size_t>() + 1;
+            } catch (const std::exception &e) {
+                report["failed"] = report.at("failed").get<size_t>() + 1;
+                if (report.at("errors").size() < 20) report["errors"].push_back(path + ": " + e.what());
+            }
+            ++*progress;
+        }
+        return report;
+    });
+}
+void Application::updateBulkFormat() {
+    if (!completed(bulkFormatFuture_)) return;
+    try {
+        const auto report = bulkFormatFuture_.get();
+        const auto formatted = report.at("formatted").get<size_t>(), unchanged = report.at("unchanged").get<size_t>(), failed = report.at("failed").get<size_t>();
+        const auto summary = std::string(tr("Reformatted")) + ": " + std::to_string(formatted) + " | " + tr("Unchanged") + ": " +
+                             std::to_string(unchanged) + " | " + tr("Failed") + ": " + std::to_string(failed);
+        output_ += "\n> " + std::string(tr("Reformat code")) + " " + bulkFormatTitle_ + "\n" + summary + "\n";
+        for (const auto &line : report.at("errors")) output_ += line.get<std::string>() + "\n";
+        cyui::notify(summary.c_str(), failed ? cyui::Tone::warning : cyui::Tone::success);
+    } catch (const std::exception &e) { error(e.what()); }
+    lastGitRefresh_ = -10;
+}
+void Application::bulkFormatConfirmation() {
+    if (bulkFormatAsk_) { ImGui::OpenPopup(tr("Reformat code")); bulkFormatAsk_ = false; }
+    if (!ImGui::BeginPopupModal(tr("Reformat code"), nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+    cyui::textDim("%s", bulkFormatRequestTitle_.c_str());
+    ImGui::Text("%zu %s", bulkFormatRequest_.size(), tr("files"));
+    if (bulkFormatRequestChanged_) cyui::textFaint("%s", tr("Only lines changed according to Git are reformatted."));
+    cyui::textFaint("%s", tr("Files that are not open are saved after formatting. Open documents keep their changes unsaved."));
+    cyui::space(6);
+    if (cyui::primaryButton(tr("Reformat"))) {
+        beginBulkFormat(std::move(bulkFormatRequest_), bulkFormatRequestChanged_, bulkFormatRequestTitle_);
+        bulkFormatRequest_.clear();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (cyui::button(tr("Cancel")) || ImGui::IsKeyPressed(ImGuiKey_Escape)) { bulkFormatRequest_.clear(); ImGui::CloseCurrentPopup(); }
+    ImGui::EndPopup();
+}
+void Application::requestBulkFormat(std::vector<std::string> paths, bool changedLines, const std::string &title) {
+    if (paths.empty()) { cyui::notify(tr("No files to reformat"), cyui::Tone::neutral); return; }
+    bulkFormatRequest_ = std::move(paths);
+    bulkFormatRequestChanged_ = changedLines;
+    bulkFormatRequestTitle_ = title;
+    bulkFormatAsk_ = true;
+}
 bool Application::rangeFormatAvailable(const std::string &path) const {
     if (smoke_ || !engine_ || !engine_->supportsLanguage(path)) return false;
     const auto servers = languageState_.find("servers");
@@ -69,6 +228,16 @@ void Application::formatOnType(const std::shared_ptr<Tab> &tab, size_t firstLine
 void Application::typedFormatTrigger(const std::shared_ptr<Tab> &tab, char32_t typed) {
     if (!typed || !formatOnType_ || tab->editor.MainCursorHasSelection()) return;
     const auto caret = tab->editor.GetMainCursorPosition();
+    if (typed == '\n') {
+        // Enter: reformat the line just completed; the new line keeps its indentation.
+        if (caret.line == 0) return;
+        const auto before = tab->editor.GetSectionText({caret.line, 0}, caret);
+        if (before.find_first_not_of(" \t") != std::string::npos) return;
+        const auto previous = tab->editor.GetLineText(caret.line - 1);
+        if (previous.find_first_not_of(" \t\r") == std::string::npos) return;
+        formatOnType(tab, caret.line - 1, caret.line - 1);
+        return;
+    }
     if (caret.index == 0 || tab->editor.GetSectionText({caret.line, caret.index - 1}, caret) != std::string(1, char(typed))) return;
     size_t first = caret.line;
     if (typed == '}') {
@@ -111,7 +280,17 @@ void Application::updateFormatOnType() {
         byte += width;
         if (count == formatTypeAnchor_) target = {line, index};
     }
-    if (count == formatTypeAnchor_ && tab->path == active_) tab->editor.SetCursor(target);
+    if (count == formatTypeAnchor_ && tab->path == active_) {
+        if (formatTypeLines_) {
+            // The caret was on a following (indented) line: keep that line and column.
+            target.line = std::min(target.line + formatTypeLines_, tab->editor.GetLineCount() - 1);
+            const auto lineText = tab->editor.GetLineText(target.line);
+            size_t characters = 0;
+            for (const unsigned char c : lineText) characters += (c & 0xc0) != 0x80;
+            target.index = std::min(formatTypeColumn_, characters);
+        }
+        tab->editor.SetCursor(target);
+    }
 }
 void Application::reformatDialog() {
     std::shared_ptr<Tab> tab;
@@ -125,7 +304,12 @@ void Application::reformatDialog() {
         cyui::ScopedDisabled disabled(!selection);
         if (ImGui::RadioButton(tr("Selected text"), reformatSelection_ && selection)) reformatSelection_ = true;
     }
-    if (ImGui::RadioButton(tr("Whole file"), !reformatSelection_ || !selection)) reformatSelection_ = false;
+    if (ImGui::RadioButton(tr("Whole file"), !reformatChanged_ && (!reformatSelection_ || !selection))) { reformatSelection_ = false; reformatChanged_ = false; }
+    {
+        cyui::ScopedDisabled disabled(provider_ != "git");
+        if (ImGui::RadioButton(tr("Only changed lines (Git)"), reformatChanged_)) { reformatChanged_ = true; reformatSelection_ = false; }
+    }
+    if (reformatSelection_) reformatChanged_ = false;
     cyui::sectionTitle(tr("Options"));
     if (ImGui::Checkbox(tr("Reformat code on save"), &reformatOnSave_)) { codePreferencesDirty_ = true; codePreferencesChanged_ = ImGui::GetTime(); ++optionsRevision_; }
     cyui::tooltip(tr("Saving a modified file first applies the language server formatting, like Rider's Actions on Save."));
@@ -137,7 +321,8 @@ void Application::reformatDialog() {
     {
         cyui::ScopedDisabled disabled(!tab || refactorFuture_.valid() || !commandEnabled("refactor.format"));
         if ((cyui::primaryButton(tr("Reformat")) || enter) && tab && !refactorFuture_.valid() && commandEnabled("refactor.format")) {
-            beginFormat(reformatSelection_ && selection);
+            if (reformatChanged_) beginBulkFormat({tab->path}, true, tab->path);
+            else beginFormat(reformatSelection_ && selection);
             ImGui::CloseCurrentPopup();
         }
     }
@@ -223,6 +408,7 @@ void Application::updateSemantic() {
     }
     updateFormatOnSave();
     updateFormatOnType();
+    updateBulkFormat();
     if (!completed(refactorFuture_)) return;
     const bool formatType = !formatTypePath_.empty();
     // Reformat on save never interrupts saving: unsupported files, review-only
@@ -245,9 +431,12 @@ void Application::updateSemantic() {
             formatTypePath_.clear();
             if (tab) {
                 const auto caret = tab->editor.GetMainCursorPosition();
-                size_t count = 0;
-                for (const unsigned char c : tab->editor.GetSectionText({0, 0}, caret))
-                    if (c != ' ' && c != '\t' && c != '\r' && c != '\n' && (c < 0x80 || c >= 0xc0)) ++count;
+                size_t count = 0, lines = 0;
+                for (const unsigned char c : tab->editor.GetSectionText({0, 0}, caret)) {
+                    if (c == '\n') ++lines;
+                    else if (c != ' ' && c != '\t' && c != '\r' && (c < 0x80 || c >= 0xc0)) { ++count; lines = 0; }
+                }
+                formatTypeLines_ = lines; formatTypeColumn_ = caret.index;
                 formatTypeAnchor_ = count; formatTypeCaret_ = true; formatTypeCaretPath_ = tab->path;
                 formatTypeCaretRevision_ = tab->revision; formatTypeCaretTime_ = ImGui::GetTime();
             }

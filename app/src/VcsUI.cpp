@@ -34,9 +34,30 @@ void Application::vcsTask(const std::string &method, Json params) {
     vcsFuture_ = std::async(std::launch::async,[engine,method,params] { return engine->dispatch(method,params); });
 }
 void Application::updateVcs() {
+    // Rider-style commit: stage/unstage the checked files one by one, then commit.
+    // Each step waits for the status refresh that the previous step started.
+    if (!vcsCommitQueue_.empty() && !vcsFuture_.valid() && !gitFuture_.valid() && !taskFuture_.valid()) {
+        auto [method, params] = std::move(vcsCommitQueue_.front());
+        vcsCommitQueue_.pop_front();
+        vcsTask(method, std::move(params));
+        if (!vcsFuture_.valid()) { vcsCommitQueue_.clear(); vcsCommitRunning_ = false; }
+        return;
+    }
     if (!vcsFuture_.valid() || vcsFuture_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
+    const bool commitStep = vcsCommitRunning_;
     try {
         auto result = vcsFuture_.get();
+        if (commitStep) {
+            output_ += "\n> " + vcsOperation_ + "\n" + result.value("output", "");
+            if (result.value("exitCode", 0)) { vcsCommitQueue_.clear(); vcsCommitRunning_ = false; error(tr("Commit failed. See Build output.")); }
+            else if (vcsOperation_ == "vcs.commit") {
+                vcsCommitRunning_ = false; commitMessage_.clear(); vcsCommitExcluded_.clear();
+                cyui::notify(tr("Changes committed"), cyui::Tone::success);
+            }
+            lastGitRefresh_ = -10;
+            if (!gitFuture_.valid()) refreshGit();
+            return;
+        }
         const bool oldRepository=!vcsOperationRepository_.empty()&&(provider_!="git"||vcsOperationRepository_!=vcsContext_.value("gitRepository",std::string("."))||vcsOperationIdentity_!=vcsContext_.value("gitIdentity",std::string{}));
         if(oldRepository&&(vcsOperation_=="vcs.hunks"||vcsOperation_=="vcs.conflicts"||vcsOperation_=="vcs.worktrees"||vcsOperation_=="vcs.submodules"||vcsOperation_=="vcs.diff"||vcsOperation_=="vcs.show"||vcsOperation_=="vcs.blame"||vcsOperation_=="vcs.log")) {lastGitRefresh_=-10;refreshGit();return;}
         // Same-context background refreshes after resource events must retain receipts and Undo.
@@ -140,7 +161,11 @@ void Application::updateVcs() {
             else { cyui::notify(tr("Task completed"),cyui::Tone::success); if (vcsOperation_ == "vcs.resolve") { clearGitConflicts();vcsConflict_ = Json::object(); vcsSection_ = "Changes"; } }
             refreshFiles();
         }
-    } catch (const std::exception &e) { error(e.what()); }
+    } catch (const std::exception &e) {
+        if (commitStep) { vcsCommitQueue_.clear(); vcsCommitRunning_ = false; lastGitRefresh_ = -10; }
+        error(e.what());
+        if (commitStep) return;
+    }
     // A background status read may have started before the mutation. Let it finish,
     // then invalidate its refresh timestamp so the next frame obtains fresh data.
     if(!vcsOperation_.starts_with("vcs.merge.")&&vcsOperation_!="vcs.inspect"&&vcsOperation_!="vcs.log"&&vcsOperation_!="vcs.diff"&&vcsOperation_!="vcs.show"&&vcsOperation_!="vcs.blame")invalidateGitMerge();
@@ -249,13 +274,33 @@ void Application::gitPanelContents(bool commits) {
             if(cyui::button(tr("Commit..."))){vcsSection_="Commit";openToolWindow("Git commits","gitCommits");}
             ImGui::SameLine();if(cyui::button(tr("History"))){vcsSection_="History";openToolWindow("Git commits","gitCommits");refreshGit();}
             button("Diff","diff"); ImGui::SameLine(); button("Staged diff","diff",{{"staged",true}});
-            if (ImGui::BeginTable("##changes",3,ImGuiTableFlags_RowBg|ImGuiTableFlags_Resizable|ImGuiTableFlags_ScrollY,{0,0})) {
+            const bool riderCommit = provider_ == "git" && vcsSupports("commit") && vcsSupports("stage") && vcsSupports("unstage");
+            const auto &changedFiles = git_.value("files", Json::array());
+            size_t included = 0;
+            for (const auto &file : changedFiles) included += !vcsCommitExcluded_.contains(file.at("path").get<std::string>());
+            if (riderCommit && !changedFiles.empty()) {
+                bool all = included == changedFiles.size();
+                if (ImGui::Checkbox(tr("All files"), &all)) {
+                    vcsCommitExcluded_.clear();
+                    if (!all) for (const auto &file : changedFiles) vcsCommitExcluded_.insert(file.at("path").get<std::string>());
+                }
+            }
+            const float commitArea = riderCommit ? cyui::dp(64) + ImGui::GetFrameHeightWithSpacing() * 2 : 0.f;
+            if (ImGui::BeginTable("##changes",riderCommit?4:3,ImGuiTableFlags_RowBg|ImGuiTableFlags_Resizable|ImGuiTableFlags_ScrollY,{0,-commitArea})) {
+                if (riderCommit) ImGui::TableSetupColumn("##include",ImGuiTableColumnFlags_WidthFixed,cyui::dp(22));
                 ImGui::TableSetupColumn(tr("Status"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(28));
                 ImGui::TableSetupColumn(tr("File"),ImGuiTableColumnFlags_WidthStretch);
                 ImGui::TableSetupColumn(tr("Actions"),ImGuiTableColumnFlags_WidthFixed,cyui::dp(82));ImGui::TableHeadersRow();
                 for(const auto &file:git_.value("files",Json::array())) {
                     const auto path=file.at("path").get<std::string>(),status=file.at("status").get<std::string>();
-                    ImGui::PushID(path.c_str());ImGui::TableNextRow();ImGui::TableNextColumn();cyui::textDim("%s",status.c_str());ImGui::TableNextColumn();
+                    ImGui::PushID(path.c_str());ImGui::TableNextRow();
+                    if (riderCommit) {
+                        ImGui::TableNextColumn();
+                        bool include = !vcsCommitExcluded_.contains(path);
+                        if (ImGui::Checkbox("##include", &include)) { if (include) vcsCommitExcluded_.erase(path); else vcsCommitExcluded_.insert(path); }
+                        cyui::tooltip(tr("Include in commit"));
+                    }
+                    ImGui::TableNextColumn();cyui::textDim("%s",status.c_str());ImGui::TableNextColumn();
                     // Rider: double-click shows the diff, Ctrl+click jumps to the source file.
                     if(fileSelectable(path,path,vcsDiffWindow_ && vcsDiffPath_==path,theme_)) {
                         if(ImGui::GetIO().KeyCtrl)openFromProject(path,true);
@@ -280,6 +325,30 @@ void Application::gitPanelContents(bool commits) {
                     ImGui::SameLine(0,cyui::dp(2));action(cyui::icon::edit,"Diff","diff",{{"path",path}});ImGui::PopID();
                 }
                 ImGui::EndTable();
+            }
+            if (riderCommit) {
+                ImGui::SetNextItemWidth(-1);
+                ImGui::InputTextMultiline("##rider-commit-message", &commitMessage_, {-1, cyui::dp(64)});
+                if (commitMessage_.empty()) {
+                    const auto min = ImGui::GetItemRectMin();
+                    ImGui::GetWindowDrawList()->AddText({min.x + cyui::dp(6), min.y + cyui::dp(4)}, cyui::palette().textFaint, tr("Commit message"));
+                }
+                const auto title = std::string(tr("Commit")) + " (" + std::to_string(included) + ")###rider-commit";
+                cyui::ScopedDisabled disabled(working || vcsCommitRunning_ || gitFuture_.valid() || commitMessage_.empty() || !included);
+                if (cyui::primaryButton(title.c_str())) {
+                    vcsCommitQueue_.clear();
+                    for (const auto &file : changedFiles) {
+                        const auto path = file.at("path").get<std::string>(), status = file.at("status").get<std::string>();
+                        const char index = status.size() > 0 ? status[0] : ' ', worktree = status.size() > 1 ? status[1] : ' ';
+                        if (conflictStatus(status)) continue;
+                        if (!vcsCommitExcluded_.contains(path)) {
+                            if (worktree != ' ' || index == '?') vcsCommitQueue_.push_back({"vcs.stage", {{"path", path}}});
+                        } else if (index != ' ' && index != '?') vcsCommitQueue_.push_back({"vcs.unstage", {{"path", path}}});
+                    }
+                    vcsCommitQueue_.push_back({"vcs.commit", {{"message", commitMessage_}}});
+                    vcsCommitRunning_ = true;
+                }
+                if (vcsCommitRunning_) { ImGui::SameLine(); cyui::spinner("##rider-commit-busy"); }
             }
             ImGui::EndTabItem();
         }
