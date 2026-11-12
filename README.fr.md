@@ -19,121 +19,74 @@
 
 <h1 align="center">CyCodeIDE</h1>
 
-Un IDE natif C++20 pour les projets de code, utilisant
-[CyCode Core](https://github.com/MrMybal/CyCode) et
-[l’éditeur partagé de CyCodeReader](https://github.com/MrMybal/CyCodeReader).
+Un IDE natif pour modifier du code, explorer des projets et utiliser ses outils de développement.
 
 > **CyCodeIDE 0.2.3 · Windows x64 · 2026-11-11**
 >
-> Première version séparée de CyCodeIDE, avec analyse native et mises à jour.
-> [Télécharger l’installateur ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3). Consulter les
-> [notes de version et limites de validation](VERSION.fr.md).
+> Édition du code, analyse de projets et mises à jour de l’application.
+> [Télécharger l’installateur ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3)
+> · [Notes de version](VERSION.fr.md).
 
 ## À propos de CyCodeIDE
 
-Modifier les fichiers d’un projet, consulter les diagnostics, naviguer entre les
-symboles et examiner les actions de code dans une même interface de bureau.
-L’analyse, l’autocomplétion et les transformations utilisent les services de Core
-et dépendent du serveur et du projet configurés. Le
+Écrire et parcourir du code, consulter les problèmes et prévisualiser les
+modifications dans un même espace de travail. Organiser les panneaux et fenêtres
+selon son projet, puis utiliser les outils de compilation, de débogage et de
+gestion de versions configurés.
+
+L’autocomplétion, la navigation et l’analyse dépendent du serveur de langage et
+des outils configurés pour le projet. Le
 [manuel](https://mrmybal.github.io/CyCode/Documentation.html#/fr/overview)
-explique la configuration et les opérations disponibles.
-
-CyCodeIDE gère les fenêtres, panneaux de projet, thèmes, raccourcis et leur
-présentation. Core gère les documents, adaptateurs de compilation, services de
-langage persistants, index sémantiques, diagnostics, extensions et transactions
-contrôlées. Reader fournit l’API source 1 de l’éditeur graphique. Les trois
-partagent les composants natifs de tampon, encodage, processus et protocole,
-avec un seul Core et une seule instance compatible ImGui/éditeur par compilation.
-L’API source 1 ne garantit pas une ABI binaire C++ stable.
-
-## Intégration de développement actuelle
-
-Core est verrouillé sur `8b8b7cefef47272871afe7774999f8b838ba1ab1` et CyUI sur
-`0ba1ba663b4b2bf46d066a32829bc91ea2743cba`. L’éditeur paginé partagé est verrouillé
-sur Reader publié `889dd5fd8db8bfabdba4601f5d2a955723c91301`. La compilation par défaut récupère
-cette révision exacte, avec `PagedTextBackend.h` et `PagedTextEditor.h`. Le contrôle
-des dépendances vérifie les capacités natives requises et les en-têtes partagés.
+explique comment commencer.
 
 ## Fonctionnalités
 
-- **Analyse progressive** : Affichage → Analyse et inspections distingue service
-  partagé, serveurs de langage, inventaire et diagnostics du fichier actif.
-  Préparez des lots bornés, mettez en pause, reprenez et restaurez explicitement
-  les points de parcours. Les observations historiques restent distinctes des
-  preuves actuelles ; aucune campagne ne démarre automatiquement. Références
-  permet une demande explicite de résultat actualisé au serveur.
-- **Inspections C++ et historique natif** : vrais profils clang-tidy sur une
-  source enregistrée et sa base de compilation réelle. Les résultats périmés ou
-  tronqués, colonnes d’octets UTF-8 et sorties sont visibles. Les aperçus de
-  refactorisation sont paginés si nécessaire ; l’Undo/Redo natif contrôlé est
-  partagé avec les agents et conserve les confirmations d’annotations.
-- **UTF-8 paginé** : les grands fichiers du projet utilisent la vue virtuelle
-  Reader/CyUI partagée ; un petit fichier propre peut choisir Fichier → Ouvrir
-  en texte paginé. Pages, sélections multiples pages, presse-papiers, recherche
-  littérale, éditions et enregistrements complets utilisent le même Engine.
-  La récupération propose découverte, aperçu et restauration native explicite.
-  Ce profil n’a pas de superposition LSP ; la coloration avec contexte est
-  indisponible au-delà de 32 Mio. Voir les [limites](VERSION.fr.md).
-
-- **Édition du code** : éditeur partagé de Reader avec annulation/rétablissement,
-  couleurs syntaxiques CyUI et JetBrains Mono embarquée. Ctrl + molette zoome
-  indépendamment la vue de code survolée ; le bouton de pourcentage au-dessus
-  d’un éditeur rétablit 100 %. Aperçus et comparaisons partagent la police de code
-  et possèdent leur propre zoom à la molette.
-- **Diagnostics et actions de code** : filtrer les problèmes, naviguer vers les
-  emplacements, rechercher les actions et examiner les aperçus avant d’appliquer
-  les modifications contrôlées par Core.
-- **Outils de projet** : les panneaux de compilation, débogage et gestion de
-  versions utilisent les services Core et les outils configurés pour le projet.
+- **Édition du code** : coloration syntaxique, annulation/rétablissement,
+  JetBrains Mono et zoom réglable.
+- **Assistance au code** : autocomplétion, navigation entre symboles, diagnostics
+  et aperçus des modifications proposées avec le serveur de langage configuré.
+- **Analyse et inspections** : examiner les fichiers du projet, mettre l’analyse
+  en pause et la reprendre, lancer des contrôles clang-tidy pour C++.
+- **Grands fichiers texte** : édition UTF-8 paginée, recherche, sélection et
+  enregistrement. Consulter les [limites actuelles](VERSION.fr.md).
+- **Outils de projet** : panneaux de compilation, de débogage et de gestion de versions.
 - **Espace de travail** : panneaux ancrables, fenêtres multiples, thèmes et
   raccourcis configurables.
-- **Mises à jour de l’application** : vérification facultative au démarrage,
-  téléchargement/reprise explicites et installation/redémarrage vérifiés via Core
-  sous Windows x64. L’IDE accepte uniquement ses propres paquets ; les copies de
-  développement ne sont pas remplacées. [Parcours et préparation des paquets](Docs/Updates.md).
-- **Anglais et français** : l’anglais est la langue par défaut ; le français est
-  sélectionnable. Le manuel bilingue CyDoc fonctionne aussi hors ligne.
+- **Mises à jour** : rechercher et télécharger les nouvelles versions depuis
+  l’application. Consulter le [guide des mises à jour](Docs/Updates.md).
+- **Anglais et français** : langue de l’interface au choix et manuel bilingue
+  disponible en ligne et hors ligne.
 
 ---
 
 ## Installation
 
 Télécharger l’[installateur Windows x64 ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3).
-Extraire tout le dossier portable avant de lancer `CyCodeIDE.exe`. L’installateur
-utilise un dossier CyCodeIDE par utilisateur, sans droits administrateur.
-Le flux de mise à jour utilise les versions CyCodeIDE de ce dépôt. Exécution de
-l’installateur et mise à jour/redémarrage réels restent non vérifiés ; voir les
-[mises à jour](Docs/Updates.md). Les anciens téléchargements CyCode précèdent cette séparation.
+L’installateur utilise un dossier par utilisateur, sans droits administrateur.
+Pour la version portable, extraire tout le dossier avant de lancer `CyCodeIDE.exe`.
+L’application graphique nécessite un pilote OpenGL.
 
-La compilation cible Windows, Linux et macOS. Les [notes de version](VERSION.fr.md)
-précisent les limites de validation ; une cible de compilation ne suffit pas à
-valider l’interface de bureau complète ou l’installateur. L’application graphique
-nécessite un pilote OpenGL.
+Consulter les [notes de version](VERSION.fr.md) pour les limites actuelles et
+l’état de validation.
 
 ### Lire le manuel
 
 Consulter le [manuel en français](https://mrmybal.github.io/CyCode/Documentation.html#/fr/overview)
 ou le [manuel anglais](https://mrmybal.github.io/CyCode/Documentation.html#/en/overview)
-en ligne. Les compilations standard génèrent le véritable lecteur CyDoc hors
-ligne depuis les sources Core verrouillées et le placent à côté de l’exécutable.
+en ligne, ou ouvrir le manuel fourni depuis l’application.
 
-Ouvrir `app/Documentation/Documentation.html#/fr/overview` (ou `#/en/overview`)
-depuis le répertoire de l’exécutable, ou utiliser la commande de documentation
-de l’application. Conserver tout le dossier `app/Documentation/`, y compris
-`DocData/`. Le lecteur exporté ne nécessite ni serveur, ni compte, ni connexion
-Internet.
+Le manuel hors ligne ne nécessite ni serveur, ni compte, ni connexion Internet.
+Conserver le dossier complet `app/Documentation/`, avec `DocData/`, à côté de
+l’application.
 
 ## Sources, compilation et bibliothèques nécessaires
 
-### Prérequis
-
-- **CMake 3.24+**, **Python 3.11+**, **Git** et une chaîne de compilation **C++20**.
-- **Windows** : outils C++ x64 de Visual Studio 2022.
-- **Linux/macOS** : chaîne C++ adaptée, Ninja et bibliothèques de développement OpenGL de la plateforme.
-- **Node.js 22+ et npm** pour la génération de documentation activée par défaut.
-- Accès aux dépôts et paquets pour le premier téléchargement des dépendances.
-
-### Récupérer les sources et compiler
+Outils de compilation : **CMake 3.24+**, **Python 3.11+**, **Git** et une chaîne
+**C++20**. Sous Windows, utiliser les outils C++ x64 de Visual Studio 2022.
+Les sources Linux/macOS nécessitent Ninja et les bibliothèques de développement
+OpenGL de la plateforme ; leur état de validation figure dans les
+[notes de version](VERSION.fr.md).
+**Node.js 22+ et npm** génèrent le manuel fourni avec l’application.
 
 ```sh
 git clone https://github.com/MrMybal/CyCodeIDE.git
@@ -141,47 +94,10 @@ cd CyCodeIDE
 python app/scripts/build.py --fetch
 ```
 
-CyCodeIDE nécessite actuellement un accès au dépôt. Core et Reader sont publics.
-L’authentification Git disponible sert si nécessaire ; les identifiants n’ont
-pas leur place dans les sources ou les exemples de commandes.
-
-Le script compile les cibles de production avec `BUILD_TESTING=OFF` et ne lance
-ni l’application ni les tests natifs. Sortie par défaut :
-`runtime/build/app/Release/CyCodeIDE.exe` sous Windows, ou
-`runtime/build/app/CyCodeIDE` avec un générateur à configuration unique.
-La cible interne de l’exécutable s’appelle encore `CyCode`.
-
-<details>
-<summary>Répertoires de compilation séparés et dépendances de développement</summary>
-
-Conserver une autre configuration sans remplacer une compilation existante :
-
-```sh
-python app/scripts/build.py --build-dir runtime/build-dev --fetch
-```
-
-Utiliser des sources de développement explicites pour coordonner Core et Reader :
-
-```sh
-python app/scripts/build.py --core-root <CyCode> --editor-root <CyCodeReader> --fetch
-```
-
-Les révisions exactes sont verrouillées dans les fichiers
-[Core](app/core-source.lock.json), [Reader](app/editor-source.lock.json) et
-[CyUI](app/cyui-source.lock.json). Les dépendances natives et celles de l’éditeur
-suivent leurs verrouillages respectifs ; les [dépendances d’images](app/dependencies.lock.json)
-sont verrouillées ici. L’éditeur partagé utilise sa révision publiée verrouillée
-et réutilise le Core propre choisi par l’IDE ; le verrou Core de l’application
-Reader autonome reste indépendant. Les chemins de développement explicites
-restent disponibles pour coordonner les modifications de sources.
-
-Le manuel hors ligne est généré par défaut. `--without-documentation` est une
-option explicite réservée à la vérification de compilation. La préparation
-reprend la façade, le manifeste et la CLI canoniques de Core sans créer un second
-registre d’opérations. Elle exclut les espaces de travail locaux, paramètres
-utilisateur et données de tâches téléchargées.
-
-</details>
+Le script récupère les bibliothèques nécessaires. Sous Windows, l’application
+est produite dans `runtime/build/app/Release/CyCodeIDE.exe`.
+Le [guide de développement](Docs/Extraction.md) détaille le choix des dépendances,
+les répertoires de compilation séparés et les commandes de validation.
 
 ---
 
