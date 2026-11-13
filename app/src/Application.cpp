@@ -787,13 +787,18 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
     tab->editor.SetFindReplaceEnabled(false);
     tab->editor.SetLineFoldingEnabled(true);
     tab->editor.SetReadOnlyEnabled(tab->readOnly);
-    tab->editor.SetLineDecorator(3, [this, weak = std::weak_ptr<Tab>(tab)](TextEditor::Decorator &line) {
+    // Breakpoints live in a gutter at the far left, before folding and line numbers.
+    // The decorator callback only supplies each visible line; it draws into the left margin.
+    tab->editor.SetLineNumberLeftMargin(3);
+    tab->editor.SetDecorationLeftMargin(0);
+    tab->editor.SetTextLeftMargin(1);
+    tab->editor.SetLineDecorator(1, [this, weak = std::weak_ptr<Tab>(tab)](TextEditor::Decorator &decorated) {
         auto tab = weak.lock(); if (!tab) return;
-        const auto at = ImGui::GetCursorScreenPos(); auto draw = ImGui::GetWindowDrawList();
-        // A visible breakpoint gutter, like Rider's, between line numbers and code.
+        const auto row = ImGui::GetCursorScreenPos(); auto draw = ImGui::GetWindowDrawList();
+        struct { size_t line; float width, height; } line{decorated.line, decorated.glyphSize.x * 2.5f, decorated.height};
+        const ImVec2 at{ImGui::GetWindowPos().x, row.y};
         const auto &gutter = cyui::palette();
         draw->AddRectFilled(at, {at.x + line.width, at.y + line.height}, cyui::alpha(gutter.bg0, .6f));
-        draw->AddLine({at.x + line.width - cyui::dp(1), at.y}, {at.x + line.width - cyui::dp(1), at.y + line.height}, cyui::alpha(gutter.lineStrong, .7f), cyui::dp(1));
         bool breakpoint = false, enabled = true, verified = false;
         if (debugState_.contains("breakpoints")) {
             const auto &points = debugState_.at("breakpoints");
@@ -802,18 +807,19 @@ void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
                 for (const auto &point : debugState_.at("verifiedBreakpoints").at(tab->path)) if (point.value("line",0) == int(line.line+1)) verified = point.value("verified",false);
         }
         if (breakpoint) {
-            const ImVec2 center{at.x+line.width*.45f,at.y+line.height*.5f}; const auto color = enabled ? cyui::palette().error : cyui::palette().textFaint;
+            const ImVec2 center{at.x+line.width*.5f,at.y+line.height*.5f}; const auto color = enabled ? cyui::palette().error : cyui::palette().textFaint;
             if (verified || debugState_.value("state","idle") == "idle") draw->AddCircleFilled(center,cyui::dp(4.3f),color);
             else draw->AddCircle(center,cyui::dp(4.3f),color,12,cyui::dp(1.4f));
         }
         if (debugState_.value("state","") == "stopped" && debugCurrentPath_ == tab->path && debugCurrentLine_ == line.line+1)
             draw->AddTriangleFilled({at.x+line.width*.6f,at.y+cyui::dp(2)},{at.x+line.width,at.y+line.height*.5f},{at.x+line.width*.6f,at.y+line.height-cyui::dp(2)},cyui::palette().warning);
         ImGui::BeginDisabled(tab->readOnly || isUntitledDocument(tab->path) || debugFuture_.valid());
+        ImGui::SetCursorScreenPos(at);
         if (ImGui::InvisibleButton("##breakpoint",{line.width,line.height})) toggleBreakpoint(tab->path,line.line+1);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
             // Rider previews the breakpoint where a click in the gutter would put it.
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-            if (!breakpoint) draw->AddCircleFilled({at.x+line.width*.45f,at.y+line.height*.5f},cyui::dp(4.3f),cyui::alpha(cyui::palette().error,.4f));
+            if (!breakpoint) draw->AddCircleFilled({at.x+line.width*.5f,at.y+line.height*.5f},cyui::dp(4.3f),cyui::alpha(cyui::palette().error,.4f));
             cyui::tooltip((std::string(tr(breakpoint?"Remove breakpoint":"Toggle breakpoint"))+" ("+keymap_.hint("debug.breakpoint")+")").c_str());
         }
         if (breakpoint && ImGui::BeginPopupContextItem("##breakpoint-menu")) {
@@ -2019,22 +2025,8 @@ void Application::editorPanel() {
         if (rendered) {
             if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows))
                 active_ = tab->path;
-            cyui::space(4);
-            if (!tab->image && (!tab->pagedProfile || tab->paged)) {
-                const float scale=codeZoom_;
-                const auto zoom = std::to_string(static_cast<int>(scale * 100.f + .5f)) +
-                                  "%###code-zoom";
-                if (cyui::ghostButton(zoom.c_str())) {
-                    setCodeZoom(1.f);
-                }
-                cyui::tooltip(tr("Ctrl + mouse wheel changes code size in every view. Click to reset all views to 100%."));
-                ImGui::SameLine();
-            }
-            if(!tab->image && !tab->pagedProfile) {
-                auto show=minimap_;if(cyui::toggleButton(tr("Minimap"),&show))setMinimap(show);
-                cyui::tooltip(tr("Show or hide the code minimap"));ImGui::SameLine();
-            }
-            cyui::textFaint("  %s", tab->displayPath.c_str());
+            // No toolbar above the code, as in Rider: zoom, path and read-only state are in
+            // the status bar, and the minimap is under View.
             if (tab->image) imagePanel(tab);
             else if(tab->pagedProfile)pagedPanel(tab);
             else {
@@ -2044,7 +2036,7 @@ void Application::editorPanel() {
                 if(cyui::button(tr("Prepare Unreal code analysis")))executeCommand("unreal.prepare");
             }
             if (tab->snippet.active()) {
-                ImGui::SameLine();cyui::badge((std::string(tr("Snippet parameter"))+" "+std::to_string(tab->snippet.index())).c_str(),cyui::Tone::accent);
+                cyui::badge((std::string(tr("Snippet parameter"))+" "+std::to_string(tab->snippet.index())).c_str(),cyui::Tone::accent);
                 cyui::tooltip(tr("Tab: next | Shift+Tab: previous | Esc: finish"));
                 const auto choices=tab->snippet.choices();
                 if (!choices.empty()) {
@@ -2057,10 +2049,8 @@ void Application::editorPanel() {
                     }
                 }
             }
-            if (tab->readOnly) { ImGui::SameLine(); cyui::badge(tr(tab->path.starts_with("debug://") ? "Read-only debugger source" : "Read-only SDK source"), cyui::Tone::neutral); }
             if(!tab->diskConflict.empty())cyui::callout(cyui::Tone::warning,tr(tab->diskConflict=="missing"?"File disappeared from disk; the open buffer is preserved.":"File changed on disk. Reload it or save a copy."));
             if(tab->diagnosticTruncated)cyui::textDim("%s",tr("Additional diagnostics are available in Problems."));
-            cyui::divider(4);
             const auto undoBefore = tab->editor.GetUndoIndex();
             // Characters that close a block or statement trigger Rider-style auto-format.
             char32_t typedTrigger = 0;

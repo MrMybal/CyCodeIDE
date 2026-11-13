@@ -514,6 +514,27 @@ void Application::statusBar() {
             const auto pos=tab->paged?tab->paged->view().selection().caret:cyui::PagedCodePosition{};
             cyui::textDim("%s | %llu:%llu",tr("Paged UTF-8"),static_cast<unsigned long long>(pos.line+1),static_cast<unsigned long long>(pos.character+1));
         } else {const auto pos=tab->editor.GetMainCursorPosition();cyui::textDim("%s | Ln %zu, Col %zu | UTF-8",tab->editor.GetLanguageName().c_str(),pos.line+1,pos.index+1);}
+        // Former editor toolbar items: read-only state, file path and code zoom.
+        if(tab->readOnly){ImGui::SameLine();cyui::textFaint(" | ");ImGui::SameLine();
+            cyui::textColoured(cyui::palette().warning,"%s",tr(tab->path.starts_with("debug://")?"Read-only debugger source":"Read-only SDK source"));}
+        ImGui::SameLine();cyui::textFaint(" | ");ImGui::SameLine();
+        const float room=std::max(cyui::dp(60),ImGui::GetContentRegionAvail().x-cyui::dp(330));
+        auto shown=tab->displayPath;
+        // Drop leading folders (never inside a UTF-8 sequence) until the path fits.
+        while(ImGui::CalcTextSize(shown.c_str()).x>room) {
+            const auto slash=shown.find_first_of("/\\",1);
+            if(slash==std::string::npos)break;
+            shown.erase(0,slash);
+        }
+        if(shown!=tab->displayPath)shown="..."+shown;
+        cyui::textFaint("%s",shown.c_str());
+        cyui::tooltip(tab->displayPath.c_str());
+        if(!tab->image && (!tab->pagedProfile || tab->paged)) {
+            ImGui::SameLine();cyui::textFaint(" | ");ImGui::SameLine();
+            const auto zoom=std::to_string(static_cast<int>(codeZoom_*100.f+.5f))+"%###status-zoom";
+            if(cyui::ghostButton(zoom.c_str()))setCodeZoom(1.f);
+            cyui::tooltip(tr("Ctrl + mouse wheel changes code size in every view. Click to reset all views to 100%."));
+        }
     }
     if (auto pending=keymap_.pending(ImGui::GetTime());!pending.empty()){ImGui::SameLine();cyui::textDim("%s",pending.c_str());}
     const auto tasks=backgroundTasks();
