@@ -83,11 +83,14 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
             entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../VERSION', b'](../../VERSION')
         elif name.startswith('Releases/v0.2.4'):
             entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../../VERSION', b'](../../../VERSION')
-    source_url='https://github.com/MrMybal/CyCodeIDE/blob/'+git(ROOT,'rev-parse','HEAD')+'/Docs/Extraction.md'
+    source_root='https://github.com/MrMybal/CyCodeIDE/blob/'+git(ROOT,'rev-parse','HEAD')
+    source_url=source_root+'/Docs/Extraction.md'
     for name in ['README.md','README.fr.md','VERSION.md','VERSION.fr.md']:
         text=entries[name].decode('utf-8').replace('](Docs/Updates.md)','](app/Docs/Updates.md)')
         text=text.replace('](Docs/Releases/','](app/Docs/Releases/').replace('](Docs/Extraction.md)',']('+source_url+')')
         text=text.replace('Docs/AssistantMCP','app/Docs/AssistantMCP')
+        text=text.replace('](AGENTS.md)',']('+source_root+'/AGENTS.md)')
+        text=text.replace('](app/AGENTS.md)',']('+source_root+'/app/AGENTS.md)')
         entries[name]=text.encode('utf-8')
     for name in ['CyCode.png', 'CyCode.ico', 'CyCode-document.png', 'CyCode-document.ico']:
         include(ROOT/'icons'/name, 'icons/'+name)
