@@ -99,6 +99,7 @@ const std::vector<ToolWindow> &toolWindows() {
         {cyui::icon::record,"Git commits","gitCommits",ImGuiDir_Down},
         {cyui::icon::link,"References","references",ImGuiDir_Down},
         {cyui::icon::viewAll,"Analysis and inspections","analysis",ImGuiDir_Down},
+        {cyui::icon::people,"Assistant","assistant",ImGuiDir_Right},
         {cyui::icon::info,"Code information","information",ImGuiDir_Right},
         {cyui::icon::lightbulb,"Code actions","codeActions",ImGuiDir_Right},
         {cyui::icon::grid,"Hierarchy","hierarchy",ImGuiDir_Right},

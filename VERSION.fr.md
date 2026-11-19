@@ -2,100 +2,64 @@
 
 [README](README.fr.md) · [English](VERSION.md)
 
-## Version actuelle des sources
+## CyCodeIDE 0.2.4 · Windows x64 · 2026-11-20
 
-**CyCodeIDE 0.2.3 · Windows x64 · 2026-11-11**
+**En développement.** Cette version ajoute l’assistant intégré et l’automatisation
+native à l’IDE existant. [Téléchargements](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4)
+· [Notes de publication](Docs/Releases/v0.2.4.fr.md) · [Version précédente](Docs/Releases/v0.2.3.fr.md).
 
-Il s’agit de la version de l’IDE déclarée par les projets CMake racine et
-application, indépendante du moteur Core lié. La présentation provient de
-l’ancienne application de bureau CyCode 0.2.3. Il s’agit de la première publication
-séparée de l’IDE. [Téléchargements](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3) · [Notes de publication](Docs/Releases/v0.2.3.fr.md).
-Compilation et contrôles des paquets passent ; installation/redémarrage restent non vérifiés.
+## Changements
 
-| Composant | Sources sélectionnées / contrat |
+- **Affichage → Assistant** ouvre le chat natif : choix du fournisseur/modèle,
+  réponses progressives, annulation, pièces jointes et restauration des conversations privées.
+- Chat, CLI et MCP externe partagent les services Core de la fenêtre, ses documents
+  ouverts, révisions et transactions contrôlées. L’accès est en lecture seule par
+  défaut ; édition/compilation et préférences nécessitent des autorisations distinctes.
+- Huit outils IDE exposent les onglets, la sélection, les panneaux pris en charge
+  et les préférences communes. Un document modifié ne peut pas être fermé avec abandon implicite.
+- CyMCPSDK remplace CyToolsCore et le serveur MCP Python. Les commandes CLI
+  existantes et la migration explicite des anciennes tâches restent disponibles.
+  Voir le [guide de l’assistant et de l’automatisation](Docs/AssistantMCP.fr.md).
+- Cet état des sources inclut aussi les améliorations récentes de l’arborescence,
+  des menus, de la recherche, du zoom partagé, de la minicarte et de la gouttière des points d’arrêt.
+
+## Composants
+
+| Composant | Version / sources sélectionnées |
 | --- | --- |
-| CyCodeIDE | Version Windows x64 0.2.3 |
-| [CyCode Core](app/core-source.lock.json) | `8b8b7cefef47272871afe7774999f8b838ba1ab1` · API source native/commune 1 · `cycode-core/1` |
-| [Éditeur Reader](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · API source de l’éditeur graphique 1 |
-| [CyUI](app/cyui-source.lock.json) | `0ba1ba663b4b2bf46d066a32829bc91ea2743cba` |
-| Lecteur CyDoc | 0.1.0 · issu du verrouillage de documentation de Core |
+| CyCodeIDE | 0.2.4 |
+| [CyCode Core](app/core-source.lock.json) | 0.1.5 · `5da07d2256b6035ee26425987e6238b647fe8334` · API source 1 |
+| [Éditeur Reader](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · API graphique source 1 |
+| [CyUI](app/cyui-source.lock.json) | `6ef01cfcdb197f3a89d64618ce5ef8818c704728` |
+| CyMCPSDK | 0.7.0 · `791d4d7d7680213b282ec8529d248a10f8494d77` |
 
-L’API source 1 n’est pas une ABI binaire C++ stable. L’IDE, Core et Reader doivent
-partager un graphe de dépendances compatible.
+L’API source 1 ne garantit pas une ABI C++ stable. Compiler ces composants ensemble.
 
-## Changements dans cet état des sources
+## Validation et limites documentées
 
-- La vue d’analyse et d’inspection expose lots natifs, pause/reprise, points de
-  parcours durables, preuves historiques/actuelles et vrais profils clang-tidy.
-- L’historique natif et les reçus atomiques viennent de Core. Les annulations et
-  rétablissements multifichiers ou annotés sont préparés/examinés dans
-  Refactorisation ; les éditions paginées utilisent le même propriétaire natif.
-- L’éditeur paginé partagé utilise pages natives asynchrones, positions UTF-16 et
-  octets contrôlés, publication intégrale et aperçu/restauration explicites. Les
-  sessions gardent profil, chemin et curseur, sans sauvegarde paginée implicite.
+La compilation Windows x64 Release et dix vérifications Python de staging/contrats
+ont réussi. Les essais isolés CLI/MCP/chat/interface masquée de production ont
+réussi avec un fournisseur HTTP simulé local explicitement autorisé : vrais appels
+d’outils IDE, droits, modifications non enregistrées, sauvegarde explicite,
+annulation/restauration et lecture Unicode complète par morceaux. Cela ne valide
+ni les comptes fournisseurs réels ni les dialogues interactifs de pièces jointes.
 
-- CyCodeIDE gère la présentation ; Core conserve les services natifs et
-  transactions contrôlées ; Reader fournit l’éditeur graphique partagé.
-- Le délai maximal de compilation utilise l’édition entière bornée et le cycle
-  valider/annuler de l’inspecteur CyUI, avec messages de validation anglais/français.
-- La navigation des diagnostics suit les déplacements manuels du curseur.
-  Les filtres distinguent un résultat vide de l’absence de diagnostics et
-  conservent l’identité de la sélection.
-- La recherche des actions conserve leurs identités Core et contrôles de révision.
-  Recherche et fenêtres contextuelles gardent leur saisie clavier ; l’aperçu
-  conserve son intention.
-- CyUI fournit JetBrains Mono 2.304 embarquée, les couleurs syntaxiques actualisées
-  et un zoom Ctrl + molette indépendant. Le bouton de pourcentage de chaque
-  éditeur rétablit 100 %.
-- `--build-dir` choisit un répertoire de compilation de production séparé.
-  Les compilations standard incluent le manuel bilingue hors ligne et ne lancent
-  aucun binaire de l’application ou des tests.
-- Les README anglais et français complets suivent la convention CyDoc, avec
-  notes de version et références aux licences des dépendances.
-
-## Limites documentées
-
-- Les tampons GUI/LSP ordinaires restent limités à 4 Mio. Le profil UTF-8 paginé
-  n’a ni superposition LSP, conversion d’encodage, pliage, multi-curseur ni snippets.
-  Enregistrez ou fermez ses modifications avant les requêtes au compilateur.
+- Exécution de l’installateur, machine propre, remplacement/redémarrage réels en
+  ligne, Linux/macOS et interactions complètes restent non vérifiés. Les binaires ne sont pas signés.
+- Serveurs de langage, compilateurs, clients VCS et pilote OpenGL restent des
+  prérequis externes. La coloration seule ne prouve pas l’analyse sémantique.
+- Les tampons GUI/LSP ordinaires gardent leur limite de 4 Mio. Le profil UTF-8
+  paginé n’a ni superposition LSP, conversion d’encodage, pliage, multi-curseur ni
+  snippets ; enregistrer ou fermer ses modifications avant les requêtes au compilateur.
   La coloration avec contexte reste indisponible au-delà de 32 Mio.
-- L’historique natif retient au plus 256 transactions ; fermeture ou changement
-  de chemin invalide les entrées concernées. Enregistrer sous réinitialise donc
-  l’historique paginé lié à l’ancien chemin. Points de reprise, Save et historique
-  restent distincts.
-- Les saisies annulées et propositions refusées doivent être récupérées puis
-  acquittées explicitement avant modification/enregistrement, sans réexécution automatique.
+- L’historique natif conserve jusqu’à 256 transactions. Fermer ou réaffecter un
+  document invalide ses entrées liées au chemin. Les points de reprise paginés restent distincts d’Enregistrer.
+- Relais MCP d’applications tierces et supervision d’un moteur local d’inférence
+  ne sont pas inclus. Les droits natifs fichiers/terminal du fournisseur restent distincts des outils IDE.
+- GitHub Actions reste en pause. Les compilations normales gardent `BUILD_TESTING=OFF` ;
+  les essais isolés de production autorisés ne lèvent pas les restrictions générales d’exécution locale.
 
-- Les mises à jour utilisent le dépôt et la version de CyCodeIDE, avec un auxiliaire
-  dédié lié au profil produit immuable de Core. Les paquets CyCode et Reader sont
-  refusés. Exécution de l’installateur, remplacement/redémarrage réels en ligne et
-  validation sur machine propre restent non vérifiés. La publication documente
-  explicitement ces limites. Voir les [mises à jour](Docs/Updates.md).
-- Les sources actuelles ont été compilées avec succès en production Windows
-  Release. Les résultats CI natifs et d’interface antérieurs concernent des
-  révisions précises sous Windows, Linux et macOS. Ils ne suffisent pas à valider
-  l’interface complète, le multi-écran ou l’installateur de cet état des sources.
-  Le [guide d’extraction](Docs/Extraction.md) conserve les preuves exactes et
-  vérifications non exécutées.
-- L’exécution native locale reste suspendue pendant le diagnostic antivirus en
-  cours. GitHub Actions reste en pause à la demande du propriétaire. Les
-  compilations ordinaires utilisent `BUILD_TESTING=OFF` ; les récents tests de
-  régression natifs n’ont pas été exécutés localement.
-- Autocomplétion, diagnostics et actions dépendent des serveurs de langage
-  configurés et des capacités prises en charge par Core. La coloration seule
-  n’effectue pas d’analyse sémantique. Consulter les
-  [limites du manuel](https://mrmybal.github.io/CyCode/Documentation.html#/fr/limits).
-- La distribution publique de binaires nécessite encore un audit complet des
-  notices et licences transitives des paquets langage/débogage/SDK sélectionnés.
-  Conserver les [notices tierces](app/THIRD_PARTY_NOTICES.md).
-
-## Problèmes, retours et références de publication
-
-Ces notes ne tiennent pas de liste détaillée des bogues de cet état de
-développement ; cela ne signifie pas qu’il en est exempt. Signaler les problèmes de l’IDE depuis
-le [dépôt CyCodeIDE](https://github.com/MrMybal/CyCodeIDE), qui nécessite
-actuellement un accès. Pour le moteur partagé, utiliser le
-[suivi des problèmes de CyCode Core](https://github.com/MrMybal/CyCode/issues).
-
-Les [anciennes publications CyCode](https://github.com/MrMybal/CyCode/releases)
-concernent l’ancienne application, pas cet état extrait de CyCodeIDE.
+Consulter le [guide des mises à jour](Docs/Updates.md) et conserver les
+[notices tierces](app/THIRD_PARTY_NOTICES.md). Aucun inventaire bogue par bogue
+n’est tenu pour cet état ; signaler les problèmes au [suivi IDE](https://github.com/MrMybal/CyCodeIDE/issues)
+ou au [suivi Core](https://github.com/MrMybal/CyCode/issues) pour les services partagés.

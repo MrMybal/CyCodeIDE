@@ -41,24 +41,25 @@ the package author refuses such a build for update distribution.
 
 ```sh
 python app/scripts/build.py --fetch
-python app/scripts/package_windows.py --build runtime/build --mcp-bundle <verified-bundle> --tools-root <verified-runtime-tools> --iscc <ISCC.exe>
+python app/scripts/package_windows.py --build runtime/build --mcp-bundle <verified-stdlib-bundle> --tools-root <verified-runtime-tools> --iscc <ISCC.exe>
 ```
 
 The author reuses the exact pinned Core's pure package validation, PE resource
 reader, archive writer, MSVC runtime staging and installer compiler. Prepare the
-real isolated MCP bundle with the pinned Core's `prepare_mcp_runtime.py` and its
-locked SDK wheel/source; this does not execute the payload. Runtime tools must
-match the Core's locked ripgrep archive and binary hashes.
+stdlib-only Python compatibility bundle with the selected Core's
+`manager_bundle.py` and `manager-runtime.lock.json`. No CyToolsCore wheel, Python
+MCP server or Python site-packages are included. Runtime tools must match the
+Core's locked ripgrep archive and binary hashes.
 
 The package includes the native CLI, VCS providers, app-local MSVC runtime,
-isolated Python/MCP, fonts, locales, notices and complete manual. Build trees,
+native CyMCPSDK assistant, stdlib-only Python compatibility runtime, fonts, locales, notices and complete manual. Build trees,
 credentials, downloaded source archives and user state are excluded. Each
 manifest records the product/repository, IDE version, source commit and dependency
 locks. `SHA256SUMS.txt` records the authored artifacts. `--portable-only` omits
 Setup. `--allow-local-changes` is an explicit local review mode and records that
 the package is not reconstructed solely from its source commit.
 
-Creating packages does not upload them. A future release must publish a matching
+Creating packages does not upload them. A release must publish a matching
 stable tag and complete assets in **MrMybal/CyCodeIDE**, with accessible
 corresponding sources. GitHub Actions remain disabled. Source pushes, release
 publication and installation are distinct authorizations.
@@ -71,3 +72,10 @@ clipboard, installer execution, restart or real online update acceptance. Do not
 launch project GUI/CLI/helper/installer/native-test executables while the antivirus
 investigation suspends those checks. Preserve the exact build/scan/package report
 and list any checks not performed before a public binary release.
+
+
+The 0.2.4 release received an explicit exception for isolated production
+CLI/MCP/chat and hidden-GUI acceptance with a local simulated provider. Those
+checks passed; they do not validate installer execution, real provider accounts,
+replacement/restart or clean-machine behavior. The general execution restrictions
+and GitHub Actions pause remain in effect.

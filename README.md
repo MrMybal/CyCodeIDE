@@ -12,7 +12,8 @@
     </td>
     <td width="300" align="right" valign="top">
       <p><sub>Application license</sub><br><a href="LICENSE"><strong>GPL-3.0-only</strong></a></p>
-      <p><sub>IDE version</sub><br><a href="VERSION.md"><strong>0.2.3</strong></a><br><strong>WINDOWS x64</strong></p>
+      <p><sub>IDE version</sub><br><a href="VERSION.md"><strong>0.2.4</strong></a><br><strong>IN DEVELOPMENT</strong></p>
+      <p><a href="https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4"><strong>Download</strong></a><br><sub>Windows x64 · installer / portable</sub></p>
     </td>
   </tr>
 </table>
@@ -21,10 +22,11 @@
 
 A native IDE for editing code, exploring projects and working with development tools.
 
-> **CyCodeIDE 0.2.3 · Windows x64 · 2026-11-11**
+> **CyCodeIDE 0.2.4 · Windows x64 · 2026-11-20**
 >
-> Code editing, project analysis and application updates.
-> [Download installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3)
+> Development release with an integrated assistant and native CLI/MCP access.
+> Read the [version notes and limitations](VERSION.md).
+> [Download installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4)
 > · [Version notes](VERSION.md).
 
 ## About CyCodeIDE
@@ -40,7 +42,7 @@ explains how to get started.
 
 ## Features
 
-- **Code editing:** syntax highlighting, Undo/Redo, JetBrains Mono and adjustable zoom.
+- **Code editing:** syntax highlighting, Undo/Redo, JetBrains Mono, shared text size/zoom and an optional minimap.
 - **Code assistance:** completion, symbol navigation, diagnostics and previews of
   suggested changes with your configured language server.
 - **Analysis and inspections:** inspect project files, pause and resume analysis,
@@ -51,6 +53,11 @@ explains how to get started.
 - **Workspace:** dockable panels, multiple windows, themes and configurable shortcuts.
 - **Application updates:** check for new releases and download them from the
   application. See the [update guide](Docs/Updates.md).
+- **Integrated assistant:** streamed conversations, cancellation and saved history,
+  with controlled access to the current project. Open **View → Assistant**.
+- **CLI and MCP:** discover and call project tools from a terminal or an external
+  assistant, including the current window’s unsaved documents. See the
+  [assistant and automation guide](Docs/AssistantMCP.md).
 - **English and French:** selectable interface language and a bilingual manual
   available online and offline.
 
@@ -58,7 +65,7 @@ explains how to get started.
 
 ## Installation
 
-Download the [Windows x64 installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.3).
+Download the [Windows x64 installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4).
 The installer uses a per-user directory and requires no administrator privileges.
 For the portable version, extract the entire folder before running `CyCodeIDE.exe`.
 The graphical application requires an OpenGL driver.
@@ -104,13 +111,14 @@ See [COPYRIGHT](COPYRIGHT). Dependencies retain their own licenses and notices.
 
 | Library · source | License · terms | Use / scope |
 | --- | --- | --- |
-| [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/5dc05f4bffe5d38e871250c9de23651c33d47221/LICENSE) | Shared native project services, documents and CLI. |
+| [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/5da07d2256b6035ee26425987e6238b647fe8334/LICENSE) | Shared native project services, documents and CLI. |
 | [CyCodeReader editor](https://github.com/MrMybal/CyCodeReader) | [GPL-3.0-only](https://github.com/MrMybal/CyCodeReader/blob/889dd5fd8db8bfabdba4601f5d2a955723c91301/LICENSE) | Shared graphical editor source API 1. |
-| [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/6173630ad5eb1e585eee1a0e7d3617285563e774/LICENSE) | Selected interface, code, comparison and panel modules. |
+| [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/LICENSE) | Selected interface, code, comparison and panel modules. |
+| [CyMCPSDK](https://github.com/MrMybal/CyMCPSDK) | [MIT](app/licenses/CyMCPSDK.txt) | Assistant, native tool registry, CLI and MCP. |
 | [Dear ImGui](https://github.com/ocornut/imgui) | [MIT](https://github.com/ocornut/imgui/blob/d682dc41f58b98c9343ffbaa7d94f07e9024b3ca/LICENSE.txt) | Shared native UI and SDL/OpenGL backends. |
 | [SDL3](https://github.com/libsdl-org/SDL) | [zlib](https://github.com/libsdl-org/SDL/blob/release-3.4.18/LICENSE.txt) | Native windows, input and platform integration. |
-| [ImGuiColorTextEdit](https://github.com/goossens/ImGuiColorTextEdit) | [MIT](https://github.com/MrMybal/CyUI/blob/6173630ad5eb1e585eee1a0e7d3617285563e774/third_party/texteditor/LICENSE) | CyUI editor backend; Reader adapts build-local copies. |
-| [Lexilla / Scintilla](https://github.com/ScintillaOrg/lexilla) and [SciTE properties](https://github.com/mirror/scite) | [Permissive component notices](https://github.com/MrMybal/CyUI/blob/6173630ad5eb1e585eee1a0e7d3617285563e774/THIRD_PARTY_NOTICES.md) | Lexical engines, public headers and keyword data; no Scintilla editor UI. |
+| [ImGuiColorTextEdit](https://github.com/goossens/ImGuiColorTextEdit) | [MIT](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/third_party/texteditor/LICENSE) | CyUI editor backend; Reader adapts build-local copies. |
+| [Lexilla / Scintilla](https://github.com/ScintillaOrg/lexilla) and [SciTE properties](https://github.com/mirror/scite) | [Permissive component notices](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/THIRD_PARTY_NOTICES.md) | Lexical engines, public headers and keyword data; no Scintilla editor UI. |
 | [Tree-sitter and grammars](https://github.com/tree-sitter) | [MIT; component notices](app/THIRD_PARTY_NOTICES.md) | Shared editor syntax parsing. |
 | [stb_image](https://github.com/nothings/stb) | [MIT or Unlicense](app/THIRD_PARTY_NOTICES.md) | Image decoding. |
 | [libwebp](https://github.com/webmproject/libwebp) | [BSD-style and patent grant](app/THIRD_PARTY_NOTICES.md) | Decoder-only image support. |
@@ -133,7 +141,7 @@ See [COPYRIGHT](COPYRIGHT). Dependencies retain their own licenses and notices.
 | [PrismJS 1.30.0](https://github.com/PrismJS/prism) | [MIT](https://github.com/PrismJS/prism/blob/v1.30.0/LICENSE) | Build-time documentation syntax highlighting. |
 | [esbuild 0.25.12](https://github.com/evanw/esbuild) | [MIT](https://github.com/evanw/esbuild/blob/v0.25.12/LICENSE.md) | Build-time documentation bundling. |
 
-Language servers, compilers, debug adapters and optional SDK/MCP environments
+Language servers, compilers, debug adapters and optional AI services
 retain their own component terms. They are separate prerequisites or selected
 runtime packages, rather than universally bundled features. See the
 [third-party notices](app/THIRD_PARTY_NOTICES.md) for their scope.
@@ -153,6 +161,6 @@ notices. Keep distributed license texts, font notices and
 
 - [Start here: repository instructions](AGENTS.md) — scope, important guides and development restrictions.
 - [Implement the interface](app/AGENTS.md) — CyUI presentation and shared service ownership.
-- [Integrate Core](https://github.com/MrMybal/CyCode/blob/5dc05f4bffe5d38e871250c9de23651c33d47221/app/Docs/CoreExtraction.md) — pinned native architecture and source contracts.
+- [Integrate Core](https://github.com/MrMybal/CyCode/blob/5da07d2256b6035ee26425987e6238b647fe8334/app/Docs/CoreExtraction.md) — pinned native architecture and source contracts.
 
 </details>

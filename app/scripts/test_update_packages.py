@@ -15,6 +15,7 @@ class UpdateBuildTests(unittest.TestCase):
         self.build = self.root/'runtime/build'
         self.core = Path(self.temporary.name)/'core'
         (self.root/'app').mkdir(parents=True)
+        (self.root/'app/ide-operations.json').write_text('{"operations":[]}',encoding='utf-8')
         self.build.mkdir(parents=True)
         self.core.mkdir()
         (self.root/'app/CMakeLists.txt').write_text('project(CyCodeIDE VERSION 0.2.3)',encoding='utf-8')

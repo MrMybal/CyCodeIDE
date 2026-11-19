@@ -1175,9 +1175,9 @@
     "en": "Available services",
     "fr": "Services disponibles"
   },
-  "Workspace, live documents, search, Git, CMake and native plugin commands. MCP sessions use CyToolsCore jobs and permissions.": {
-    "en": "Workspace, live documents, search, Git, CMake and native plugin commands. MCP sessions use CyToolsCore jobs and permissions.",
-    "fr": "Projet, documents ouverts, recherche, Git, CMake et plugins natifs. Les sessions MCP utilisent les jobs et permissions CyToolsCore."
+  "Workspace, live documents, search, Git, CMake and native plugin commands. MCP sessions use CyMCPSDK jobs and permissions.": {
+    "en": "Workspace, live documents, search, Git, CMake and native plugin commands. MCP sessions use CyMCPSDK jobs and permissions.",
+    "fr": "Projet, documents ouverts, recherche, Git, CMake et plugins natifs. Les sessions MCP utilisent les jobs et permissions CyMCPSDK."
   },
   "Language": {
     "en": "Language",
@@ -1211,9 +1211,9 @@
     "en": "CyCode: GPL-3.0-only. Copyright (c) 2026 Cyberalien. This program comes without any warranty. See LICENSE and COPYRIGHT.",
     "fr": "CyCode : GPL-3.0-only. Copyright (c) 2026 Cyberalien. Ce programme est fourni sans aucune garantie. Voir LICENSE et COPYRIGHT."
   },
-  "CyUI, Dear ImGui, TextEditor, CyToolsCore and nlohmann/json: MIT. SDL3: zlib.": {
-    "en": "CyUI, Dear ImGui, TextEditor, CyToolsCore and nlohmann/json: MIT. SDL3: zlib.",
-    "fr": "CyUI, Dear ImGui, TextEditor, CyToolsCore et nlohmann/json : MIT. SDL3 : zlib."
+  "CyUI, Dear ImGui, TextEditor, CyMCPSDK and nlohmann/json: MIT. SDL3: zlib.": {
+    "en": "CyUI, Dear ImGui, TextEditor, CyMCPSDK and nlohmann/json: MIT. SDL3: zlib.",
+    "fr": "CyUI, Dear ImGui, TextEditor, CyMCPSDK et nlohmann/json : MIT. SDL3 : zlib."
   },
   "Open third-party notices": {
     "en": "Open third-party notices",
@@ -1671,9 +1671,9 @@
     "en": "csharp-ls: MIT. Private .NET SDK: included Microsoft terms and component notices.",
     "fr": "csharp-ls : MIT. SDK .NET prive : conditions Microsoft et notices des composants incluses."
   },
-  "Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. MCP sessions use CyToolsCore jobs and permissions.": {
-    "en": "Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. MCP sessions use CyToolsCore jobs and permissions.",
-    "fr": "Espace de travail, documents, services de langage, recherche, Git, CMake/MSBuild/Unreal, terminal, debogueur et extensions. Les sessions MCP utilisent les taches et permissions CyToolsCore."
+  "Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. MCP sessions use CyMCPSDK jobs and permissions.": {
+    "en": "Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. MCP sessions use CyMCPSDK jobs and permissions.",
+    "fr": "Espace de travail, documents, services de langage, recherche, Git, CMake/MSBuild/Unreal, terminal, debogueur et extensions. Les sessions MCP utilisent les taches et permissions CyMCPSDK."
   },
   "Debug engine": {
     "en": "Debug engine",
@@ -7798,5 +7798,85 @@
   "Conditions and all breakpoints...": {
     "en": "Conditions and all breakpoints...",
     "fr": "Conditions et tous les points d’arrêt…"
+  },
+  "Assistant": {
+    "en": "Assistant",
+    "fr": "Assistant"
+  },
+  "Assistant unavailable": {
+    "en": "Assistant unavailable",
+    "fr": "Assistant indisponible"
+  },
+  "Assistant connection": {
+    "en": "Assistant connection",
+    "fr": "Connexion de l’assistant"
+  },
+  "Allow editor preference changes": {
+    "en": "Allow editor preference changes",
+    "fr": "Autoriser la modification des préférences de l’éditeur"
+  },
+  "Detect providers": {
+    "en": "Detect providers",
+    "fr": "Détecter les fournisseurs"
+  },
+  "Detecting providers...": {
+    "en": "Detecting providers...",
+    "fr": "Détection des fournisseurs…"
+  },
+  "Provider": {
+    "en": "Provider",
+    "fr": "Fournisseur"
+  },
+  "Model": {
+    "en": "Model",
+    "fr": "Modèle"
+  },
+  "Provider URL": {
+    "en": "Provider URL",
+    "fr": "URL du fournisseur"
+  },
+  "Provider executable": {
+    "en": "Provider executable",
+    "fr": "Exécutable du fournisseur"
+  },
+  "API key environment variable": {
+    "en": "API key environment variable",
+    "fr": "Variable d’environnement de la clé API"
+  },
+  "Discover tools on demand": {
+    "en": "Discover tools on demand",
+    "fr": "Découvrir les outils à la demande"
+  },
+  "API context window (bytes, 0 = unlimited)": {
+    "en": "API context window (bytes, 0 = unlimited)",
+    "fr": "Fenêtre de contexte API (octets, 0 = illimité)"
+  },
+  "Native agents keep their own context. Conversation history stays complete.": {
+    "en": "Native agents keep their own context. Conversation history stays complete.",
+    "fr": "Les agents natifs gèrent leur contexte. L’historique de conversation reste complet."
+  },
+  "Connect / New conversation": {
+    "en": "Connect / New conversation",
+    "fr": "Connecter / Nouvelle conversation"
+  },
+  "Restore conversation": {
+    "en": "Restore conversation",
+    "fr": "Restaurer la conversation"
+  },
+  "Back to conversation": {
+    "en": "Back to conversation",
+    "fr": "Revenir à la conversation"
+  },
+  "Open assistant": {
+    "en": "Open assistant",
+    "fr": "Ouvrir l’assistant"
+  },
+  "Core project services and IDE tools share the native CyMCPSDK registry, permissions and durable jobs.": {
+    "en": "Core project services and IDE tools share the native CyMCPSDK registry, permissions and durable jobs.",
+    "fr": "Les services de projet du Core et les outils IDE partagent le registre natif CyMCPSDK, ses permissions et ses tâches persistantes."
+  },
+  "Unsupported extension property value": {
+    "en": "Unsupported extension property value",
+    "fr": "Valeur de propriété d’extension non prise en charge"
   }
 }

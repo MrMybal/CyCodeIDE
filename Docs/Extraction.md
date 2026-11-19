@@ -4,6 +4,30 @@ The presentation was extracted from CyCode af0c149e1366c3b50d5e509153dbab380dc3f
 This guide covers contributor build settings and shared-service integration.
 For application features, downloads and first steps, read the [README](../README.md).
 
+## Current integration — 0.2.4 / 2026-11-20
+
+The source locks now select Core 0.1.5 with its host-owned SDK target fix,
+CyUI `6ef01cfcdb197f3a89d64618ce5ef8818c704728`, and the unchanged Reader editor.
+Core’s lock selects CyMCPSDK 0.7.0. The IDE adds AI and ChatUI to the shared
+Core/Platform/Http/MCP graph; no dependency sources are patched. Explicit clean
+sources can be selected with `--core-root`, `--cymcp-source` and `--cyui`.
+
+The native host reuses the current window’s Engine and Core automation registry.
+It appends eight UI operations, marshals their handlers to the rendering thread,
+and shares rights and durable receipts between chat, CLI and external MCP. The
+headless Core catalogue remains unchanged. Read the
+[integration and connection guide](AssistantMCP.md) for operations, exclusions,
+provider setup, private endpoints, history, legacy jobs and independent options.
+
+Windows Release compilation and isolated production CLI/MCP/chat/hidden-GUI checks
+passed with a local simulated provider under the owner’s explicit exception.
+The checks covered real UI actions, rights, unsaved Core edits, explicit save,
+conversation cancellation/restoration without mutation replay, stale revisions,
+read invalidation and complete chunked Unicode reads. Ten Python checks passed.
+Installer execution, real provider accounts, online replacement/restart and
+Linux/macOS remain unverified. Normal builds retain `BUILD_TESTING=OFF`, and
+GitHub Actions remain disabled. Earlier evidence below applies to its named revisions.
+
 ## Development builds
 
 The [README](../README.md#source-build-and-required-libraries) lists build prerequisites.
@@ -46,7 +70,7 @@ Keep `app/Documentation/Documentation.html` with its complete `DocData/` directo
 
 ## Ownership and preserved behavior
 
-66 C++ presentation/host units, 12 UI helper headers and 10 UI fixture sources
+Presentation/host units, UI helper headers and presentation fixture sources
 belong to this repository. The IDE links CyCode::Core, not a duplicate Engine.
 The project Engine and Reader TextSession use the same native BufferState,
 codecs, guarded I/O, process/protocol and endpoint implementation. Project and

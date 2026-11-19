@@ -77,19 +77,25 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
         include(ROOT/name, name)
     # Keep the distributed README/version links useful offline; historical
     # extraction evidence remains linked to the exact corresponding source.
-    for name in ['Updates.md', 'Releases/v0.2.3.md', 'Releases/v0.2.3.fr.md']:
+    for name in ['Updates.md', 'Releases/v0.2.3.md', 'Releases/v0.2.3.fr.md', 'Releases/v0.2.4.md', 'Releases/v0.2.4.fr.md', 'AssistantMCP.md', 'AssistantMCP.fr.md']:
         include(ROOT/'Docs'/name, 'app/Docs/'+name)
+        if name.startswith('AssistantMCP'):
+            entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../VERSION', b'](../../VERSION')
+        elif name.startswith('Releases/v0.2.4'):
+            entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../../VERSION', b'](../../../VERSION')
     source_url='https://github.com/MrMybal/CyCodeIDE/blob/'+git(ROOT,'rev-parse','HEAD')+'/Docs/Extraction.md'
     for name in ['README.md','README.fr.md','VERSION.md','VERSION.fr.md']:
         text=entries[name].decode('utf-8').replace('](Docs/Updates.md)','](app/Docs/Updates.md)')
         text=text.replace('](Docs/Releases/','](app/Docs/Releases/').replace('](Docs/Extraction.md)',']('+source_url+')')
+        text=text.replace('Docs/AssistantMCP','app/Docs/AssistantMCP')
         entries[name]=text.encode('utf-8')
     for name in ['CyCode.png', 'CyCode.ico', 'CyCode-document.png', 'CyCode-document.ico']:
         include(ROOT/'icons'/name, 'icons/'+name)
     for name in ['CyTool.json', 'contracts.py', 'tool.py', 'requirements.txt',
-                 'LICENSE-CyToolsCore.txt', 'THIRD_PARTY_NOTICES.md', 'CORE_THIRD_PARTY_NOTICES.md']:
+                 'native_sdk.py', 'native_client.py', 'sdk_cli.py', 'MCPMethods.json', 'IDEAutomationMethods.json', 'ide-operations.json',
+                 'cymcp-source.lock.json', 'THIRD_PARTY_NOTICES.md', 'CORE_THIRD_PARTY_NOTICES.md']:
         include(stage/'app'/name, 'app/'+name)
-    for name in ['core_host.py', 'MCPMethods.json', 'mcp-runtime.lock.json', 'runtime-tools.lock.json']:
+    for name in ['core_host.py', 'manager-runtime.lock.json', 'runtime-tools.lock.json']:
         include(core/'app'/name, 'app/'+name)
     for name in ['core-source.lock.json', 'editor-source.lock.json', 'cyui-source.lock.json']:
         include(ROOT/'app'/name, 'app/'+name)
@@ -105,8 +111,9 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
     for provider in ['sample', 'unreal', 'svn', 'perforce', 'mercurial', 'diversion']:
         include(core/'runtime/plugins'/('cycode_'+provider+'.dll'), 'extensions/cycode_'+provider+'.dll')
         include(core/'app/plugins'/provider/'plugin.json', 'extensions/'+provider+'.json')
-    # The Core's locked ripgrep and real isolated MCP runtime remain part of the
-    # IDE package, rather than silently disappearing on the first update.
+    include(stage/'app/scripts/migrate_legacy_jobs.py','app/scripts/migrate_legacy_jobs.py')
+    # Core indexed search keeps its reviewed ripgrep fallback. Python is stdlib
+    # only, retained exclusively for importing legacy jobs and compatibility CLIs.
     tools = tools_root or core/'runtime/tools'
     stamp = json.loads((tools/'ripgrep.json').read_text(encoding='utf-8'))
     locked = json.loads((core/'app/runtime-tools.lock.json').read_text(encoding='utf-8'))['ripgrep']
@@ -116,9 +123,9 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
     include(tools/'rg.exe', 'tools/rg.exe')
     for name in ['COPYING', 'LICENSE-MIT', 'UNLICENSE']:
         include(tools/'licenses/ripgrep'/name, 'tools/licenses/ripgrep/'+name)
-    bundle = importlib.import_module('mcp_bundle')
-    lock = json.loads((core/'app/mcp-runtime.lock.json').read_text(encoding='utf-8'))
-    location = mcp_bundle or core/'runtime/mcp-bundles'/bundle.lock_digest(lock)
+    bundle = importlib.import_module('manager_bundle')
+    lock = json.loads((core/'app/manager-runtime.lock.json').read_text(encoding='utf-8'))
+    location = mcp_bundle or core/'runtime/manager-bundles'/bundle.lock_digest(lock)
     runtime = bundle.load_bundle(location, lock)
     if entries.keys() & runtime.keys():
         raise ValueError('MCP bundle collides with another package component')
@@ -126,7 +133,7 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
     entries.update(installer.system_runtime(build, 'Release', output))
     entries['PACKAGE.md'] = (f'# CyCodeIDE {app_version} — Windows x64\n\n'
         'Extract the complete folder and run CyCodeIDE.exe. Keep app/, icons/, tools/ and extensions/.\n'
-        'The native Core, providers, isolated MCP runtime and bilingual offline manual are included.\n'
+        'The native Core, providers, native CyMCPSDK assistant and bilingual offline manual are included.\n'
         'Compilers, language servers, VCS clients and an OpenGL driver remain external requirements.\n'
         'Updates use only stable releases from https://github.com/MrMybal/CyCodeIDE/releases.\n'
         'Download and installation require explicit actions. Save or discard open documents before restart.\n'
@@ -163,7 +170,9 @@ def main():
     provenance = {'product': PRODUCT, 'repository': REPOSITORY, 'sourceCommit': revision,
                   'sourceDirty': dirty, 'license': 'GPL-3.0-only',
                   'dependencies': {name: json.loads((ROOT/'app'/(name+'-source.lock.json')).read_text(encoding='utf-8'))
-                                   for name in ['core', 'editor', 'cyui']}}
+                                   for name in ['core', 'editor', 'cyui']},
+                  'hostSdkModules': ['Core', 'Platform', 'Http', 'MCP', 'AI', 'ChatUI']}
+    provenance['dependencies']['cymcp'] = json.loads((core/'app/cymcp-source.lock.json').read_text(encoding='utf-8'))
     required = (release.REQUIRED - {'CyCode.exe', 'CyCodeUpdater.exe'}) | {
         'CyCodeIDE.exe', 'CyCodeIDEUpdater.exe'}
     entries = release.payload(entries, app_version, provenance, product=product, required=required)

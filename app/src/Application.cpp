@@ -1,4 +1,7 @@
 #include "cycode/Application.h"
+#include "cycode/IdeAutomation.h"
+#include "cycode/AssistantState.h"
+#include "cycode/AtomicFile.h"
 #include "cycode/UiFonts.h"
 #include "cycode/Tools.h"
 #include "ApplicationHelp.h"
@@ -76,6 +79,7 @@ Application::Application(LaunchOptions options, SDL_Window *window)
     if (testSession_)
         testNavigation_ = std::move(options.testNavigation);
     if (testSession_) testCompletion_ = std::move(options.testCompletion);
+    if (testSession_) testAssistant_ = std::move(options.testAssistant);
     if (!options.theme.empty())
         theme_ = options.theme;
     if (!options.language.empty())
@@ -116,6 +120,7 @@ Application::~Application() {
         if (workspaceFuture_.valid()) workspaceFuture_.wait();
         return;
     }
+    stopAssistant();
     if (engine_) stopAnalysis();
     if (pagedRecoveryFuture_.valid()) pagedRecoveryFuture_.wait();
     for (const auto &tab:tabs_) {
@@ -164,9 +169,8 @@ Application::~Application() {
                          &buildFuture_, &presetFuture_, &detectionFuture_, &structure_.future, &occurrences_.future, &symbolFuture_, &symbolResolveFuture_, &informationFuture_, &hierarchyFuture_, &codeActionsFuture_, &refactorFuture_, &terminalFuture_, &debugFuture_, &vcsFuture_, &snippetFuture_, &userSnippetsFuture_, &counterpartFuture_})
         if (future->valid())
             future->wait();
+    stopAssistant();
     bridge_.reset();
-    if (coreService_.valid())
-        coreService_.wait();
     if (!smoke_ && !testSession_) {
         try { saveWorkspaceSession(true); } catch(const std::exception &) { /* Session metadata must not prevent preferences or exit. */ }
         try {
@@ -290,6 +294,8 @@ Json Application::testState() const {
                    {"error", lastError_},
                    {"languageReady", languageState_.value("ready", false)}};
     result["build"] = buildState_;
+    result["automation"]={{"ready",bool(automation_)},{"error",automationError_}};
+    if(assistant_)result["assistant"]={{"testPhase",assistantTestPhase_},{"phase",assistant_->chat.state().phase},{"errorCode",assistant_->chat.state().error_code},{"messages",assistant_->chat.state().messages.size()},{"interrupted",!assistant_->chat.state().messages.empty() && assistant_->chat.state().messages.back().interrupted}};
     result["msbuild"] = msbuildState_; result["msbuildActive"] = msbuildActive_;
     result["projectTasks"] = projectState_; result["projectActive"] = projectActive_;
     result["tests"]={{"catalogue",testsCatalog_},{"results",testsResults_},{"error",testsError_}};
@@ -420,9 +426,8 @@ void Application::commitWorkspace(PreparedWorkspace next) {
         pagedCheckpoints_=Json::object();pagedCheckpoint_=Json::object();pagedRecoveryError_.clear();nativeHistory_=Json::object();
         engine_->configureLanguage(clangd_, false, false);
     }
+    stopAssistant();
     bridge_.reset();
-    if (coreService_.valid())
-        coreService_.get();
     for (const auto &tab : tabs_) {
         if (tab->highlighting.valid()) retiredCompletions_.push_back(std::move(tab->highlighting));
         if (tab->completion.valid()) retiredCompletions_.push_back(std::move(tab->completion));
@@ -547,22 +552,8 @@ void Application::commitWorkspace(PreparedWorkspace next) {
         instance_ + '-' + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     bridge_ = std::make_unique<Bridge>(*engine_, root_ / ("data/bridge/native-" + instance + ".json"));
     coreDescriptor_ = root_ / ("data/bridge/core-" + instance + ".json");
-    const auto python=mcpInterpreterPath(root_);
-    if (!smoke_ && std::filesystem::exists(python)) {
-        std::vector<std::string> command{pathUtf8(python), "-B", "-X", "utf8",
-                                         pathUtf8(root_ / "app/tool.py"),
-                                         "--desktop-service",
-                                         "--native-descriptor",
-                                         pathUtf8(bridge_->descriptor()),
-                                         "--service-descriptor",
-                                         pathUtf8(coreDescriptor_),
-                                         "--data-dir",
-                                         pathUtf8(root_ / ("data/jobs/instance-" + instance))};
-        auto directory = root_;
-        coreService_ = std::async(std::launch::async, [command, directory] {
-            return runProcess(command, directory, std::chrono::hours(24), 1024 * 1024);
-        });
-    }
+    automationError_.clear();
+    startAssistant();
     buildSource_ = std::filesystem::exists(engine_->workspace() / "CMakeLists.txt")       ? "."
                    : std::filesystem::exists(engine_->workspace() / "app/CMakeLists.txt") ? "app"
                                                                                           : ".";
@@ -1657,7 +1648,7 @@ void Application::layout(ImGuiID dock) {
                                                             {"Debugger", "debugger"},
                                                             {"Extensions", "extensions"},
                                                             {"Recovery", "recovery"},
-                                                            {"MCP", "mcp"}}) {
+                                                            {"MCP", "mcp"},{"Assistant","assistant"}}) {
         const auto zone = toolWindowZone(id);
         ImGui::DockBuilderDockWindow(label(text, id).c_str(),
             zone == ImGuiDir_Left ? leftDock_ : zone == ImGuiDir_Right ? rightDock_ : bottomDock_);
@@ -2547,39 +2538,33 @@ void Application::extensionsPanel() {
     ImGui::End();
 }
 Json Application::mcpConfiguration() const {
-    const auto python=mcpInterpreterPath(root_);
-    return {{"mcpServers",
-             {{"cycode",
-               {{"command", pathUtf8(python)},
-                {"args",
-                 Json::array({"-B", "-X", "utf8", pathUtf8(root_ / "app/tool.py"), "--bridge-config", pathUtf8(coreDescriptor_),
-                              "--access", mcpWrite_ ? "edit" : "read", "mcp"})}}}}}};
+    Json args=Json::array({"--sdk","--bridge-config",pathUtf8(coreDescriptor_),"--access",mcpWrite_?"edit":"read","mcp"});
+    if(mcpWrite_ && assistant_ && assistant_->settingsWrite){args.push_back("--permissions");args.push_back("settings.write");}
+#ifdef _WIN32
+    const auto executable=root_/"cycode_cli.exe";
+#else
+    const auto executable=root_/"cycode_cli";
+#endif
+    return {{"mcpServers",{{"cycodeide",{{"command",pathUtf8(executable)},{"args",args}}}}}};
 }
 void Application::mcpPanel() {
-    if (!beginPanel("MCP", "mcp"))
-        return;
-    cyui::badge(tr("Native bridge ready"), cyui::Tone::success);
-    ImGui::SameLine();
-    cyui::textDim("CyToolsCore 0.10.1");
-    ImGui::SameLine();
-    cyui::badge(
-        tr(std::filesystem::exists(coreDescriptor_) ? "Shared Core ready" : "Core starting or unavailable"),
-        std::filesystem::exists(coreDescriptor_) ? cyui::Tone::success : cyui::Tone::neutral);
-    ImGui::TextWrapped("%s", tr("Connect an assistant to inspect this workspace and its live documents."));
-    ImGui::Checkbox(tr("Enable editing, builds and plugin commands"), &mcpWrite_);
-    if (cyui::button(tr("Copy MCP configuration")))
-        ImGui::SetClipboardText(mcpConfiguration().dump(2).c_str());
-    ImGui::SameLine();
-    if (cyui::button(tr("Save MCP configuration"))) {
-        auto path = root_ / "data/mcp-config.json";
-        std::ofstream out(path);
-        out << mcpConfiguration().dump(2);
-        cyui::notify(pathUtf8(path).c_str(), cyui::Tone::success);
+    if(!beginPanel("MCP","mcp"))return;
+    cyui::badge(tr(automation_?"Shared Core ready":"Core starting or unavailable"),automation_?cyui::Tone::success:cyui::Tone::neutral);
+    ImGui::SameLine();cyui::textDim("CyMCPSDK %s",cymcp::version);
+    ImGui::TextWrapped("%s",tr("Connect an assistant to inspect this workspace and its live documents."));
+    ImGui::Checkbox(tr("Enable editing, builds and plugin commands"),&mcpWrite_);
+    if(assistant_)ImGui::Checkbox(tr("Allow editor preference changes"),&assistant_->settingsWrite);
+    if(!automationError_.empty())ImGui::TextWrapped("%s",automationError_.c_str());
+    {cyui::ScopedDisabled disabled(!automation_);
+        if(cyui::button(tr("Copy MCP configuration")))ImGui::SetClipboardText(mcpConfiguration().dump(2).c_str());
+        ImGui::SameLine();if(cyui::button(tr("Save MCP configuration"))){
+            AtomicFileOptions options;options.access=AtomicAccess::PrivateUser;options.publication=AtomicPublication::Replace;
+            writeFileAtomic(root_/"data/mcp-config.json",mcpConfiguration().dump(2),options);
+        }
     }
-    cyui::divider();
-    cyui::textDim("%s", tr("Available services"));
-    ImGui::TextWrapped("%s", tr("Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. "
-                                "MCP sessions use CyToolsCore jobs and permissions."));
+    if(cyui::button(tr("Open assistant")))dockToolPanel("Assistant","assistant",ImGuiDir_Right);
+    cyui::divider();cyui::textDim("%s",tr("Available services"));
+    ImGui::TextWrapped("%s",tr("Core project services and IDE tools share the native CyMCPSDK registry, permissions and durable jobs."));
     ImGui::End();
 }
 void Application::optionsPanel() {
@@ -2625,7 +2610,7 @@ void Application::optionsPanel() {
     ImGui::TextWrapped("CyUI (MIT): https://github.com/MrMybal/CyUI/blob/ff023e646c6a3038b3dfbfd53f6d2b4a2f5955e3/LICENSE");
     ImGui::TextWrapped("%s", tr("CyCode: GPL-3.0-only. Copyright (c) 2026 Cyberalien. "
                                 "This program comes without any warranty. See LICENSE and COPYRIGHT."));
-    ImGui::TextWrapped("%s", tr("CyUI, Dear ImGui, TextEditor, CyToolsCore and nlohmann/json: MIT. SDL3: zlib."));
+    ImGui::TextWrapped("%s", tr("CyUI, Dear ImGui, TextEditor, CyMCPSDK and nlohmann/json: MIT. SDL3: zlib."));
     ImGui::TextWrapped("%s", tr("libvterm and CodeLLDB: MIT. LLVM: Apache 2.0 with LLVM exceptions. Embedded Python: PSF."));
     ImGui::TextWrapped("%s", "NetCoreDbg: MIT (Samsung). app/licenses/NetCoreDbg.txt");
     ImGui::TextWrapped("%s", tr("csharp-ls: MIT. Private .NET SDK: included Microsoft terms and component notices."));
@@ -2910,6 +2895,7 @@ void Application::frame() {
     if (!options_) cancelPropertyDrafts(optionsInspector_);
     update();
     updateCodePreferences();
+    updateAssistant();
     shortcuts();
     if (testWindows_)
         windowTest();
@@ -2969,6 +2955,7 @@ void Application::frame() {
     extensionPanels();
     recoveryPanel();
     mcpPanel();
+    assistantPanel();
     if (rebuiltLayout) {
         focusPanel_.clear();
         if (!active_.empty()) focusTab_ = active_;

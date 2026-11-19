@@ -224,11 +224,11 @@ translations = {
     'Enable editing, builds and plugin commands':"Autoriser les modifications, compilations et commandes des plugins",
     'Copy MCP configuration':'Copier la configuration MCP', 'Save MCP configuration':'Enregistrer la configuration MCP',
     'Available services':'Services disponibles',
-    'Workspace, live documents, search, Git, CMake and native plugin commands. MCP sessions use CyToolsCore jobs and permissions.':"Projet, documents ouverts, recherche, Git, CMake et plugins natifs. Les sessions MCP utilisent les jobs et permissions CyToolsCore.",
+    'Workspace, live documents, search, Git, CMake and native plugin commands. MCP sessions use CyMCPSDK jobs and permissions.':"Projet, documents ouverts, recherche, Git, CMake et plugins natifs. Les sessions MCP utilisent les jobs et permissions CyMCPSDK.",
     'Language':'Langue', 'Theme':'Theme', 'Text size':'Taille du texte', 'Save preferences':'Enregistrer les preferences',
     'Save configuration':'Enregistrer la configuration', 'Load configuration':'Charger la configuration', 'Licenses':'Licences',
     'CyCode: GPL-3.0-only. Copyright (c) 2026 Cyberalien. This program comes without any warranty. See LICENSE and COPYRIGHT.':"CyCode : GPL-3.0-only. Copyright (c) 2026 Cyberalien. Ce programme est fourni sans aucune garantie. Voir LICENSE et COPYRIGHT.",
-    'CyUI, Dear ImGui, TextEditor, CyToolsCore and nlohmann/json: MIT. SDL3: zlib.':"CyUI, Dear ImGui, TextEditor, CyToolsCore et nlohmann/json : MIT. SDL3 : zlib.",
+    'CyUI, Dear ImGui, TextEditor, CyMCPSDK and nlohmann/json: MIT. SDL3: zlib.':"CyUI, Dear ImGui, TextEditor, CyMCPSDK et nlohmann/json : MIT. SDL3 : zlib.",
     'Open third-party notices':'Ouvrir les licences des dependances', 'Type a file name...':'Saisissez un nom de fichier...',
     'Unsaved changes':'Modifications non enregistrees', 'Save':'Enregistrer', 'Discard':'Abandonner', 'Cancel':'Annuler',
     'Close workspace?':"Fermer l'espace de travail ?", 'Some documents have unsaved changes.':'Certains documents ne sont pas enregistres.',
@@ -243,7 +243,7 @@ translations.update({'MSBuild': 'MSBuild', 'No MSBuild project': 'Aucun projet M
 translations.update({'Build diagnostics':'Erreurs de compilation', 'Enable':'Activer', 'Disable':'Desactiver', 'Language server is not installed':'Serveur de langage non installe', 'Diagnostics from enabled language servers appear here.':'Les diagnostics des serveurs de langage actifs apparaissent ici.'})
 translations.update({'Connected':'Connecte', 'Starting...':'Demarrage...', 'Idle':'En attente', 'Disabled':'Desactive', 'Diagnostics from C++ and C# language servers appear here.':'Les diagnostics des serveurs C++ et C# apparaissent ici.'})
 translations.update({'csharp-ls: MIT. Private .NET SDK: included Microsoft terms and component notices.':'csharp-ls : MIT. SDK .NET prive : conditions Microsoft et notices des composants incluses.',
-    'Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. MCP sessions use CyToolsCore jobs and permissions.':'Espace de travail, documents, services de langage, recherche, Git, CMake/MSBuild/Unreal, terminal, debogueur et extensions. Les sessions MCP utilisent les taches et permissions CyToolsCore.'})
+    'Workspace, live documents, language services, search, Git, CMake/MSBuild/Unreal, terminal, debugger and plugins. MCP sessions use CyMCPSDK jobs and permissions.':'Espace de travail, documents, services de langage, recherche, Git, CMake/MSBuild/Unreal, terminal, debogueur et extensions. Les sessions MCP utilisent les taches et permissions CyMCPSDK.'})
 translations.update({'Debug engine':'Moteur de debogage','.NET host':'Hote .NET',
     'Managed debug output appears here. Run without debugging supports terminal input.':'La sortie du debogage .NET est dans la console de debogage. Executer sans debogage permet la saisie dans le terminal.'})
 translations.update({
@@ -1158,4 +1158,8 @@ for key,value in {'Select opened file': 'Sélectionner le fichier ouvert', 'Exte
 for key,value in {'Remove breakpoint': 'Supprimer le point d’arrêt', 'Disable breakpoint': 'Désactiver le point d’arrêt', 'Enable breakpoint': 'Activer le point d’arrêt', 'Conditions and all breakpoints...': 'Conditions et tous les points d’arrêt…'}.items():
     translations.setdefault(key,value)
 
+# Native assistant integration.
+translations.update({'Assistant': 'Assistant', 'Assistant unavailable': 'Assistant indisponible', 'Assistant connection': 'Connexion de l’assistant', 'Allow editor preference changes': 'Autoriser la modification des préférences de l’éditeur', 'Detect providers': 'Détecter les fournisseurs', 'Detecting providers...': 'Détection des fournisseurs…', 'Provider': 'Fournisseur', 'Model': 'Modèle', 'Provider URL': 'URL du fournisseur', 'Provider executable': 'Exécutable du fournisseur', 'API key environment variable': 'Variable d’environnement de la clé API', 'Discover tools on demand': 'Découvrir les outils à la demande', 'API context window (bytes, 0 = unlimited)': 'Fenêtre de contexte API (octets, 0 = illimité)', 'Native agents keep their own context. Conversation history stays complete.': 'Les agents natifs gèrent leur contexte. L’historique de conversation reste complet.', 'Connect / New conversation': 'Connecter / Nouvelle conversation', 'Restore conversation': 'Restaurer la conversation', 'Back to conversation': 'Revenir à la conversation', 'Open assistant': 'Ouvrir l’assistant', 'Core project services and IDE tools share the native CyMCPSDK registry, permissions and durable jobs.': 'Les services de projet du Core et les outils IDE partagent le registre natif CyMCPSDK, ses permissions et ses tâches persistantes.'})
+
+translations['Unsupported extension property value']='Valeur de propriété d’extension non prise en charge'
 path.write_text(json.dumps({key: {'en': key, 'fr': value} for key,value in translations.items()}, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')

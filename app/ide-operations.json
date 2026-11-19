@@ -1,0 +1,292 @@
+{
+  "operations": [
+    {
+      "id": "ide_state",
+      "name": "ide_state",
+      "mcpTool": "op_ide_state",
+      "nativeMethod": "ide.state",
+      "description": "Inspect the current IDE workspace, active document, paginated open tabs and visible panels. Does not read document text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_commands",
+      "name": "ide_commands",
+      "mcpTool": "op_ide_commands",
+      "nativeMethod": "ide.commands",
+      "description": "List IDE commands, availability and shortcuts in bounded pages. Discovery only; does not invoke arbitrary commands.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_selection",
+      "name": "ide_selection",
+      "mcpTool": "op_ide_selection",
+      "nativeMethod": "ide.selection",
+      "description": "Read the current selection of an open code document as zero-based UTF-16 positions and its live revision. Use documents_read for content.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_open_document",
+      "name": "ide_open_document",
+      "mcpTool": "op_ide_open_document",
+      "nativeMethod": "ide.openDocument",
+      "description": "Open a workspace document in this IDE instance and reveal an optional zero-based UTF-16 position. Does not save a document.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483646
+          },
+          "character": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483646
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [
+        "workspace.write"
+      ],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_activate_document",
+      "name": "ide_activate_document",
+      "mcpTool": "op_ide_activate_document",
+      "nativeMethod": "ide.activateDocument",
+      "description": "Activate an already open IDE document without changing its content.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [
+        "workspace.write"
+      ],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_close_document",
+      "name": "ide_close_document",
+      "mcpTool": "op_ide_close_document",
+      "nativeMethod": "ide.closeDocument",
+      "description": "Close a clean open tab with its expected live revision. Dirty or unsettled documents require explicit save/discard in the IDE; no automatic discard.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "path",
+          "expectedRevision"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [
+        "workspace.write"
+      ],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_show_panel",
+      "name": "ide_show_panel",
+      "mcpTool": "op_ide_show_panel",
+      "nativeMethod": "ide.showPanel",
+      "description": "Show and focus one supported IDE tool window on the UI thread.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "panel": {
+            "type": "string",
+            "enum": [
+              "project",
+              "resources",
+              "structure",
+              "search",
+              "build",
+              "terminal",
+              "debugger",
+              "vcs",
+              "gitCommits",
+              "problems",
+              "analysis",
+              "references",
+              "information",
+              "mcp",
+              "assistant"
+            ]
+          }
+        },
+        "required": [
+          "panel"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [
+        "workspace.write"
+      ],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    },
+    {
+      "id": "ide_editor_preferences",
+      "name": "ide_editor_preferences",
+      "mcpTool": "op_ide_editor_preferences",
+      "nativeMethod": "ide.editorPreferences",
+      "description": "Update global code zoom, font size or minimap. Requires separate settings.write authorization; never changes compiler/project roots or credentials.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "zoom": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 3
+          },
+          "fontSize": {
+            "type": "number",
+            "minimum": 8,
+            "maximum": 32
+          },
+          "minimap": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "permissions": [
+        "settings.write"
+      ],
+      "supportsProgress": false,
+      "canCancel": true,
+      "resourceRequirements": {
+        "ramBytes": 1048576
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--core-root', type=Path)
+    parser.add_argument('--cymcp-source', type=Path, help='Clean local CyMCPSDK source; prefer local sources to network')
     parser.add_argument('--editor-root', type=Path)
     parser.add_argument('--deps', type=Path, default=ROOT/'runtime/deps')
     parser.add_argument('--cyui', type=Path)
@@ -35,6 +36,8 @@ def main():
         return 0
     core = resolve(args.core_root)
     editor = ensure_editor(args.editor_root)
+    from cymcp_dependency import resolve as sdk_source
+    sdk = sdk_source(core, args.cymcp_source)
     env = {key.upper(): value for key, value in os.environ.items()} if sys.platform == 'win32' else dict(os.environ)
     cmake = shutil.which('cmake')
     if sys.platform == 'win32':
@@ -83,7 +86,7 @@ def main():
     generator = ['-G','Visual Studio 17 2022','-A','x64'] if sys.platform == 'win32' else ['-G','Ninja']
     commands = [[cmake,'-S',str(ROOT),'-B',str(build),*generator,
         '-DBUILD_TESTING=OFF',f'-DCMAKE_BUILD_TYPE={args.configuration}',
-        f'-DCYCODE_CORE_ROOT={core}',f'-DCYCODE_EDITOR_ROOT={editor}',f'-DCYCODE_DEPS={args.deps.resolve()}',
+        f'-DCYCODE_CORE_ROOT={core}',f'-DCYCODE_CYMCP_SOURCE={sdk}',f'-DCYCODE_EDITOR_ROOT={editor}',f'-DCYCODE_DEPS={args.deps.resolve()}',
         f'-DCYUI_DIR={args.cyui or ""}',f'-DCYCODE_IDE_ENABLE_UPDATES={"OFF" if args.without_updates else "ON"}',
         f'-DCYCODE_BUILD_DOCUMENTATION={"OFF" if args.without_documentation else "ON"}'],
         [cmake,'--build',str(build),'--config',args.configuration,'--parallel','4','--target','CyCode']]

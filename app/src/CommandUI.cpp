@@ -134,6 +134,7 @@ void Application::shortcuts() {
     }
 }
 bool Application::commandEnabled(const std::string &id) const {
+    if(id=="view.assistant")return bool(engine_);
     if (id == "view.minimap" || id == "view.gitCommits" || id == "view.toolWindows" || id == "view.backgroundTasks" || id == "view.analysis") return bool(engine_);
     if(id=="file.keepOpen") {for(const auto &tab:tabs_)if(tab->path==active_)return tab->preview;return false;}
     if(id=="search.previous") {for(const auto &tab:tabs_)if(tab->path==active_)return !tab->image && (!tab->pagedProfile || (tab->paged && !tab->paged->status().busy));return false;}
@@ -351,6 +352,7 @@ void Application::executeCommand(const std::string &id) {
         if(id=="view.backgroundTasks"){backgroundTasksOpen_=true;return;}
         if(id=="file.keepOpen"){if(tab)tab->preview=false;return;}
         if(id=="search.previous"){findInDocument(tab,true);return;}
+        if(id=="view.assistant"){dockToolPanel("Assistant","assistant",ImGuiDir_Right);return;}
         if(id=="view.minimap") {
             setMinimap(!minimap_);
             return;

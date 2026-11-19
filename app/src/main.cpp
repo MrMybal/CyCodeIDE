@@ -1,4 +1,5 @@
 #include "cycode/Application.h"
+#include <cycode/Automation.h>
 #include "cycode/ImageFile.h"
 #include <SDL3/SDL_opengl.h>
 #include <algorithm>
@@ -33,6 +34,8 @@ static std::vector<std::string> arguments(int argc, char **argv) {
     return result;
 }
 int main(int argc, char **argv) {
+    auto cliArguments=arguments(argc,argv);
+    if(cliArguments.size()>1 && cliArguments[1]=="--sdk"){cliArguments.erase(cliArguments.begin()+1);return cycode::automation::runCli(cliArguments);}
     SDL_Window *window = nullptr;
     SDL_GLContext glContext = nullptr;
     bool automated = false;
@@ -110,6 +113,7 @@ int main(int argc, char **argv) {
                 capturePanel = next();
             else if (args[i] == "--test-navigation")
                 options.testNavigation = cycode::Json::parse(next());
+            else if (args[i] == "--test-assistant") options.testAssistant=cycode::Json::parse(next());
             else if (args[i] == "--test-completion") options.testCompletion = cycode::Json::parse(next());
             else if (args[i] == "--test-keys") testKeys = cycode::Json::parse(next());
             else if (args[i] == "--test-project") testProject = next();
@@ -129,7 +133,7 @@ int main(int argc, char **argv) {
         }
         automated = options.smoke || options.testSession;
         if (!capturePanel.empty() && (!automated || capture.empty())) throw std::runtime_error("Panel capture requires an automated capture session");
-        if ((!testReport.empty() || !options.testNavigation.is_null() || !options.testCompletion.is_null() || options.testWindows || options.testHidden || options.testHighlights || !testKeys.empty() || !testProject.empty() || testWaitIdle) &&
+        if ((!testReport.empty() || !options.testNavigation.is_null() || !options.testCompletion.is_null() || !options.testAssistant.is_null() || options.testWindows || options.testHidden || options.testHighlights || !testKeys.empty() || !testProject.empty() || testWaitIdle) &&
             !options.testSession)
             throw std::runtime_error("Navigation test/report requires --test-frames");
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);

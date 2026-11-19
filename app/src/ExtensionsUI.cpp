@@ -1,4 +1,5 @@
 #include "cycode/Application.h"
+#include <type_traits>
 #include <algorithm>
 #include <cyui/Core.h>
 namespace cycode {
@@ -32,6 +33,7 @@ bool Application::extensionVisible(const Json &entry) const {
 }
 std::vector<Command> Application::commandCatalogue() const {
     auto catalogue = commands();
+    catalogue.push_back({"view.assistant","Assistant","View",CommandContext::global});
     for(auto &command:catalogue) {
         if(command.id=="view.minimap"){command.title="Show minimap";command.context=CommandContext::global;}
         // Rider names: Ctrl+Alt+L Reformat Code, Ctrl+Alt+Shift+L Reformat File dialog.
@@ -309,7 +311,11 @@ void Application::extensionPanels() {
                                                     model.value("revision", uint64_t(1))))
                 if (edit.edit.committed()) {
                     Json value;
-                    std::visit([&](const auto &v) { value = v; }, edit.edit.value);
+                    std::visit([&](const auto &v) {
+                        using T=std::decay_t<decltype(v)>;
+                        if constexpr(std::is_arithmetic_v<T> || std::is_same_v<T,std::string>)value=v;
+                        else throw std::runtime_error(tr("Unsupported extension property value"));
+                    }, edit.edit.value);
                     refresh({{"event", "commit"},
                              {"property", names.at(edit.id)},
                              {"value", value},

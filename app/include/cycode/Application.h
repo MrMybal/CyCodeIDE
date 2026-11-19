@@ -20,6 +20,8 @@
 #include <set>
 #include <deque>
 namespace cycode {
+class IdeAutomation;
+struct AssistantState;
 class ImageView;
 class WorkspaceSession;
 class ImageLoader;
@@ -40,6 +42,7 @@ struct LaunchOptions {
     bool testHidden = false, testHighlights = false;
     Json testNavigation;
     Json testCompletion;
+    Json testAssistant;
 };
 class Application {
   public:
@@ -58,6 +61,7 @@ class Application {
         return !filesFuture_.valid();
     }
     bool readyToFinishTests() const {
+        if(testAssistant_.is_object() && assistantTestPhase_<3)return false;
         if (testHighlights_) for (const auto &tab : tabs_) if (tab->path==active_ &&
             (tab->highlighting.valid() || tab->highlightRevision!=tab->revision || !tab->highlightCount)) return false;
         if (testNavigation_.is_object() || navigationFuture_.valid()) return false;
@@ -731,7 +735,18 @@ class Application {
     std::string unrealAnalysisState_, pendingWorkspace_;
     TextEditor::Language unrealLanguage_;
     std::unique_ptr<Bridge> bridge_;
-    std::future<ProcessResult> coreService_;
+    std::unique_ptr<IdeAutomation> automation_;
+    std::unique_ptr<AssistantState> assistant_;
+    std::string automationError_;
+    Json testAssistant_;
+    int assistantTestPhase_=0;
+    double assistantTestStarted_=0;
+    void connectAssistant(bool restore);
+    void startAssistant();
+    void stopAssistant();
+    void updateAssistant();
+    void assistantPanel();
+    Json automationUi(const std::string&,const Json&);
     std::filesystem::path coreDescriptor_;
     Json languageState_ = Json::object(), navigation_ = Json::object();
     std::set<std::string> languageDecisions_;
