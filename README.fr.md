@@ -12,8 +12,8 @@
     </td>
     <td width="300" align="right" valign="top">
       <p><sub>Licence de l’application</sub><br><a href="LICENSE"><strong>GPL-3.0-only</strong></a></p>
-      <p><sub>Version de l’IDE</sub><br><a href="VERSION.fr.md"><strong>0.2.4</strong></a><br><strong>EN DÉVELOPPEMENT</strong></p>
-      <p><a href="https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4"><strong>Télécharger</strong></a><br><sub>Windows x64 · installateur / portable</sub></p>
+      <p><sub>Version de l’IDE</sub><br><a href="VERSION.fr.md"><strong>0.2.5</strong></a><br><strong>EN DÉVELOPPEMENT</strong></p>
+      <p><a href="https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5"><strong>Télécharger</strong></a><br><sub>Windows x64 · installateur / portable</sub></p>
     </td>
   </tr>
 </table>
@@ -22,11 +22,11 @@
 
 Un IDE natif pour modifier du code, explorer des projets et utiliser ses outils de développement.
 
-> **CyCodeIDE 0.2.4 · Windows x64 · 2026-11-20**
+> **CyCodeIDE 0.2.5 · Windows x64 · 2026-11-20**
 >
-> Version de développement avec assistant intégré et accès CLI/MCP natif.
+> Connectez une IA par URL MCP locale avec Free, ou conservez le profil d’accès choisi.
 > Consulter les [notes de version et limites](VERSION.fr.md).
-> [Télécharger l’installateur ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4).
+> [Télécharger l’installateur ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5).
 
 ## À propos de CyCodeIDE
 
@@ -56,9 +56,10 @@ explique comment commencer.
 - **Mises à jour** : rechercher et télécharger les nouvelles versions depuis
   l’application. Consulter le [guide des mises à jour](Docs/Updates.md).
 - **Assistant intégré :** réponses progressives, annulation et historique conservé,
-  avec accès contrôlé au projet courant. Ouvrez **Affichage → Assistant**.
-- **CLI et MCP :** découvrez et appelez les outils du projet depuis un terminal ou
-  une IA externe, y compris sur les documents non enregistrés de la fenêtre.
+  avec accès configurable au projet courant. Ouvrez **Affichage → Assistant**.
+- **CLI et MCP :** travaillez depuis un terminal ou une IA externe sur les
+  documents courants de la fenêtre. Le MCP local utilise **Free** par défaut,
+  avec connexion par URL seule ; Local contrôlé, Jeton seul et Protégé restent disponibles.
   Voir le [guide de l’assistant et de l’automatisation](Docs/AssistantMCP.fr.md).
 - **Anglais et français** : langue de l’interface au choix et manuel bilingue
   disponible en ligne et hors ligne.
@@ -67,7 +68,7 @@ explique comment commencer.
 
 ## Installation
 
-Télécharger l’[installateur Windows x64 ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4).
+Télécharger l’[installateur Windows x64 ou le ZIP portable](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5).
 L’installateur utilise un dossier par utilisateur, sans droits administrateur.
 Pour la version portable, extraire tout le dossier avant de lancer `CyCodeIDE.exe`.
 L’application graphique nécessite un pilote OpenGL.
@@ -116,7 +117,7 @@ Voir [COPYRIGHT](COPYRIGHT). Les dépendances conservent leurs licences et notic
 
 | Bibliothèque · sources | Licence · texte | Utilisation / périmètre |
 | --- | --- | --- |
-| [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/5da07d2256b6035ee26425987e6238b647fe8334/LICENSE) | Services natifs de projet, documents et CLI partagés. |
+| [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/b902736b0edb9a76365a47778af8a223d50e5b83/LICENSE) | Services natifs de projet, documents et CLI partagés. |
 | [Éditeur CyCodeReader](https://github.com/MrMybal/CyCodeReader) | [GPL-3.0-only](https://github.com/MrMybal/CyCodeReader/blob/889dd5fd8db8bfabdba4601f5d2a955723c91301/LICENSE) | API source 1 de l’éditeur graphique partagé. |
 | [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/LICENSE) | Modules sélectionnés d’interface, code, comparaison et panneaux. |
 | [CyMCPSDK](https://github.com/MrMybal/CyMCPSDK) | [MIT](app/licenses/CyMCPSDK.txt) | Assistant, registre natif d’outils, CLI et MCP. |
@@ -167,6 +168,6 @@ des polices et `Documentation/DocData/licenses/` avec leurs composants.
 
 - [Commencer ici : instructions du dépôt](AGENTS.md) — périmètre, guides importants et restrictions de développement.
 - [Développer l’interface](app/AGENTS.md) — présentation CyUI et responsabilités des services partagés.
-- [Intégrer Core](https://github.com/MrMybal/CyCode/blob/5da07d2256b6035ee26425987e6238b647fe8334/app/Docs/CoreExtraction.md) — architecture native verrouillée et contrats source.
+- [Intégrer Core](https://github.com/MrMybal/CyCode/blob/b902736b0edb9a76365a47778af8a223d50e5b83/app/Docs/CoreExtraction.md) — architecture native verrouillée et contrats source.
 
 </details>

@@ -4,7 +4,24 @@ The presentation was extracted from CyCode af0c149e1366c3b50d5e509153dbab380dc3f
 This guide covers contributor build settings and shared-service integration.
 For application features, downloads and first steps, read the [README](../README.md).
 
-## Current integration — 0.2.4 / 2026-11-20
+## Current integration — 0.2.5 / 2026-11-20
+
+The Core lock selects 0.1.6 `b902736b0edb9a76365a47778af8a223d50e5b83`;
+its SDK lock selects 0.7.2 `e562c731a146d599e3404718ea8414bb5b96b66d`, including
+the requested `34d4bca` local-access API. SDK sources come from the clean local
+checkout. Core applies `Policy::allow_all()` for Free and Token only; IDE HTTP uses
+the SDK's explicit unauthenticated-loopback constructor for Free and Local controlled.
+Schema validation and the shared native Engine remain unchanged.
+
+`automation.localAccessProfile` persists the selected profile independently of
+`enabled`, `allowEditing`, `allowSettings` and performance/resource settings.
+Only an unset choice migrates to Free. Explicit SDK aliases and older token/control
+flags retain their semantics. Saving editor preferences preserves the whole automation
+block. Changing transport settings stops the previous endpoint and reconnects through
+the existing Engine; chat reconnect remains explicit. Read the
+[assistant/MCP guide](AssistantMCP.md) for the URL, stdio compatibility and profile matrix.
+
+## Previous integration — 0.2.4 / 2026-11-20
 
 The source locks now select Core 0.1.5 with its host-owned SDK target fix,
 CyUI `6ef01cfcdb197f3a89d64618ce5ef8818c704728`, and the unchanged Reader editor.

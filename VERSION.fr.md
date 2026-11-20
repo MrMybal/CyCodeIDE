@@ -2,47 +2,50 @@
 
 [README](README.fr.md) · [English](VERSION.md)
 
-## CyCodeIDE 0.2.4 · Windows x64 · 2026-11-20
+## CyCodeIDE 0.2.5 · Windows x64 · 2026-11-20
 
-**En développement.** Cette version ajoute l’assistant intégré et l’automatisation
-native à l’IDE existant. [Téléchargements](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4)
-· [Notes de publication](Docs/Releases/v0.2.4.fr.md) · [Version précédente](Docs/Releases/v0.2.3.fr.md).
+**En développement.** Le MCP local utilise Free par défaut, avec connexion par URL
+et conservation des choix d’accès explicites. [Téléchargements](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5)
+· [Notes de publication](Docs/Releases/v0.2.5.fr.md) · [Version précédente](Docs/Releases/v0.2.4.fr.md).
 
 ## Changements
 
-- **Affichage → Assistant** ouvre le chat natif : choix du fournisseur/modèle,
-  réponses progressives, annulation, pièces jointes et restauration des conversations privées.
-- Chat, CLI et MCP externe partagent les services Core de la fenêtre, ses documents
-  ouverts, révisions et transactions contrôlées. L’accès est en lecture seule par
-  défaut ; édition/compilation et préférences nécessitent des autorisations distinctes.
-- Huit outils IDE exposent les onglets, la sélection, les panneaux pris en charge
-  et les préférences communes. Un document modifié ne peut pas être fermé avec abandon implicite.
-- CyMCPSDK remplace CyToolsCore et le serveur MCP Python. Les commandes CLI
-  existantes et la migration explicite des anciennes tâches restent disponibles.
-  Voir le [guide de l’assistant et de l’automatisation](Docs/AssistantMCP.fr.md).
-- Cet état des sources inclut aussi les améliorations récentes de l’arborescence,
-  des menus, de la recherche, du zoom partagé, de la minicarte et de la gouttière des points d’arrêt.
+- **Free par défaut :** connecter un client MCP externe avec l’URL locale seule,
+  sans jeton ni confirmation supplémentaire par opération. Schémas d’arguments,
+  révisions, limites du projet et sauvegardes explicites restent appliqués.
+- **Quatre profils d’accès :** Free, Local contrôlé, Jeton seul et Protégé.
+  Protégé exige toujours un jeton et les droits de l’hôte. Le MCP local peut être désactivé.
+- **Migration et persistance :** les choix absents migrent vers Free. Profils
+  explicites, alias SDK et anciens choix jeton/contrôle conservent leur comportement.
+  Enregistrer les préférences de l’éditeur conserve toute la configuration MCP.
+- **Panneau MCP :** copier l’adresse, la configuration HTTP directe ou la
+  configuration CLI stdio existante. Les en-têtes à jeton ne sont ajoutés que pour les profils concernés.
+- **Services partagés :** chat, CLI et MCP externe utilisent toujours le moteur
+  Core de la fenêtre, ses documents ouverts et transactions contrôlées. Changer de
+  transport déconnecte le chat ; reconnecter explicitement. Les documents restent ouverts.
+- Core 0.1.6 et CyMCPSDK 0.7.2 compilés depuis les sources locales. Voir le
+  [guide de l’assistant et de l’automatisation](Docs/AssistantMCP.fr.md).
 
 ## Composants
 
 | Composant | Version / sources sélectionnées |
 | --- | --- |
-| CyCodeIDE | 0.2.4 |
-| [CyCode Core](app/core-source.lock.json) | 0.1.5 · `5da07d2256b6035ee26425987e6238b647fe8334` · API source 1 |
+| CyCodeIDE | 0.2.5 |
+| [CyCode Core](app/core-source.lock.json) | 0.1.6 · `b902736b0edb9a76365a47778af8a223d50e5b83` · API source 1 |
 | [Éditeur Reader](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · API graphique source 1 |
 | [CyUI](app/cyui-source.lock.json) | `6ef01cfcdb197f3a89d64618ce5ef8818c704728` |
-| CyMCPSDK | 0.7.0 · `791d4d7d7680213b282ec8529d248a10f8494d77` |
+| CyMCPSDK | 0.7.2 · `e562c731a146d599e3404718ea8414bb5b96b66d` (inclut `34d4bca`) |
 
 L’API source 1 ne garantit pas une ABI C++ stable. Compiler ces composants ensemble.
 
 ## Validation et limites documentées
 
 La compilation Windows x64 Release et dix vérifications Python de staging/contrats
-ont réussi. Les essais isolés CLI/MCP/chat/interface masquée de production ont
-réussi avec un fournisseur HTTP simulé local explicitement autorisé : vrais appels
-d’outils IDE, droits, modifications non enregistrées, sauvegarde explicite,
-annulation/restauration et lecture Unicode complète par morceaux. Cela ne valide
-ni les comptes fournisseurs réels ni les dialogues interactifs de pièces jointes.
+ont réussi. Quatorze vérifications isolées de production utilisent le vrai IDE
+avec un fournisseur local simulé : quatre profils MCP, lectures/modifications sans
+jeton, refus de jeton/droits, validation des arguments, migration/persistance,
+CLI, chat et annulation/restauration. Gitleaks et contrôles du paquet/empreintes/liens
+ont réussi. Cela ne valide ni les comptes fournisseurs réels ni les dialogues interactifs de pièces jointes.
 
 - Exécution de l’installateur, machine propre, remplacement/redémarrage réels en
   ligne, Linux/macOS et interactions complètes restent non vérifiés. Les binaires ne sont pas signés.

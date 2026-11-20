@@ -41,7 +41,7 @@ corresponding runtime package, as detailed below.
 | Eclipse JDT LS | EPL-2.0 and included component terms | https://github.com/eclipse-jdtls/eclipse.jdt.ls |
 | SDL3 | zlib | https://github.com/libsdl-org/SDL |
 | nlohmann/json | MIT | https://github.com/nlohmann/json |
-| CyMCPSDK 0.7.0 | MIT | https://github.com/MrMybal/CyMCPSDK ; exact source revision supplied by the Core lock; native Core/Platform/Http/MCP/AI/ChatUI modules |
+| CyMCPSDK 0.7.2 | MIT | https://github.com/MrMybal/CyMCPSDK ; exact source revision supplied by the Core lock; native Core/Platform/Http/MCP/AI/ChatUI modules |
 | ripgrep | MIT / Unlicense | https://github.com/BurntSushi/ripgrep |
 | libvterm | MIT | https://www.leonerd.org.uk/code/libvterm/ |
 | CodeLLDB | MIT | https://github.com/vadimcn/codelldb |
@@ -148,7 +148,7 @@ does not redistribute Microsoft's Windows Segoe fonts. CyUI itself is unchanged.
 
 ## Native automation and legacy-job compatibility
 
-CyMCPSDK 0.7.0 is MIT, revision 791d4d7d7680213b282ec8529d248a10f8494d77.
+CyMCPSDK 0.7.2 is MIT, revision e562c731a146d599e3404718ea8414bb5b96b66d.
 The original SDK license is retained in app/licenses/CyMCPSDK.txt. The SDK's
 cpp-httplib and PicoSHA2 notices are retained alongside the JSON and CyUI notices.
 Core's separate notices describe its canonical native services and job adapter.

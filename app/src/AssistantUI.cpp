@@ -1,6 +1,7 @@
 #include "cycode/Application.h"
 #include "cycode/AssistantState.h"
 #include "cycode/IdeAutomation.h"
+#include "cycode/McpAccess.h"
 #include <cycode/AtomicFile.h>
 #include <cyui/Core.h>
 #include <imgui_stdlib.h>
@@ -21,11 +22,20 @@ void saveAssistantPreferences(AssistantState& state) {
 void Application::startAssistant() {
     if(smoke_ || (testSession_ && !testAssistant_.is_object()))return;
     try {
+        automationError_.clear();
+        auto preferences=settings_.value("automation",Json::object());
+        const auto profile=mcpAccessProfile(preferences);
+        const bool migrated=!preferences.contains("localAccessProfile");
+        preferences["localAccessProfile"]=mcpAccessProfileId(profile);
+        settings_["automation"]=preferences;
+        mcpWrite_=preferences.value("allowEditing",false);
+        mcpSettingsWrite_=preferences.value("allowSettings",false);
+        if(migrated)saveSettings();
         // The native bridge identifies this Engine, including unsaved buffers.
         const auto key=layoutKey_.empty()?std::to_string(std::hash<std::string>{}(pathUtf8(engine_->workspace()))):layoutKey_;
         const auto state=root_/"data/automation"/key;
         automation_=std::make_unique<IdeAutomation>(bridge_->descriptor(),root_/"app/IDEAutomationMethods.json",
-            state,coreDescriptor_,settings_.value("automation",Json::object()));
+            state,coreDescriptor_,preferences);
         assistant_=std::make_unique<AssistantState>();
         auto& assistant=*assistant_;assistant.preferences=automation_->historyDirectory().parent_path()/"assistant-settings.json";
         assistant.history=automation_->historyDirectory();
@@ -61,7 +71,7 @@ void Application::startAssistant() {
         options.delete_message=[this](std::uint64_t id){assistant_->chat.delete_turn(id);};
         options.require_editable_history=true;
         assistant.panel=std::make_unique<cymcp::ChatPanel>(assistant.chat,std::move(options));
-        mcpWrite_=false;automation_->permissions(false,false);
+        automation_->permissions(mcpWrite_,mcpSettingsWrite_);
     }catch(const std::exception& exception){automationError_=exception.what();assistant_.reset();}
 }
 void Application::stopAssistant() {
@@ -71,8 +81,11 @@ void Application::stopAssistant() {
     assistant_.reset();automation_.reset();
 }
 void Application::updateAssistant() {
+    if(restartAutomation_) {
+        restartAutomation_=false;stopAssistant();startAssistant();
+    }
     if(automation_) {
-        automation_->permissions(mcpWrite_,assistant_ && assistant_->settingsWrite);
+        automation_->permissions(mcpWrite_,mcpSettingsWrite_);
         automation_->drain([this](const std::string& method,const Json& arguments){return automationUi(method,arguments);});
     }
     if(!assistant_)return;
@@ -85,6 +98,7 @@ void Application::updateAssistant() {
         panels_["assistant"]=true;
         auto& view=assistant.chat.state();
         if(assistantTestPhase_==0) {
+            if(!testAssistant_.value("connect",true)){assistantTestPhase_=3;return;}
             assistant.provider=testAssistant_.value("provider",std::string("openai-compatible"));
             assistant.baseUrl=testAssistant_.value("baseUrl",std::string());
             assistant.model=testAssistant_.value("model",std::string("fixture"));
@@ -128,14 +142,16 @@ void Application::connectAssistant(bool restore) {
         if(assistant.provider=="claude-code" || assistant.provider=="claude") {
             connection.provider.tools.reset();
             const auto descriptor=automation_->descriptor();
-            connection.provider.settings["mcp_servers"]={{"cycodeide",{{"type","http"},
-                {"url",descriptor.at(mcpWrite_?"mcpEditUrl":"mcpReadUrl")},
-                {"headers",{{"Authorization","Bearer "+descriptor.at(mcpWrite_?"editToken":"readToken").get<std::string>()}}}}}};
+            if(!descriptor.value("enabled",true))throw cymcp::Error("Unavailable","Enable local MCP to connect this native assistant");
+            const bool editing=mcpWrite_ || mcpSettingsWrite_;
+            Json server={{"type","http"},{"url",descriptor.at(editing?"mcpEditUrl":"mcpReadUrl")}};
+            if(descriptor.value("requireToken",true))server["headers"]={{"Authorization","Bearer "+descriptor.at(editing?"editToken":"readToken").get<std::string>()}};
+            connection.provider.settings["mcp_servers"]={{"cycodeide",server}};
         }
         connection.history_directory=assistant.history;connection.history_id=assistant.historyId;
         connection.restore=restore;connection.automatic_model=assistant.model.empty();
         connection.context.max_bytes=assistant.contextBytes;
-        automation_->permissions(mcpWrite_,assistant.settingsWrite);
+        automation_->permissions(mcpWrite_,mcpSettingsWrite_);
         saveAssistantPreferences(assistant);assistant.chat.open(std::move(connection));assistant.settingsOpen=false;assistant.error.clear();
     }catch(const std::exception& exception){assistant.error=cymcp::redact_error_message(exception.what());}
 }
@@ -149,8 +165,7 @@ void Application::assistantPanel() {
     auto& assistant=*assistant_;
     if(assistant.settingsOpen) {
         cyui::sectionTitle(tr("Assistant connection"));
-        ImGui::Checkbox(tr("Enable editing, builds and plugin commands"),&mcpWrite_);
-        ImGui::Checkbox(tr("Allow editor preference changes"),&assistant.settingsWrite);
+        mcpAccessControls();
         if(cyui::button(tr("Detect providers")) && !assistant.discovery.valid()) {
             const auto providers=assistant.providers;assistant.discoveryCancellation=cymcp::Cancellation{};
             const auto cancellation=assistant.discoveryCancellation;

@@ -77,11 +77,11 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
         include(ROOT/name, name)
     # Keep the distributed README/version links useful offline; historical
     # extraction evidence remains linked to the exact corresponding source.
-    for name in ['Updates.md', 'Releases/v0.2.3.md', 'Releases/v0.2.3.fr.md', 'Releases/v0.2.4.md', 'Releases/v0.2.4.fr.md', 'AssistantMCP.md', 'AssistantMCP.fr.md']:
+    for name in ['Updates.md', 'Releases/v0.2.3.md', 'Releases/v0.2.3.fr.md', 'Releases/v0.2.4.md', 'Releases/v0.2.4.fr.md', 'Releases/v0.2.5.md', 'Releases/v0.2.5.fr.md', 'AssistantMCP.md', 'AssistantMCP.fr.md']:
         include(ROOT/'Docs'/name, 'app/Docs/'+name)
         if name.startswith('AssistantMCP'):
             entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../VERSION', b'](../../VERSION')
-        elif name.startswith('Releases/v0.2.4'):
+        elif name.startswith('Releases/'):
             entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../../VERSION', b'](../../../VERSION')
     source_root='https://github.com/MrMybal/CyCodeIDE/blob/'+git(ROOT,'rev-parse','HEAD')
     source_url=source_root+'/Docs/Extraction.md'

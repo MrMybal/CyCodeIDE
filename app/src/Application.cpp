@@ -1,5 +1,6 @@
 #include "cycode/Application.h"
 #include "cycode/IdeAutomation.h"
+#include "cycode/McpAccess.h"
 #include "cycode/AssistantState.h"
 #include "cycode/AtomicFile.h"
 #include "cycode/UiFonts.h"
@@ -239,6 +240,7 @@ void Application::loadSettings() {
 }
 void Application::saveSettings() {
     const auto buildLimit=desktopBuildTimeout(settings_);
+    const auto automationSettings=settings_.value("automation",Json::object());
     std::filesystem::create_directories(root_ / "data/settings");
     // Another instance may have migrated other workspace layouts meanwhile.
     try {
@@ -254,7 +256,7 @@ void Application::saveSettings() {
                  {"textScale", textScale_}, {"clangd", clangd_}, {"workspace", pathUtf8(entry_)},
                  {"keymap", keymapProfile_}, {"keymapOverrides", keymapOverrides_}, {"buildTimeoutSeconds",buildLimit},{"restoreWorkspaceSession",restoreWorkspaceSession_},
                  {"reformatOnSave",reformatOnSave_}, {"formatOnType",formatOnType_}, {"riderLayouts",riderLayouts_},
-                 {"projectHeaderHidden",projectHeaderHidden_}};
+                 {"projectHeaderHidden",projectHeaderHidden_},{"automation",automationSettings}};
     auto destination = root_ / "data/settings/ui-preferences.json";
     auto temporary = destination;
     temporary += "." + instance_ + ".tmp";
@@ -295,6 +297,13 @@ Json Application::testState() const {
                    {"languageReady", languageState_.value("ready", false)}};
     result["build"] = buildState_;
     result["automation"]={{"ready",bool(automation_)},{"error",automationError_}};
+    if(automation_) {
+        const auto descriptor=automation_->descriptor();
+        for(const auto* key:{"localAccessProfile","enabled","requireToken","controlOperations"})result["automation"][key]=descriptor.at(key);
+        result["automation"]["configuration"]=mcpConfiguration();
+        if(result["automation"]["configuration"].contains("mcpServers"))
+            result["automation"]["configuration"]["mcpServers"]["cycodeide"].erase("headers");
+    }
     if(assistant_)result["assistant"]={{"testPhase",assistantTestPhase_},{"phase",assistant_->chat.state().phase},{"errorCode",assistant_->chat.state().error_code},{"messages",assistant_->chat.state().messages.size()},{"interrupted",!assistant_->chat.state().messages.empty() && assistant_->chat.state().messages.back().interrupted}};
     result["msbuild"] = msbuildState_; result["msbuildActive"] = msbuildActive_;
     result["projectTasks"] = projectState_; result["projectActive"] = projectActive_;
@@ -2538,8 +2547,18 @@ void Application::extensionsPanel() {
     ImGui::End();
 }
 Json Application::mcpConfiguration() const {
-    Json args=Json::array({"--sdk","--bridge-config",pathUtf8(coreDescriptor_),"--access",mcpWrite_?"edit":"read","mcp"});
-    if(mcpWrite_ && assistant_ && assistant_->settingsWrite){args.push_back("--permissions");args.push_back("settings.write");}
+    if(!automation_)return Json::object();
+    const auto descriptor=automation_->descriptor();
+    const bool editing=mcpWrite_ || mcpSettingsWrite_;
+    Json server={{"type","http"},{"url",descriptor.at(editing?"mcpEditUrl":"mcpReadUrl")}};
+    if(descriptor.value("requireToken",true))server["headers"]={{"Authorization","Bearer "+descriptor.at(editing?"editToken":"readToken").get<std::string>()}};
+    return {{"mcpServers",{{"cycodeide",server}}}};
+}
+Json Application::mcpCliConfiguration() const {
+    Json args=Json::array({"--sdk","--bridge-config",pathUtf8(coreDescriptor_),
+        "--local-access-profile",automation_?automation_->descriptor().value("localAccessProfile",std::string("free")):std::string("free"),
+        "--access",mcpWrite_ || mcpSettingsWrite_?"edit":"read","mcp"});
+    if(mcpSettingsWrite_){args.push_back("--permissions");args.push_back("settings.write");}
 #ifdef _WIN32
     const auto executable=root_/"cycode_cli.exe";
 #else
@@ -2547,16 +2566,48 @@ Json Application::mcpConfiguration() const {
 #endif
     return {{"mcpServers",{{"cycodeide",{{"command",pathUtf8(executable)},{"args",args}}}}}};
 }
+void Application::mcpAccessControls() {
+    auto preferences=settings_.value("automation",Json::object());
+    if(!preferences.is_object())preferences=Json::object();
+    bool enabled=preferences.value("enabled",true),restart=false,changed=false;
+    if(ImGui::Checkbox(tr("Local MCP enabled"),&enabled)){preferences["enabled"]=enabled;restart=true;}
+    const auto id=preferences.value("localAccessProfile",std::string("free"));
+    const char* title=id.c_str();
+    for(const auto& option:mcpAccessOptions)if(id==option.id)title=tr(option.label);
+    cyui::textDim("%s",tr("Local MCP access"));
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::BeginCombo("##local-mcp-access",title)) {
+        for(const auto& option:mcpAccessOptions)if(ImGui::Selectable(tr(option.label),id==option.id)) {
+            preferences["localAccessProfile"]=option.id;restart=true;
+        }
+        ImGui::EndCombo();
+    }
+    bool controlled=true;
+    try{controlled=cymcp::local_access_settings(mcpAccessProfile(preferences)).control_operations;}catch(...){}
+    if(controlled) {
+        changed|=ImGui::Checkbox(tr("Enable editing, builds and plugin commands"),&mcpWrite_);
+        changed|=ImGui::Checkbox(tr("Allow editor preference changes"),&mcpSettingsWrite_);
+    }else ImGui::TextWrapped("%s",tr("All exposed operations are available. Arguments and document revisions are still validated."));
+    if(changed){preferences["allowEditing"]=mcpWrite_;preferences["allowSettings"]=mcpSettingsWrite_;}
+    if(changed || restart) {
+        settings_["automation"]=preferences;saveSettings();
+        if(restart)restartAutomation_=true;
+    }
+}
 void Application::mcpPanel() {
     if(!beginPanel("MCP","mcp"))return;
     cyui::badge(tr(automation_?"Shared Core ready":"Core starting or unavailable"),automation_?cyui::Tone::success:cyui::Tone::neutral);
     ImGui::SameLine();cyui::textDim("CyMCPSDK %s",cymcp::version);
     ImGui::TextWrapped("%s",tr("Connect an assistant to inspect this workspace and its live documents."));
-    ImGui::Checkbox(tr("Enable editing, builds and plugin commands"),&mcpWrite_);
-    if(assistant_)ImGui::Checkbox(tr("Allow editor preference changes"),&assistant_->settingsWrite);
+    mcpAccessControls();
     if(!automationError_.empty())ImGui::TextWrapped("%s",automationError_.c_str());
-    {cyui::ScopedDisabled disabled(!automation_);
-        if(cyui::button(tr("Copy MCP configuration")))ImGui::SetClipboardText(mcpConfiguration().dump(2).c_str());
+    const bool available=automation_ && automation_->descriptor().value("enabled",true) && !restartAutomation_;
+    {cyui::ScopedDisabled disabled(!available);
+        std::string address=available?automation_->descriptor().at(mcpWrite_ || mcpSettingsWrite_?"mcpEditUrl":"mcpReadUrl").get<std::string>():std::string{};
+        ImGui::SetNextItemWidth(-1);ImGui::InputText("##local-mcp-url",&address,ImGuiInputTextFlags_ReadOnly);
+        if(cyui::button(tr("Copy MCP address")))ImGui::SetClipboardText(address.c_str());
+        ImGui::SameLine();if(cyui::button(tr("Copy MCP configuration")))ImGui::SetClipboardText(mcpConfiguration().dump(2).c_str());
+        if(cyui::button(tr("Copy CLI configuration")))ImGui::SetClipboardText(mcpCliConfiguration().dump(2).c_str());
         ImGui::SameLine();if(cyui::button(tr("Save MCP configuration"))){
             AtomicFileOptions options;options.access=AtomicAccess::PrivateUser;options.publication=AtomicPublication::Replace;
             writeFileAtomic(root_/"data/mcp-config.json",mcpConfiguration().dump(2),options);

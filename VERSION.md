@@ -2,46 +2,50 @@
 
 [README](README.md) · [Français](VERSION.fr.md)
 
-## CyCodeIDE 0.2.4 · Windows x64 · 2026-11-20
+## CyCodeIDE 0.2.5 · Windows x64 · 2026-11-20
 
-**In development.** This release adds the integrated assistant and native
-automation to the existing IDE. [Downloads](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4)
-· [Release notes](Docs/Releases/v0.2.4.md) · [Previous release](Docs/Releases/v0.2.3.md).
+**In development.** Local MCP now defaults to Free, with direct URL connections
+and preserved explicit access choices. [Downloads](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5)
+· [Release notes](Docs/Releases/v0.2.5.md) · [Previous release](Docs/Releases/v0.2.4.md).
 
 ## Changes
 
-- **View → Assistant** opens the native chat: provider/model selection, progressive
-  responses, cancellation, attachments and private conversation restoration.
-- Chat, CLI and external MCP share the current window’s Core services, open
-  documents, revisions and guarded transactions. Read access is the default;
-  editing/build commands and editor preferences require separate grants.
-- Eight IDE tools expose tabs, selection, supported panels and shared editor
-  preferences. Dirty documents cannot be silently closed or discarded.
-- CyMCPSDK replaces CyToolsCore and the Python MCP server. Existing CLI commands
-  and explicit legacy-job migration remain available. See the
+- **Free by default:** connect an external MCP client with the local URL alone,
+  without a token or another operation confirmation. Argument schemas, document
+  revisions, workspace boundaries and explicit saves remain enforced.
+- **Four access profiles:** Free, Local controlled, Token only and Protected.
+  Protected still requires a token and host permission grants. Local MCP can be disabled.
+- **Migration and persistence:** unset choices migrate to Free. Explicit profiles,
+  SDK aliases and older token/control choices retain their behavior. Saving editor
+  preferences preserves the complete MCP configuration.
+- **MCP panel:** copy the address, direct HTTP configuration or existing CLI stdio
+  configuration. HTTP token headers are included only for token profiles.
+- **Shared services:** chat, CLI and external MCP continue to use the current
+  window’s Core Engine, open documents and guarded transactions. Changing the
+  transport disconnects chat; reconnect explicitly. Documents remain open.
+- Updated to Core 0.1.6 and CyMCPSDK 0.7.2 built from local source. See the
   [assistant and automation guide](Docs/AssistantMCP.md).
-- The source snapshot also includes the recent project-tree, menu, search,
-  shared zoom/minimap and breakpoint-gutter presentation improvements.
 
 ## Components
 
 | Component | Version / source selection |
 | --- | --- |
-| CyCodeIDE | 0.2.4 |
-| [CyCode Core](app/core-source.lock.json) | 0.1.5 · `5da07d2256b6035ee26425987e6238b647fe8334` · source API 1 |
+| CyCodeIDE | 0.2.5 |
+| [CyCode Core](app/core-source.lock.json) | 0.1.6 · `b902736b0edb9a76365a47778af8a223d50e5b83` · source API 1 |
 | [Reader editor](app/editor-source.lock.json) | `889dd5fd8db8bfabdba4601f5d2a955723c91301` · graphical editor source API 1 |
 | [CyUI](app/cyui-source.lock.json) | `6ef01cfcdb197f3a89d64618ce5ef8818c704728` |
-| CyMCPSDK | 0.7.0 · `791d4d7d7680213b282ec8529d248a10f8494d77` |
+| CyMCPSDK | 0.7.2 · `e562c731a146d599e3404718ea8414bb5b96b66d` (includes `34d4bca`) |
 
 Source API 1 is not a stable C++ binary ABI. Build these components together.
 
 ## Validation and documented limitations
 
 Windows x64 Release compilation and ten Python staging/contract checks passed.
-Isolated production CLI/MCP/chat/hidden-GUI acceptance passed with an explicitly
-authorized local simulated HTTP provider: actual IDE tool calls, rights, unsaved
-edits, explicit save, cancellation/restoration and complete chunked Unicode reads.
-This does not validate real provider accounts or interactive attachment dialogs.
+Fourteen isolated production checks exercised the real IDE with a local simulated
+provider: all four MCP profiles, token-free reads/writes, token/permission denials,
+argument validation, profile migration/persistence, CLI, chat and cancellation/restoration.
+Gitleaks and package/hash/link checks passed. This does not validate real provider
+accounts or interactive attachment dialogs.
 
 - Installer execution, clean-machine acceptance, real online replacement/restart,
   Linux/macOS and complete desktop interaction remain unverified. Binaries are unsigned.

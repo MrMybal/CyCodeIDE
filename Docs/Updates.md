@@ -74,8 +74,9 @@ investigation suspends those checks. Preserve the exact build/scan/package repor
 and list any checks not performed before a public binary release.
 
 
-The 0.2.4 release received an explicit exception for isolated production
+The 0.2.5 release received an explicit exception for isolated production
 CLI/MCP/chat and hidden-GUI acceptance with a local simulated provider. Those
-checks passed; they do not validate installer execution, real provider accounts,
+checks covered Free without a token, Protected token checks, preserved profiles,
+argument validation, CLI and chat. They do not validate installer execution, real provider accounts,
 replacement/restart or clean-machine behavior. The general execution restrictions
 and GitHub Actions pause remain in effect.

@@ -13,25 +13,45 @@ les erreurs, les pièces jointes et le choix du modèle. **Restaurer la conversa
 restaure le point de reprise privé ou reconnecte exactement la session native ;
 une session manquante n’est pas remplacée silencieusement.
 
-L’accès est initialement en lecture seule. **Enable editing, builds and plugin
-commands** — traduit dans l’interface — accorde les droits existants du Core.
-**Autoriser la modification des préférences de l’éditeur** accorde séparément
-`settings.write`. Chaque appel vérifie ces droits, y compris depuis un client externe.
-Les droits natifs du fournisseur sur les fichiers et terminaux restent distincts,
-refusés par défaut. Aucun mode agent sans restriction n’est sélectionné.
+Le MCP local utilise **Free** par défaut. Dans le panneau MCP, activez/désactivez
+le serveur HTTP local et choisissez son profil d’accès. En Free, le client se
+connecte avec l’URL `/mcp` affichée, sans jeton ni confirmation supplémentaire
+par opération. Toutes les opérations enregistrées sont disponibles ; les schémas
+d’arguments, révisions, limites du projet, sauvegardes explicites et règles métier
+existantes restent applicables.
+
+| Profil | Jeton HTTP | Opérations |
+| --- | --- | --- |
+| Free (défaut) | Non | Toutes les opérations enregistrées |
+| Local contrôlé | Non | Autorisations accordées par l’hôte |
+| Jeton seul | Obligatoire | Toutes les opérations enregistrées |
+| Protégé | Obligatoire | Autorisations accordées par l’hôte |
+
+Dans les profils contrôlés, **Autoriser l’édition, les compilations et les commandes
+de plugins** accorde les droits existants du Core. **Autoriser la modification des
+préférences de l’éditeur** accorde séparément `settings.write`. Les droits sont
+contrôlés à chaque appel. Changer de profil ou activer/désactiver HTTP redémarre
+ses points d’accès et déconnecte le chat ; reconnectez-le explicitement. Le moteur
+courant et les documents ouverts sont conservés.
+
+Les configurations sans choix explicite migrent vers Free. Les profils nommés et
+les anciens choix explicites `requireToken` / `controlOperations` sont conservés.
+Le choix canonique est enregistré dans `automation.localAccessProfile` ; `enabled`,
+`allowEditing` et `allowSettings` restent indépendants. Les droits natifs fichiers
+et terminal du fournisseur restent distincts de la politique MCP de l’application.
 
 ## CLI et MCP externe
 
 Le CLI du Core et ses anciennes commandes sont conservés. L’exécutable IDE accepte
 aussi `--sdk` avant toute création de fenêtre SDL. Pour piloter une fenêtre ouverte,
-utilisez le descripteur privé indiqué par **Copier la configuration MCP** :
+utilisez **Copier l’adresse MCP** dans le panneau MCP. En Free, l’URL seule suffit :
 
 ```text
 CyCodeIDE.exe --sdk --help
-cycode_cli.exe --sdk --bridge-config <descripteur-prive.json> list-operations
-cycode_cli.exe --sdk --bridge-config <descripteur-prive.json> describe-operation ide_state
-cycode_cli.exe --sdk --bridge-config <descripteur-prive.json> invoke ide_state --params-file requete.json
-cycode_cli.exe --sdk --bridge-config <descripteur-prive.json> --access edit invoke ide_open_document --params-file ouvrir.json
+cycode_cli.exe --sdk --connect <URL-MCP> list-operations
+cycode_cli.exe --sdk --connect <URL-MCP> describe-operation ide_state
+cycode_cli.exe --sdk --connect <URL-MCP> invoke ide_state --params-file requete.json
+cycode_cli.exe --sdk --connect <URL-MCP> invoke ide_open_document --params-file ouvrir.json
 ```
 
 `requete.json` peut contenir `{ "offset": 0, "limit": 50 }` ; `ouvrir.json` peut
@@ -41,14 +61,19 @@ un échec renvoie un code de sortie non nul. Le CLI du Core fonctionne aussi san
 interface sur un projet explicitement choisi. Les opérations `ide_*` exigent une
 instance IDE ouverte.
 
-La configuration MCP lance le CLI natif en stdio et le raccorde au point d’accès
-local authentifié de cette fenêtre. Les descripteurs et jetons restent privés.
-La fermeture invalide l’accès ; récupérez une nouvelle configuration après réouverture.
+**Copier l’adresse MCP** copie l’URL HTTP ; **Copier la configuration MCP** copie
+une configuration HTTP directe, avec en-tête Authorization uniquement pour les
+profils à jeton. **Copier la configuration CLI** conserve la connexion stdio native.
+Le CLI conserve `--bridge-config <descripteur-prive.json>`. Pour les profils à
+jeton, une connexion CLI par URL lit `CYMCP_TOKEN` dans l’environnement du processus.
+Le descripteur privé sélectionne la vraie fenêtre. Les points d’accès écoutent
+uniquement sur `127.0.0.1` ; descripteurs et éventuels jetons restent privés. Fermer
+ou reconfigurer la fenêtre invalide l’accès ; récupérez une nouvelle configuration.
 Le profil compact expose cinq outils du SDK : rechercher une opération, charger
 son schéma, l’appeler, puis lire/rechercher ses ressources. `--mcp-profile direct-full`
 conserve la découverte complète. Les contrats du Core sont préservés ; l’hôte ajoute :
 
-| Opération | Fonction | Permission |
+| Opération | Fonction | Permission en profil contrôlé |
 | --- | --- | --- |
 | `ide_state` | Document courant, onglets paginés, panneaux et préférences | Lecture |
 | `ide_commands` | Catalogue paginé des commandes et raccourcis, sans exécution arbitraire | Lecture |
@@ -95,7 +120,7 @@ intégration. Le module de supervision d’un moteur local d’inférence est d�
 ## Compilation depuis les sources
 
 `app/core-source.lock.json` sélectionne le Core. Son verrou SDK fixe CyMCPSDK
-**0.7.0**, révision `791d4d7d7680213b282ec8529d248a10f8494d77`.
+**0.7.2**, révision `e562c731a146d599e3404718ea8414bb5b96b66d`.
 Les modules Core, Platform, Http, MCP, AI et ChatUI sont compilés depuis des sources
 locales propres. Local, exemples et tests SDK sont exclus du graphe de production.
 Le code SDK reste inchangé ; CyUI et Reader partagent un seul ImGui/backend.
@@ -110,11 +135,11 @@ Le nouveau paquet ne contient ni CyToolsCore ni serveur MCP Python. Python stdli
 est conservé uniquement pour les anciens CLI et la migration des tâches.
 
 
-## Validation de la version 0.2.4
+## Validation de la version 0.2.5
 
-Les essais isolés de production ont vérifié le chat avec un fournisseur HTTP
-simulé local, les vrais outils IDE, le CLI et un client MCP externe. Lecture,
-modification autorisée, refus de droits/révision, sauvegarde explicite,
-annulation/restauration et lecture Unicode complète par morceaux ont réussi.
-Les comptes fournisseurs réels et les dialogues interactifs de pièces jointes
-restent à valider. Voir les [notes de version](../VERSION.fr.md).
+Quatorze vérifications isolées de production utilisent le vrai IDE : lecture et
+modification Free par URL seule, refus des jetons et droits Protégé, quatre profils,
+validation des arguments, migration/persistance, CLI et MCP stdio, puis réponses
+progressives, annulation et restauration sans rejeu du chat avec fournisseur local
+simulé. Les comptes réels et dialogues interactifs de pièces jointes restent non
+vérifiés. Voir les [notes de version](../VERSION.fr.md).

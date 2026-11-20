@@ -692,6 +692,8 @@ class Application {
     void chooseSolution(bool newWindow = false);
     void newWindow(const std::filesystem::path &);
     Json mcpConfiguration() const;
+    Json mcpCliConfiguration() const;
+    void mcpAccessControls();
     std::filesystem::path root_;
     std::filesystem::path entry_;
     std::string instance_, layoutIni_;
@@ -746,6 +748,7 @@ class Application {
     void stopAssistant();
     void updateAssistant();
     void assistantPanel();
+    bool restartAutomation_=false,mcpSettingsWrite_=false;
     Json automationUi(const std::string&,const Json&);
     std::filesystem::path coreDescriptor_;
     Json languageState_ = Json::object(), navigation_ = Json::object();

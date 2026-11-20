@@ -12,8 +12,8 @@
     </td>
     <td width="300" align="right" valign="top">
       <p><sub>Application license</sub><br><a href="LICENSE"><strong>GPL-3.0-only</strong></a></p>
-      <p><sub>IDE version</sub><br><a href="VERSION.md"><strong>0.2.4</strong></a><br><strong>IN DEVELOPMENT</strong></p>
-      <p><a href="https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4"><strong>Download</strong></a><br><sub>Windows x64 · installer / portable</sub></p>
+      <p><sub>IDE version</sub><br><a href="VERSION.md"><strong>0.2.5</strong></a><br><strong>IN DEVELOPMENT</strong></p>
+      <p><a href="https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5"><strong>Download</strong></a><br><sub>Windows x64 · installer / portable</sub></p>
     </td>
   </tr>
 </table>
@@ -22,11 +22,11 @@
 
 A native IDE for editing code, exploring projects and working with development tools.
 
-> **CyCodeIDE 0.2.4 · Windows x64 · 2026-11-20**
+> **CyCodeIDE 0.2.5 · Windows x64 · 2026-11-20**
 >
-> Development release with an integrated assistant and native CLI/MCP access.
+> Connect an assistant by local MCP URL with Free, or keep your selected access profile.
 > Read the [version notes and limitations](VERSION.md).
-> [Download installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4)
+> [Download installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5)
 > · [Version notes](VERSION.md).
 
 ## About CyCodeIDE
@@ -54,9 +54,10 @@ explains how to get started.
 - **Application updates:** check for new releases and download them from the
   application. See the [update guide](Docs/Updates.md).
 - **Integrated assistant:** streamed conversations, cancellation and saved history,
-  with controlled access to the current project. Open **View → Assistant**.
-- **CLI and MCP:** discover and call project tools from a terminal or an external
-  assistant, including the current window’s unsaved documents. See the
+  with configurable access to the current project. Open **View → Assistant**.
+- **CLI and MCP:** work with an external assistant or terminal on the current
+  window’s live documents. Local MCP defaults to **Free**, connecting by URL alone;
+  Local controlled, Token only and Protected remain available. See the
   [assistant and automation guide](Docs/AssistantMCP.md).
 - **English and French:** selectable interface language and a bilingual manual
   available online and offline.
@@ -65,7 +66,7 @@ explains how to get started.
 
 ## Installation
 
-Download the [Windows x64 installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.4).
+Download the [Windows x64 installer or portable ZIP](https://github.com/MrMybal/CyCodeIDE/releases/tag/v0.2.5).
 The installer uses a per-user directory and requires no administrator privileges.
 For the portable version, extract the entire folder before running `CyCodeIDE.exe`.
 The graphical application requires an OpenGL driver.
@@ -111,7 +112,7 @@ See [COPYRIGHT](COPYRIGHT). Dependencies retain their own licenses and notices.
 
 | Library · source | License · terms | Use / scope |
 | --- | --- | --- |
-| [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/5da07d2256b6035ee26425987e6238b647fe8334/LICENSE) | Shared native project services, documents and CLI. |
+| [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/b902736b0edb9a76365a47778af8a223d50e5b83/LICENSE) | Shared native project services, documents and CLI. |
 | [CyCodeReader editor](https://github.com/MrMybal/CyCodeReader) | [GPL-3.0-only](https://github.com/MrMybal/CyCodeReader/blob/889dd5fd8db8bfabdba4601f5d2a955723c91301/LICENSE) | Shared graphical editor source API 1. |
 | [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/LICENSE) | Selected interface, code, comparison and panel modules. |
 | [CyMCPSDK](https://github.com/MrMybal/CyMCPSDK) | [MIT](app/licenses/CyMCPSDK.txt) | Assistant, native tool registry, CLI and MCP. |
@@ -161,6 +162,6 @@ notices. Keep distributed license texts, font notices and
 
 - [Start here: repository instructions](AGENTS.md) — scope, important guides and development restrictions.
 - [Implement the interface](app/AGENTS.md) — CyUI presentation and shared service ownership.
-- [Integrate Core](https://github.com/MrMybal/CyCode/blob/5da07d2256b6035ee26425987e6238b647fe8334/app/Docs/CoreExtraction.md) — pinned native architecture and source contracts.
+- [Integrate Core](https://github.com/MrMybal/CyCode/blob/b902736b0edb9a76365a47778af8a223d50e5b83/app/Docs/CoreExtraction.md) — pinned native architecture and source contracts.
 
 </details>

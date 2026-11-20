@@ -7878,5 +7878,41 @@
   "Unsupported extension property value": {
     "en": "Unsupported extension property value",
     "fr": "Valeur de propriété d’extension non prise en charge"
+  },
+  "Local MCP enabled": {
+    "en": "Local MCP enabled",
+    "fr": "MCP local activé"
+  },
+  "Local MCP access": {
+    "en": "Local MCP access",
+    "fr": "Accès MCP local"
+  },
+  "Free": {
+    "en": "Free",
+    "fr": "Free"
+  },
+  "Local controlled": {
+    "en": "Local controlled",
+    "fr": "Local contrôlé"
+  },
+  "Token only": {
+    "en": "Token only",
+    "fr": "Jeton seul"
+  },
+  "Protected": {
+    "en": "Protected",
+    "fr": "Protégé"
+  },
+  "Copy MCP address": {
+    "en": "Copy MCP address",
+    "fr": "Copier l’adresse MCP"
+  },
+  "Copy CLI configuration": {
+    "en": "Copy CLI configuration",
+    "fr": "Copier la configuration CLI"
+  },
+  "All exposed operations are available. Arguments and document revisions are still validated.": {
+    "en": "All exposed operations are available. Arguments and document revisions are still validated.",
+    "fr": "Toutes les opérations exposées sont disponibles. Les arguments et les révisions des documents restent contrôlés."
   }
 }

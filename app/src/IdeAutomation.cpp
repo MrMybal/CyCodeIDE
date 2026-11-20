@@ -1,4 +1,5 @@
 #include "cycode/IdeAutomation.h"
+#include "cycode/McpAccess.h"
 #include <cycode/AtomicFile.h>
 #include <cycode/NativeFileLease.h>
 #include <algorithm>
@@ -76,6 +77,9 @@ IdeAutomation::IdeAutomation(const std::filesystem::path& nativeDescriptor,
     runtime.history=selected/"conversations";
     automation::Options options;options.state=selected/"jobs";options.catalogue=catalogue;
     options.profile="compact";
+    options.localAccessProfile=mcpAccessProfile(preferences);
+    const auto access=cymcp::local_access_settings(options.localAccessProfile);
+    const auto enabled=preferences.value("enabled",true);
     options.gateway.inline_bytes=std::clamp(preferences.value("inlineBytes",16384),1024,1024*1024);
     options.gateway.resources.result_ttl=std::chrono::seconds(std::clamp(preferences.value("resultTtlSeconds",300),30,86400));
     options.cacheTtl=std::chrono::milliseconds(std::clamp(preferences.value("cacheTtlMs",30000),0,300000));
@@ -114,14 +118,24 @@ IdeAutomation::IdeAutomation(const std::filesystem::path& nativeDescriptor,
             }
         };
     };
-    const auto readToken=cymcp::random_token(32),editToken=cymcp::random_token(32);
-    runtime.reader=std::make_unique<cymcp::LocalHttpServer>(readToken,endpoint("ide-read"),4);
-    runtime.editor=std::make_unique<cymcp::LocalHttpServer>(editToken,endpoint("ide-edit"),4);
-    const auto read="http://127.0.0.1:"+std::to_string(runtime.reader->start());
-    const auto edit="http://127.0.0.1:"+std::to_string(runtime.editor->start());
+    const auto readToken=enabled && access.require_token?cymcp::random_token(32):std::string{};
+    const auto editToken=enabled && access.require_token?cymcp::random_token(32):std::string{};
+    std::string read,edit;
+    if(enabled) {
+        auto server=[&](const std::string& credential,const std::string& role){
+            if(access.require_token)return std::make_unique<cymcp::LocalHttpServer>(credential,endpoint(role),4);
+            return std::make_unique<cymcp::LocalHttpServer>(cymcp::LocalHttpServer::UnauthenticatedLoopback{},endpoint(role),4);
+        };
+        runtime.reader=server(readToken,"ide-read");runtime.editor=server(editToken,"ide-edit");
+        read="http://127.0.0.1:"+std::to_string(runtime.reader->start());
+        edit="http://127.0.0.1:"+std::to_string(runtime.editor->start());
+    }
+    const auto url=[&](const std::string& base,const char* path){return base.empty()?std::string{}:base+path;};
     runtime.connection={{"protocol","cycode-core/1"},{"sdk","CyMCPSDK"},{"application","CyCodeIDE"},
-        {"url",read+"/v1"},{"readUrl",read+"/v1"},{"editUrl",edit+"/v1"},
-        {"mcpReadUrl",read+"/mcp"},{"mcpEditUrl",edit+"/mcp"},{"readToken",readToken},{"editToken",editToken}};
+        {"url",url(read,"/v1")},{"readUrl",url(read,"/v1")},{"editUrl",url(edit,"/v1")},
+        {"mcpReadUrl",url(read,"/mcp")},{"mcpEditUrl",url(edit,"/mcp")},{"readToken",readToken},{"editToken",editToken},
+        {"localAccessProfile",mcpAccessProfileId(options.localAccessProfile)},{"enabled",enabled},
+        {"requireToken",access.require_token},{"controlOperations",access.control_operations}};
     AtomicFileOptions privateFile;privateFile.access=AtomicAccess::PrivateUser;
     writeFileAtomic(descriptor,runtime.connection.dump(2),privateFile);
     runtime.published=true;

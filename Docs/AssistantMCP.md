@@ -12,24 +12,43 @@ model selection, attachments and provider errors use the SDK's native panel.
 **Restore conversation** restores the selected private checkpoint or reconnects
 its exact native session; a missing session is an error, not a new conversation.
 
-Read access is the default. **Enable editing, builds and plugin commands** grants
-the existing Core permissions. **Allow editor preference changes** separately
-grants `settings.write`. Rights are checked on each tool call, including calls
-from a connected external client. Provider-native filesystem/terminal permissions
-remain separate and are denied by default. No unrestricted agent mode is selected.
+Local MCP defaults to **Free**. Open the MCP panel to enable/disable local HTTP
+and choose its access profile. A client can connect with the displayed `/mcp` URL
+alone in Free, without a token or a second operation confirmation. All registered
+operations are available; argument schemas, document revisions, workspace
+boundaries, explicit saves and existing business rules still apply.
+
+| Profile | HTTP token | Operations |
+| --- | --- | --- |
+| Free (default) | No | All registered operations |
+| Local controlled | No | Host permission grants |
+| Token only | Required | All registered operations |
+| Protected | Required | Host permission grants |
+
+In controlled profiles, **Enable editing, builds and plugin commands** grants
+the existing Core rights. **Allow editor preference changes** separately grants
+`settings.write`. The host checks these rights on every call. Changing the
+profile or enabling/disabling HTTP restarts its endpoints and disconnects the
+chat; reconnect explicitly. The current Engine and open documents stay intact.
+
+Preferences without an explicit choice migrate to Free. Named profiles and
+explicit older `requireToken` / `controlOperations` choices are preserved.
+The canonical choice is saved as `automation.localAccessProfile`, with `enabled`,
+`allowEditing` and `allowSettings` kept independently. Provider-native filesystem
+and terminal permissions remain distinct from the application’s MCP policy.
 
 ## CLI and external MCP
 
 The existing Core CLI and its legacy commands remain available. The IDE executable
 also accepts `--sdk` before SDL/window creation. For the state of an already open
-window, use the private descriptor referenced by **Copy MCP configuration**:
+window, use **Copy MCP address** in the MCP panel. With Free, the URL alone is sufficient:
 
 ```text
 CyCodeIDE.exe --sdk --help
-cycode_cli.exe --sdk --bridge-config <private-descriptor.json> list-operations
-cycode_cli.exe --sdk --bridge-config <private-descriptor.json> describe-operation ide_state
-cycode_cli.exe --sdk --bridge-config <private-descriptor.json> invoke ide_state --params-file query.json
-cycode_cli.exe --sdk --bridge-config <private-descriptor.json> --access edit invoke ide_open_document --params-file open.json
+cycode_cli.exe --sdk --connect <MCP-URL> list-operations
+cycode_cli.exe --sdk --connect <MCP-URL> describe-operation ide_state
+cycode_cli.exe --sdk --connect <MCP-URL> invoke ide_state --params-file query.json
+cycode_cli.exe --sdk --connect <MCP-URL> invoke ide_open_document --params-file open.json
 ```
 
 `query.json` may contain `{ "offset": 0, "limit": 50 }`; `open.json` may contain
@@ -38,15 +57,20 @@ UTF-16. JSON results go to stdout, diagnostics to stderr; errors return a nonzer
 exit code. Without a connection descriptor the Core CLI can work headlessly on
 an explicitly selected workspace; `ide_*` operations require an open IDE instance.
 
-The copied MCP configuration starts the native CLI over stdio and attaches to this
-window's authenticated loopback endpoint. Descriptors and bearer credentials stay
-private. Closing the window invalidates its endpoint; obtain a new configuration
-after reopening. The compact profile exposes the five SDK discovery/resource
+**Copy MCP address** copies the HTTP URL; **Copy MCP configuration** copies a
+direct HTTP configuration, adding an Authorization header only for token profiles.
+**Copy CLI configuration** keeps the native stdio connection available, using
+`--bridge-config <private-descriptor.json>`. For token profiles, address-only CLI
+connections read `CYMCP_TOKEN` from the current process environment. Its private
+descriptor selects the real window. Endpoints bind only to `127.0.0.1`; descriptors
+and any bearer credentials stay private. Closing or reconfiguring the window
+invalidates its endpoint; obtain a new configuration after reopening.
+The compact profile exposes the five SDK discovery/resource
 tools. Search, describe, then call the original operation. `--mcp-profile direct-full`
 keeps full discovery available. Complete Core contracts are preserved; only these
 presentation operations are appended:
 
-| Operation | Purpose | Permission |
+| Operation | Purpose | Controlled-profile permission |
 | --- | --- | --- |
 | `ide_state` | Current document, paginated tabs, panels and editor preferences | Read |
 | `ide_commands` | Paginated command catalogue and shortcuts; discovery only | Read |
@@ -91,7 +115,7 @@ The local inference-engine supervision module is disabled.
 ## Source integration
 
 The Core revision is recorded in `app/core-source.lock.json`. Its SDK lock selects
-CyMCPSDK **0.7.0**, revision `791d4d7d7680213b282ec8529d248a10f8494d77`.
+CyMCPSDK **0.7.2**, revision `e562c731a146d599e3404718ea8414bb5b96b66d`.
 The SDK is built from clean local sources, with Core, Platform, Http, MCP, AI and
 ChatUI. Local engine supervision, example applications and SDK tests are disabled
 in the production graph. SDK code is not copied or modified. CyUI and the Reader
@@ -107,10 +131,10 @@ The new package contains no CyToolsCore or Python MCP runtime. Its optional stdl
 Python compatibility runtime is retained only for old CLI uses and job migration.
 
 
-## Version 0.2.4 validation
+## Version 0.2.5 validation
 
-Isolated production acceptance exercised chat with a local simulated HTTP
-provider, actual IDE tools, CLI and an external MCP client. Reads, authorized
-edits, rights/revision denials, explicit save, cancellation/restoration and
-complete chunked Unicode reads passed. Real provider accounts and interactive
-attachment dialogs remain unverified. See the [version notes](../VERSION.md).
+Fourteen isolated production checks exercised the real IDE: Free reads/writes by
+URL alone, Protected token rejection and grants, all profiles, argument validation,
+migration/persistence, CLI and MCP stdio, then chat streaming, cancellation and
+restoration without mutation replay with a local simulated provider. Real provider
+accounts and interactive attachment dialogs remain unverified. See the [version notes](../VERSION.md).
