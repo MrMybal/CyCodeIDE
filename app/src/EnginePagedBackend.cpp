@@ -80,8 +80,13 @@ PagedTextBytes EnginePagedBackend::readBytes(cyui::ItemId id, uint64_t revision,
 }
 std::vector<cyui::CodeToken> EnginePagedBackend::syntax(cyui::ItemId id, uint64_t revision,
     cyui::CodeLanguage language, uint64_t at, size_t length) {
-    if (language==cyui::CodeLanguage::plain || current_.bytes>syntaxBytes) return {};
-    if (syntaxRevision_!=revision || syntaxLanguage_!=language || syntaxCatalogue_!=cyui::codeLanguageRevision()) {
+    if (id!=identity_ || !revision || revision!=current_.revision)
+        throw std::runtime_error("Paged syntax identity or revision changed");
+    if (at>current_.bytes) throw std::runtime_error("Paged syntax offset is outside the document");
+    const auto end=at+std::min<uint64_t>(length,current_.bytes-at);
+    if (at==end || language==cyui::CodeLanguage::plain || current_.bytes>syntaxBytes) return {};
+    const auto catalogue=cyui::codeLanguageRevision();
+    if (syntaxRevision_!=revision || syntaxLanguage_!=language || syntaxCatalogue_!=catalogue) {
         std::string full; full.reserve(static_cast<size_t>(current_.bytes));
         for (uint64_t offset=0; offset<current_.bytes;) {
             auto page=readBytes(id,revision,offset,chunkBytes);
@@ -91,12 +96,12 @@ std::vector<cyui::CodeToken> EnginePagedBackend::syntax(cyui::ItemId id, uint64_
         // Complete bounded snapshot supplies all preceding multiline lexical context.
         auto tokens=cyui::highlightCode(full,language);
         tokens_=std::move(tokens); syntaxRevision_=revision; syntaxLanguage_=language;
-        syntaxCatalogue_=cyui::codeLanguageRevision();
+        syntaxCatalogue_=catalogue;
     }
     std::vector<cyui::CodeToken> result;
     auto token=std::lower_bound(tokens_.begin(),tokens_.end(),at,[](const auto &t,auto a){return t.start+t.length<=a;});
-    for (;token!=tokens_.end() && token->start<at+length;++token) {
-        const auto a=std::max<uint64_t>(at,token->start), b=std::min<uint64_t>(at+length,token->start+token->length);
+    for (;token!=tokens_.end() && token->start<end;++token) {
+        const auto a=std::max<uint64_t>(at,token->start), b=std::min<uint64_t>(end,token->start+token->length);
         if (a<b) result.push_back({size_t(a-at),size_t(b-a),token->role});
     }
     return result;

@@ -19,6 +19,7 @@ bool Application::openPaged(const std::string &path,size_t line,size_t column,bo
     const auto canonical=pathUtf8(full.lexically_relative(engine_->workspace()));
     std::shared_ptr<Tab> tab;
     for (const auto &candidate:tabs_) if (candidate->path==canonical) { tab=candidate;break; }
+    const auto syntaxLanguageId = tab ? tab->syntaxLanguageId : std::string{};
     bool paged=tab && tab->pagedProfile;
     if (!paged && !force) {
         const auto docs=engine_->dispatch("documents.list").at("documents");
@@ -34,6 +35,7 @@ bool Application::openPaged(const std::string &path,size_t line,size_t column,bo
     }
     if (!tab) {
         tab=std::make_shared<Tab>();tab->path=tab->displayPath=canonical;tab->pagedProfile=true;tab->readOnly=true;
+        tab->syntaxLanguageId=syntaxLanguageId;applyEditorLanguage(tab);
         auto owner=engine_;
         tab->pagedOpening=std::async(std::launch::async,[owner,canonical] {
             return owner->dispatch("documents.readPage",{{"path",canonical},{"length",4}});
@@ -57,7 +59,7 @@ void Application::updatePaged() {
                 const auto info=tab->pagedOpening.get();tab->identity=info.at("id");tab->revision=info.at("revision");tab->dirty=info.at("dirty");
                 tab->pagedBackend=std::make_shared<EnginePagedBackend>(engine_,tab->identity,tab->path);
                 tab->paged=std::make_unique<PagedTextEditor>(tab->identity,tab->pagedBackend);
-                tab->paged->setLanguage(cyui::codeLanguageForPath(tab->path));
+                applyEditorLanguage(tab);
                 auto options=tab->paged->view().options();options.keyboardShortcuts=false;tab->paged->view().setOptions(options);
             } catch (const std::exception &e) { tab->pagedError=e.what(); }
         }
@@ -66,7 +68,7 @@ void Application::updatePaged() {
         if (!status.ready) continue;
         const auto nextPath=pathUtf8(status.path);
         if (nextPath!=tab->path) {
-            resourceTabPath(tab,nextPath);tab->paged->setLanguage(cyui::codeLanguageForPath(nextPath));
+            resourceTabPath(tab,nextPath);
             refreshFiles(false);refreshGit();
         }
         tab->revision=status.revision;tab->readOnly=status.readOnly;

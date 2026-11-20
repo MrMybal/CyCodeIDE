@@ -82,6 +82,14 @@ Json Application::editorSessionState(const std::shared_ptr<Tab> &tab, size_t &li
     return result;
 }
 void Application::restoreSessionTab(const std::shared_ptr<Tab> &tab, const Json &item) {
+    // Older sessions lack this optional field and retain automatic detection.
+    if (const auto language = item.find("syntaxLanguage"); language != item.end() && language->is_string()) {
+        const auto &id = language->get_ref<const std::string &>();
+        if (id.size() <= 256 && std::none_of(id.begin(), id.end(), [](unsigned char c) { return c < 32 || c == 127; }))
+            tab->syntaxLanguageId = id; // Keep IDs of temporarily missing plugins.
+    }
+    applyEditorLanguage(tab);
+    syntaxCatalogue_ = 0;
     const auto window = item.at("windowKey").get<std::string>();
     if (std::none_of(tabs_.begin(), tabs_.end(),
                      [&](const auto &other) { return other != tab && other->windowKey == window; }))

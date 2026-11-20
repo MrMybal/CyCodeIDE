@@ -304,9 +304,10 @@ cyui::CodeViewResult Application::drawCodeView(const char *id,cyui::CodeViewStat
     return result;
 }
 
-cyui::DiffResult Application::drawDiff(const char *id,cyui::DiffState &state,const cyui::DiffDocument &document,ImVec2 size) {
+cyui::DiffResult Application::drawDiff(const char *id,cyui::DiffState &state,CodeComparison &document,ImVec2 size) {
     CodeFontScope font(codeFontSize_);state.textScale=codeZoom_;
-    const auto result=cyui::diffViewer(id,state,document,size);
+    document.refresh(codeLanguageForDocument(document.path()));
+    const auto result=cyui::diffViewer(id,state,document.document(),size);
     if(state.textScale!=codeZoom_)setCodeZoom(state.textScale);
     return result;
 }
@@ -512,9 +513,10 @@ void Application::statusBar() {
         ImGui::SameLine();cyui::textFaint(" | ");ImGui::SameLine();
         if(tab->image)cyui::textDim("%s",tr("Image preview"));
         else if(tab->pagedProfile) {
+            syntaxLanguageMenu(tab);ImGui::SameLine();
             const auto pos=tab->paged?tab->paged->view().selection().caret:cyui::PagedCodePosition{};
             cyui::textDim("%s | %llu:%llu",tr("Paged UTF-8"),static_cast<unsigned long long>(pos.line+1),static_cast<unsigned long long>(pos.character+1));
-        } else {const auto pos=tab->editor.GetMainCursorPosition();cyui::textDim("%s | Ln %zu, Col %zu | UTF-8",tab->editor.GetLanguageName().c_str(),pos.line+1,pos.index+1);}
+        } else {syntaxLanguageMenu(tab);ImGui::SameLine();const auto pos=tab->editor.GetMainCursorPosition();cyui::textDim("Ln %zu, Col %zu | UTF-8",pos.line+1,pos.index+1);}
         // Former editor toolbar items: read-only state, file path and code zoom.
         if(tab->readOnly){ImGui::SameLine();cyui::textFaint(" | ");ImGui::SameLine();
             cyui::textColoured(cyui::palette().warning,"%s",tr(tab->path.starts_with("debug://")?"Read-only debugger source":"Read-only SDK source"));}

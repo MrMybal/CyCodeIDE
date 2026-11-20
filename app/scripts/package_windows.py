@@ -77,10 +77,12 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
         include(ROOT/name, name)
     # Keep the distributed README/version links useful offline; historical
     # extraction evidence remains linked to the exact corresponding source.
-    for name in ['Updates.md', 'Releases/v0.2.3.md', 'Releases/v0.2.3.fr.md', 'Releases/v0.2.4.md', 'Releases/v0.2.4.fr.md', 'Releases/v0.2.5.md', 'Releases/v0.2.5.fr.md', 'AssistantMCP.md', 'AssistantMCP.fr.md']:
+    for name in ['Updates.md', 'Releases/v0.2.3.md', 'Releases/v0.2.3.fr.md', 'Releases/v0.2.4.md', 'Releases/v0.2.4.fr.md', 'Releases/v0.2.5.md', 'Releases/v0.2.5.fr.md', 'AssistantMCP.md', 'AssistantMCP.fr.md', 'SyntaxLanguages.md']:
         include(ROOT/'Docs'/name, 'app/Docs/'+name)
         if name.startswith('AssistantMCP'):
             entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../VERSION', b'](../../VERSION')
+        elif name == 'SyntaxLanguages.md':
+            entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../AGENTS.md)', b'](https://github.com/MrMybal/CyCodeIDE/blob/main/AGENTS.md)')
         elif name.startswith('Releases/'):
             entries['app/Docs/'+name] = entries['app/Docs/'+name].replace(b'](../../VERSION', b'](../../../VERSION')
     source_root='https://github.com/MrMybal/CyCodeIDE/blob/'+git(ROOT,'rev-parse','HEAD')
@@ -89,6 +91,7 @@ def gather(core, stage, app_version, build, output, mcp_bundle, tools_root, rele
         text=entries[name].decode('utf-8').replace('](Docs/Updates.md)','](app/Docs/Updates.md)')
         text=text.replace('](Docs/Releases/','](app/Docs/Releases/').replace('](Docs/Extraction.md)',']('+source_url+')')
         text=text.replace('Docs/AssistantMCP','app/Docs/AssistantMCP')
+        text=text.replace('](Docs/SyntaxLanguages.md)','](app/Docs/SyntaxLanguages.md)')
         text=text.replace('](AGENTS.md)',']('+source_root+'/AGENTS.md)')
         text=text.replace('](app/AGENTS.md)',']('+source_root+'/app/AGENTS.md)')
         entries[name]=text.encode('utf-8')

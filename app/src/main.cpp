@@ -127,7 +127,12 @@ int main(int argc, char **argv) {
                 options.smoke = true;
             } else if (!args[i].starts_with('-')) {
                 const auto path=std::filesystem::absolute(cycode::utf8Path(args[i]));
-                if (cycode::imageFileExtension(args[i])) { options.workspace=path.parent_path();options.openFile=cycode::pathUtf8(path.filename()); }
+                const auto language = cyui::codeLanguageForPath(args[i]);
+                if (cycode::imageFileExtension(args[i]) ||
+                    (std::filesystem::is_regular_file(path) &&
+                     (language == cyui::CodeLanguage::zig || language == cyui::CodeLanguage::zon))) {
+                    options.workspace=path.parent_path();options.openFile=cycode::pathUtf8(path.filename());
+                }
                 else options.workspace=path;
             }
         }

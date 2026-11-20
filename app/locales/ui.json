@@ -7914,5 +7914,21 @@
   "All exposed operations are available. Arguments and document revisions are still validated.": {
     "en": "All exposed operations are available. Arguments and document revisions are still validated.",
     "fr": "Toutes les opérations exposées sont disponibles. Les arguments et les révisions des documents restent contrôlés."
+  },
+  "Syntax language": {
+    "en": "Syntax language",
+    "fr": "Langage de coloration"
+  },
+  "Automatic (file association)": {
+    "en": "Automatic (file association)",
+    "fr": "Automatique (association du fichier)"
+  },
+  "Unavailable": {
+    "en": "Unavailable",
+    "fr": "Indisponible"
+  },
+  "Syntax language: click to choose automatic detection or a manual mode.": {
+    "en": "Syntax language: click to choose automatic detection or a manual mode.",
+    "fr": "Langage de coloration : choisir la détection automatique ou un mode manuel."
   }
 }

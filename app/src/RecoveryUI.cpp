@@ -44,7 +44,7 @@ void Application::updateRecovery() {
             } else if (recoveryMethod_ == "recovery.preview") {
                 recoveryPreview_ = result;
                 recoveryCode_.setText(result.at("text"),
-                                      cyui::codeLanguageForPath(result.at("path").get<std::string>()));
+                                      codeLanguageForDocument(result.at("path")));
                 recoveryCodeState_ = {};
             } else if (recoveryMethod_ == "recovery.restore") {
                 const std::string path = result.at("document").at("path");

@@ -12,7 +12,7 @@ void Application::updateHighlights() {
         const auto server=servers->find(engine_->languageBackendFor(tab->path));
         if (server==servers->end()) continue;
         const auto generation=server->value("semanticGeneration",uint64_t(0));
-        const bool enabled=!smoke_ && server->value("ready",false) && server->value("semanticTokens",false);
+        const bool enabled=!smoke_ && tab->codeEditor.language()==cyui::codeLanguageForPath(tab->displayPath) && server->value("ready",false) && server->value("semanticTokens",false);
         if (tab->highlightObservedGeneration!=generation || !enabled) {
             tab->editor.ClearSemanticTokens(); tab->highlightCount=0; tab->highlightRevision=0;
             if (tab->highlightObservedGeneration!=generation) tab->highlightRetryAt=now+.3;
@@ -32,7 +32,7 @@ void Application::updateHighlights() {
         pending+=tab->highlighting.valid();
     }
     auto launch=[&](const std::shared_ptr<Tab> &tab) {
-        if (tab->pagedProfile || smoke_ || pending>=2 || tab->highlighting.valid() || !engine_->supportsLanguage(tab->path) ||
+        if (tab->pagedProfile || tab->codeEditor.language()!=cyui::codeLanguageForPath(tab->displayPath) || smoke_ || pending>=2 || tab->highlighting.valid() || !engine_->supportsLanguage(tab->path) ||
             now<tab->highlightRetryAt || (tab->highlightRevision==tab->revision && tab->highlightGeneration==tab->highlightObservedGeneration)) return;
         const auto server=servers->find(engine_->languageBackendFor(tab->path));
         if (server==servers->end() || !server->value("ready",false) || !server->value("semanticTokens",false) || unrealAnalysisState_=="preparing") return;

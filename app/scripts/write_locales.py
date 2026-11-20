@@ -1163,4 +1163,11 @@ translations.update({'Assistant': 'Assistant', 'Assistant unavailable': 'Assista
 
 translations['Unsupported extension property value']='Valeur de propriété d’extension non prise en charge'
 translations.update({'Local MCP enabled': 'MCP local activé', 'Local MCP access': 'Accès MCP local', 'Free': 'Free', 'Local controlled': 'Local contrôlé', 'Token only': 'Jeton seul', 'Protected': 'Protégé', 'Copy MCP address': 'Copier l’adresse MCP', 'Copy CLI configuration': 'Copier la configuration CLI', 'All exposed operations are available. Arguments and document revisions are still validated.': 'Toutes les opérations exposées sont disponibles. Les arguments et les révisions des documents restent contrôlés.'})
+translations.update({
+    'Syntax language': 'Langage de coloration',
+    'Automatic': 'Automatique',
+    'Automatic (file association)': 'Automatique (association du fichier)',
+    'Unavailable': 'Indisponible',
+    'Syntax language: click to choose automatic detection or a manual mode.': 'Langage de coloration : choisir la détection automatique ou un mode manuel.',
+})
 path.write_text(json.dumps({key: {'en': key, 'fr': value} for key,value in translations.items()}, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')

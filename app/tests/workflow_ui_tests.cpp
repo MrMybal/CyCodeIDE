@@ -6,6 +6,7 @@ static_assert(cycode::updates::detail::downloadFeedback(cycode::updates::Downloa
 #include <thread>
 namespace cycode {
 void sessionViewContracts(const std::filesystem::path &);
+void syntaxViewContracts(const std::filesystem::path &);
 struct ApplicationWorkflowTests {
     static void check(bool v, const char *message) {
         if (!v)
@@ -148,6 +149,7 @@ int main(int argc, char **argv) {
         cyui::apply({});
         cyui::loadFonts();
         cycode::sessionViewContracts(cycode::utf8Path(argv[1]));
+        cycode::syntaxViewContracts(cycode::utf8Path(argv[1]));
         cycode::ApplicationWorkflowTests::run(cycode::utf8Path(argv[1]), argv[2]);
         ImGui::DestroyContext();
         std::cout << "Headless CTest/Git workflow UI passed; no native windows\n";

@@ -75,20 +75,7 @@ void Application::synchronizeSyntax(const Json &syntaxes) {
             }
         }
     extensionSyntaxIds_ = std::move(desired);
-    for (const auto &tab : tabs_)
-        if (!tab->image) {
-            tab->codeEditor.setLanguageForPath(tab->displayPath);
-            const bool custom = !cyui::codeLanguageInfo(tab->codeEditor.language()).builtin;
-            tab->codeEditor.setSyntaxEnabled(custom || !languageUsesLegacyLexer(tab->displayPath));
-            if (custom || !languageUsesLegacyLexer(tab->displayPath))
-                tab->codeEditor.refreshSyntax();
-            else {
-                tab->editor.SetLanguage(unreal_.value("available", false) &&
-                                                LanguageService::supportsCpp(tab->displayPath)
-                                            ? &unrealLanguage_
-                                            : editorLanguage(tab->displayPath));
-                tab->syntax.update(tab->editor, tab->path, tab->editor.GetText());
-            }
-        }
+    syntaxCatalogue_ = 0;
+    updateCodeLanguages();
 }
 } // namespace cycode

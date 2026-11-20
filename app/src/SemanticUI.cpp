@@ -453,15 +453,14 @@ void Application::updateSemantic() {
             refactorPreview_ = result;
             beforePreviewCode_.setText(result.at("before").get<std::string>());
             afterPreviewCode_.setText(result.at("after").get<std::string>());
-            refactorDiff_.setTexts(result.at("before"), result.at("after"), cyui::codeLanguageForPath(refactorFile_));
+            refactorDiff_.setTexts(result.at("before"), result.at("after"), refactorFile_, codeLanguageForDocument(refactorFile_));
             refactorDiffState_ = {};
             for (auto *view : {&beforePreviewCode_, &afterPreviewCode_}) {
-                configureCodeEditor(*view); view->setLanguageForPath(refactorFile_);
-                view->setSyntaxEnabled(!languageUsesLegacyLexer(refactorFile_)); view->setReadOnly(true);
+                configureCodeEditor(*view); configureCodeLanguage(*view,refactorFile_);
+                view->setReadOnly(true);
             }
             for (auto editor : {&beforePreview_, &afterPreview_}) {
-                if (languageUsesLegacyLexer(refactorFile_)) editor->SetLanguage(editorLanguage(refactorFile_,unreal_.value("available",false))); editor->SetReadOnlyEnabled(true);
-                Syntax syntax; syntax.update(*editor,refactorFile_,editor->GetText());
+                editor->SetReadOnlyEnabled(true);
                 editor->SetShowMiniMapEnabled(false); editor->SetWordWrapEnabled(true);
                 editor->SetShowWhitespacesEnabled(false); editor->SetShowCurrentLineHighlightEnabled(false);
                 editor->SetCaretsVisible(false); editor->SetLineSpacing(1.15f);

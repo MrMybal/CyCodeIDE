@@ -41,9 +41,6 @@ static int desktopBuildTimeout(const Json &settings) {
     catch(const std::exception &) {return 1800;}
 }
 int Application::configuredBuildTimeout() const {return desktopBuildTimeout(settings_);}
-static const TextEditor::Language *languageFor(const std::string &path) {
-    return editorLanguage(path);
-}
 static bool cppFile(const std::string &path) {
     return LanguageService::supportsCpp(path);
 }
@@ -774,12 +771,8 @@ void Application::task(const std::string &method, Json params) {
 }
 void Application::configureEditor(const std::shared_ptr<Tab> &tab) {
     configureCodeEditor(tab->codeEditor);
-    tab->codeEditor.setLanguageForPath(tab->displayPath);
-    // Rich project-aware lexical/semantic overlays keep their existing native hook.
-    tab->codeEditor.setSyntaxEnabled(!cyui::codeLanguageInfo(tab->codeEditor.language()).builtin||!languageUsesLegacyLexer(tab->displayPath));
+    applyEditorLanguage(tab);
     tab->snippet.attach(tab->editor);
-    if (languageUsesLegacyLexer(tab->displayPath)) tab->editor.SetLanguage(unreal_.value("available", false) && cppFile(tab->path) ? &unrealLanguage_ : languageFor(tab->displayPath));
-    tab->syntax.update(tab->editor,tab->path,tab->editor.GetText());
     tab->editor.SetTabSize(4);
     tab->editor.SetInsertSpacesOnTabs(true);
     tab->editor.SetShowMiniMapEnabled(minimap_);
@@ -911,7 +904,7 @@ void Application::open(const std::string &path, size_t line, size_t column, bool
             const auto cursor = tab->editor.GetMainCursorPosition();
             tab->editor.SelectAll();
             tab->editor.ReplaceTextPreservingTabs(doc["text"].get<std::string>());
-            tab->syntax.update(tab->editor,tab->path,doc["text"].get_ref<const std::string &>());
+            updateEditorSyntax(tab,doc["text"].get_ref<const std::string &>());
             tab->editor.SetCursor(cursor);
             tab->revision = doc["revision"];
             tab->dirty = doc["dirty"];
@@ -976,7 +969,7 @@ void Application::changed(const std::shared_ptr<Tab> &tab) {
         tab->dirty = result["dirty"];
         tab->synchronizedText=result.at("text").get<std::string>();
         tab->synchronizedRevision=tab->revision;
-        tab->syntax.update(tab->editor,tab->path,result["text"].get_ref<const std::string &>());
+        updateEditorSyntax(tab,result["text"].get_ref<const std::string &>());
         ++tab->completionGeneration;
     } catch (const std::exception &e) {
         // A filesystem move/delete can complete between the UI's metadata poll
@@ -989,7 +982,7 @@ void Application::changed(const std::shared_ptr<Tab> &tab) {
                 resourceTabPath(tab,current.at("path"));tab->revision=current.at("revision");
                 const auto result=engine_->dispatch("documents.replace",{{"path",tab->path},{"text",tab->editor.GetText()},{"expectedRevision",tab->revision}});
                 tab->revision=result.at("revision");tab->dirty=result.at("dirty");tab->synchronizedText=result.at("text").get<std::string>();tab->synchronizedRevision=tab->revision;
-                tab->syntax.update(tab->editor,tab->path,tab->synchronizedText);return;
+                updateEditorSyntax(tab,tab->synchronizedText);return;
             }
         } catch(const std::exception &) {}
         tab->dirty = true; // Preserve uncommitted editor text through a concurrent native close/conflict.
@@ -1072,6 +1065,7 @@ void Application::retireTabView(const std::string &path) {
         active_ = tabs_.empty() ? "" : tabs_.front()->path;
 }
 void Application::update() {
+    updateCodeLanguages();
     updatePaged();
     updateBuildCancellation();
     updateProjectCancellation();
@@ -1172,7 +1166,7 @@ void Application::update() {
                 tab->editor.SelectAll();
                 tab->editor.ReplaceTextPreservingTabs(doc["text"].get<std::string>());
             }
-            tab->syntax.update(tab->editor,tab->path,doc["text"].get_ref<const std::string &>());
+            updateEditorSyntax(tab,doc["text"].get_ref<const std::string &>());
             tab->editor.SetCursor(cursor);
             tab->revision = doc["revision"];
             tab->dirty = doc["dirty"];
@@ -1221,7 +1215,7 @@ void Application::update() {
                     const auto &cursor=prepared.at("cursor");
                     applyEditorCompletion(tab->editor,preview.at("before"),doc.at("text"),cursor.at("line"),cursor.at("character"));
                     tab->revision=doc.at("revision");tab->dirty=doc.at("dirty");
-                    tab->syntax.update(tab->editor,tab->path,doc.at("text"));
+                    updateEditorSyntax(tab,doc.at("text"));
                     tab->editor.ClearSemanticTokens();tab->highlightRevision=0;tab->highlightRetryAt=ImGui::GetTime()+.3;
                     ++tab->completionGeneration;
                 }

@@ -43,6 +43,7 @@ explains how to get started.
 ## Features
 
 - **Code editing:** syntax highlighting, Undo/Redo, JetBrains Mono, shared text size/zoom and an optional minimap.
+  Development sources also support [Zig/ZON syntax and manual language selection](Docs/SyntaxLanguages.md), without bundled Zig semantic tooling.
 - **Code assistance:** completion, symbol navigation, diagnostics and previews of
   suggested changes with your configured language server.
 - **Analysis and inspections:** inspect project files, pause and resume analysis,
@@ -114,12 +115,12 @@ See [COPYRIGHT](COPYRIGHT). Dependencies retain their own licenses and notices.
 | --- | --- | --- |
 | [CyCode Core](https://github.com/MrMybal/CyCode) | [GPL-3.0-only](https://github.com/MrMybal/CyCode/blob/b902736b0edb9a76365a47778af8a223d50e5b83/LICENSE) | Shared native project services, documents and CLI. |
 | [CyCodeReader editor](https://github.com/MrMybal/CyCodeReader) | [GPL-3.0-only](https://github.com/MrMybal/CyCodeReader/blob/889dd5fd8db8bfabdba4601f5d2a955723c91301/LICENSE) | Shared graphical editor source API 1. |
-| [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/LICENSE) | Selected interface, code, comparison and panel modules. |
+| [CyUI](https://github.com/MrMybal/CyUI) | [MIT](https://github.com/MrMybal/CyUI/blob/e8ccec0a96ed820fc46e86059e010efafcef687e/LICENSE) | Selected interface, code, comparison and panel modules. |
 | [CyMCPSDK](https://github.com/MrMybal/CyMCPSDK) | [MIT](app/licenses/CyMCPSDK.txt) | Assistant, native tool registry, CLI and MCP. |
 | [Dear ImGui](https://github.com/ocornut/imgui) | [MIT](https://github.com/ocornut/imgui/blob/d682dc41f58b98c9343ffbaa7d94f07e9024b3ca/LICENSE.txt) | Shared native UI and SDL/OpenGL backends. |
 | [SDL3](https://github.com/libsdl-org/SDL) | [zlib](https://github.com/libsdl-org/SDL/blob/release-3.4.18/LICENSE.txt) | Native windows, input and platform integration. |
-| [ImGuiColorTextEdit](https://github.com/goossens/ImGuiColorTextEdit) | [MIT](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/third_party/texteditor/LICENSE) | CyUI editor backend; Reader adapts build-local copies. |
-| [Lexilla / Scintilla](https://github.com/ScintillaOrg/lexilla) and [SciTE properties](https://github.com/mirror/scite) | [Permissive component notices](https://github.com/MrMybal/CyUI/blob/6ef01cfcdb197f3a89d64618ce5ef8818c704728/THIRD_PARTY_NOTICES.md) | Lexical engines, public headers and keyword data; no Scintilla editor UI. |
+| [ImGuiColorTextEdit](https://github.com/goossens/ImGuiColorTextEdit) | [MIT](https://github.com/MrMybal/CyUI/blob/e8ccec0a96ed820fc46e86059e010efafcef687e/third_party/texteditor/LICENSE) | CyUI editor backend; Reader adapts build-local copies. |
+| [Lexilla / Scintilla](https://github.com/ScintillaOrg/lexilla) and [SciTE properties](https://github.com/mirror/scite) | [Permissive component notices](https://github.com/MrMybal/CyUI/blob/e8ccec0a96ed820fc46e86059e010efafcef687e/THIRD_PARTY_NOTICES.md) | Lexical engines, public headers and keyword data; no Scintilla editor UI. |
 | [Tree-sitter and grammars](https://github.com/tree-sitter) | [MIT; component notices](app/THIRD_PARTY_NOTICES.md) | Shared editor syntax parsing. |
 | [stb_image](https://github.com/nothings/stb) | [MIT or Unlicense](app/THIRD_PARTY_NOTICES.md) | Image decoding. |
 | [libwebp](https://github.com/webmproject/libwebp) | [BSD-style and patent grant](app/THIRD_PARTY_NOTICES.md) | Decoder-only image support. |

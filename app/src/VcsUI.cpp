@@ -122,7 +122,7 @@ void Application::updateVcs() {
         else if(vcsOperation_=="vcs.hunks") {
             vcsHunks_=std::move(result);vcsHunkSelection_.clear();vcsSection_="Hunks";
             std::string patch;for(const auto &h:vcsHunks_.at("hunks"))patch+=h.at("patch").get<std::string>();
-            vcsHunkDiff_.setUnified(patch,cyui::codeLanguageForPath(vcsHunks_.at("path").get<std::string>()));vcsHunkDiffState_={};
+            vcsHunkDiff_.setUnified(patch,vcsHunks_.at("path"),codeLanguageForDocument(vcsHunks_.at("path")));vcsHunkDiffState_={};
         }
         else if(vcsOperation_=="vcs.configure") { clearGitReplay();clearGitMerge();clearGitCheckout();clearGitConflicts();vcsRepository_.clear();vcsContext_=result;provider_=result.at("provider");vcsActionInputs_=Json::object();vcsConflict_=Json::object();vcsHunks_=Json::object();vcsHunkSelection_.clear();vcsPreviewTitle_.clear();synchronizeExtensions(); }
         else if (vcsOperation_ == "vcs.conflicts") {
@@ -132,20 +132,17 @@ void Application::updateVcs() {
             vcsTheirsCode_.setText(vcsConflict_.at("versions").at("theirs").is_null() ? "" : vcsConflict_.at("versions").at("theirs").get<std::string>());
             open(vcsConflict_.at("path"));
             for (auto *view : {&vcsBaseCode_, &vcsOursCode_, &vcsTheirsCode_}) {
-                configureCodeEditor(*view); view->setLanguageForPath(vcsConflict_.at("path").get<std::string>());
-                view->setReadOnly(true); view->setSyntaxEnabled(!languageUsesLegacyLexer(vcsConflict_.at("path").get<std::string>()));
-            }
-            for (auto editor : {&vcsBase_,&vcsOurs_,&vcsTheirs_}) {
-                const auto path=vcsConflict_.at("path").get<std::string>();
-                if (languageUsesLegacyLexer(path)) editor->SetLanguage(editorLanguage(path,unreal_.value("available",false)));
-                Syntax syntax; syntax.update(*editor,path,editor->GetText());
+                configureCodeEditor(*view); configureCodeLanguage(*view,vcsConflict_.at("path"));
+                view->setReadOnly(true);
             }
         } else if (vcsOperation_ == "vcs.diff" || vcsOperation_ == "vcs.show" || vcsOperation_ == "vcs.blame" || vcsOperation_ == "vcs.log") {
             vcsPreviewTitle_ = vcsOperation_; vcsPreviewCode_.setText(result.value("output",""));
             configureCodeEditor(vcsPreviewCode_); vcsPreviewCode_.setReadOnly(true);
             vcsIsDiff_ = vcsOperation_ == "vcs.diff" || vcsOperation_ == "vcs.show";
             if (vcsIsDiff_) {
-                vcsDiff_.setUnified(result.value("output",""), cyui::codeLanguageForPath(result.value("path",vcsDiffPath_.empty()?active_:vcsDiffPath_)));
+                // A multi-file patch has no single syntax; never borrow an unrelated active tab.
+                const auto path = result.value("path",vcsDiffPath_);
+                vcsDiff_.setUnified(result.value("output",""), path, codeLanguageForDocument(path));
                 vcsDiffState_ = {};
                 // Like Rider, a diff opens as an editor tab instead of inside the narrow tool window.
                 vcsDiffWindow_ = true; vcsDiffFocus_ = true;

@@ -9,6 +9,7 @@
 #include "cycode/DiagnosticAnnotations.h"
 #include "cycode/LanguageClient.h"
 #include "cycode/Syntax.h"
+#include "cycode/CodeComparison.h"
 #include "cycode/EditorSnippet.h"
 #include <cycode/PagedTextEditor.h>
 #include "cycode/ModuleModels.h"
@@ -92,6 +93,7 @@ class Application {
     friend struct ApplicationTemplateTests;
     friend struct ApplicationWorkflowTests;
     friend struct ApplicationSessionTests;
+    friend struct ApplicationSyntaxTests;
     void beginProjectTemplate();
     void projectTemplatePanel();
     void updateProjectTemplates();
@@ -208,6 +210,10 @@ class Application {
         TextEditor &editor = codeEditor.native();
         EditorSnippet snippet;
         Syntax syntax;
+        // Empty means automatic; keep unavailable plugin IDs verbatim.
+        std::string syntaxLanguageId;
+        uint64_t syntaxCatalogue = 0;
+        bool legacySyntax = false;
         std::uint64_t revision = 0;
         bool preview = false;
         bool findOpen=false,findFocus=false,findReplace=false,findSensitive=false,findWords=false,findExtended=false,findWrap=true,findTruncated=false;
@@ -261,7 +267,7 @@ class Application {
     cyui::TextFilter editorMenuFilter_,searchResultsFilter_;
     cyui::CodeEditor searchPreview_;
     std::future<Json> searchPreviewFuture_;
-    std::string searchPreviewRunning_,searchPreviewLoaded_,searchPreviewError_,rightmostTab_,editorCommand_,editorCommandPath_;
+    std::string searchPreviewRunning_,searchPreviewLoaded_,searchPreviewPath_,searchPreviewError_,rightmostTab_,editorCommand_,editorCommandPath_;
     size_t selectedSearch_=size_t(-1),displayedSearchGeneration_=0;
     bool minimap_=false,backgroundTasksOpen_=false;
     bool reformatOnSave_=false,reformatDialogOpen_=false,reformatSelection_=false,projectHeaderHidden_=false;
@@ -324,7 +330,7 @@ class Application {
     uint64_t commandMenu(const char *,cyui::TextFilter &,const std::vector<cyui::FilterMenuItem> &);
     bool drawCode(cyui::CodeEditor &,const char *);
     cyui::CodeViewResult drawCodeView(const char *,cyui::CodeViewState &,const cyui::CodeDocument &,ImVec2 size={});
-    cyui::DiffResult drawDiff(const char *,cyui::DiffState &,const cyui::DiffDocument &,ImVec2 size={});
+    cyui::DiffResult drawDiff(const char *,cyui::DiffState &,CodeComparison &,ImVec2 size={});
     std::vector<cyui::PagedCodeCommand> drawPaged(PagedTextEditor &,const char *);
     void setCodeZoom(float,bool persist=true);
     void setMinimap(bool,bool persist=true);
@@ -681,6 +687,16 @@ class Application {
     void refreshGit();
     bool vcsSupports(const std::string &) const;
     void configureEditor(const std::shared_ptr<Tab> &);
+    cyui::CodeLanguage codeLanguageForDocument(const std::string &) const;
+    void applyEditorLanguage(const std::shared_ptr<Tab> &);
+    void updateEditorSyntax(const std::shared_ptr<Tab> &, const std::string &);
+    void selectSyntaxLanguage(const std::shared_ptr<Tab> &, const std::string &);
+    void syntaxLanguageMenu(const std::shared_ptr<Tab> &);
+    void configureCodeLanguage(cyui::CodeEditor &, const std::string &);
+    void updateCodeLanguages();
+    cyui::TextFilter syntaxLanguageFilter_;
+    uint64_t syntaxCatalogue_ = 0;
+    std::vector<cyui::CodeLanguageInfo> syntaxLanguageCatalogue_;
     std::string tabTitle(const std::shared_ptr<Tab> &);
     void resourceTabPath(const std::shared_ptr<Tab> &,const std::string &);
     void updateHighlights();
@@ -803,7 +819,7 @@ class Application {
     Json vcsInfo_ = Json::object(), vcsHistory_ = Json::object(), vcsConflict_ = Json::object();
     Json vcsHunks_=Json::object();
     std::set<size_t> vcsHunkSelection_;
-    cyui::DiffDocument vcsHunkDiff_;
+    CodeComparison vcsHunkDiff_;
     cyui::DiffState vcsHunkDiffState_;
     Json vcsContext_ = Json::object(), vcsActionInputs_ = Json::object();
     std::string vcsContextPath_, vcsMappingRoot_ = ".";
@@ -820,7 +836,7 @@ class Application {
     cyui::CodeEditor vcsPreviewCode_, vcsBaseCode_, vcsOursCode_, vcsTheirsCode_;
     TextEditor &vcsPreview_ = vcsPreviewCode_.native(), &vcsBase_ = vcsBaseCode_.native(),
                &vcsOurs_ = vcsOursCode_.native(), &vcsTheirs_ = vcsTheirsCode_.native();
-    cyui::DiffDocument vcsDiff_;
+    CodeComparison vcsDiff_;
     cyui::DiffState vcsDiffState_;
     bool vcsIsDiff_ = false;
     bool vcsDiffWindow_ = false, vcsDiffFocus_ = false, vcsCommitRunning_ = false;
@@ -935,7 +951,7 @@ class Application {
     std::string refactorAnnotationPlan_;
     std::set<std::string> refactorConfirmed_;
     bool renameOpen_ = false;
-    cyui::DiffDocument refactorDiff_;
+    CodeComparison refactorDiff_;
     cyui::DiffState refactorDiffState_;
     bool previewWrap_ = false;
     cyui::CodeEditor beforePreviewCode_, afterPreviewCode_;

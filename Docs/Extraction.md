@@ -4,6 +4,28 @@ The presentation was extracted from CyCode af0c149e1366c3b50d5e509153dbab380dc3f
 This guide covers contributor build settings and shared-service integration.
 For application features, downloads and first steps, read the [README](../README.md).
 
+## Unreleased sources — Zig/ZON / 2026-11-20
+
+CyUI is locked to published commit `e8ccec0a96ed820fc46e86059e010efafcef687e`
+(`Add native Zig and ZON syntax highlighting`). Core, Reader and SDK locks are
+unchanged. A separate clean dependency checkout is used; developer checkouts
+are never reset. No dependency source is patched.
+
+The IDE status-bar selector uses `codeLanguages()`. Empty `syntaxLanguage` means
+automatic path/plugin detection with `CodeEditor::setLanguageForPath`; explicit
+session values are stable text IDs restored with `codeLanguageFromName`. Unknown
+plugin IDs are retained. Manual modes bypass path-based legacy lexers. Native
+source edits use the existing Core transactions and Reader Undo; syntax changes
+never replace document text. Plugin catalogue changes refresh cached ordinary,
+preview, Diff and paged presentation. Paged lexical ranges are contextual UTF-8
+byte slices with the existing 32 MiB budget. Read the [syntax guide](SyntaxLanguages.md)
+for usage, semantics exclusions and the local validation restriction. Windows x64
+Release production compilation passed with `BUILD_TESTING=OFF`; no application or
+native fixture was launched. Fourteen inert Python tests, catalogue consistency,
+Core/Reader contracts, UI help aliases and a source/data Gitleaks scan passed.
+Native editing/session/Diff/paged scenarios are added but remain unexecuted.
+Visual theme/DPI/selection/scroll behavior and Linux/macOS remain unverified.
+
 ## Current integration — 0.2.5 / 2026-11-20
 
 The Core lock selects 0.1.6 `b902736b0edb9a76365a47778af8a223d50e5b83`;

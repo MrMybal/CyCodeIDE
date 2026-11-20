@@ -131,7 +131,7 @@ void Application::updateSearchPreview(const Json &hit) {
         try {
             const auto result=searchPreviewFuture_.get();
             if(searchPreviewRunning_==wanted) {
-                configureCodeEditor(searchPreview_);searchPreview_.setLanguageForPath(hit.at("path").get<std::string>());
+                configureCodeEditor(searchPreview_);searchPreviewPath_=hit.at("path");configureCodeLanguage(searchPreview_,searchPreviewPath_);
                 searchPreview_.setReadOnly(true);searchPreview_.native().SetFindReplaceEnabled(false);
                 searchPreview_.native().SetShowMiniMapEnabled(false);
                 searchPreview_.setText(result.at("text").get<std::string>());

@@ -33,7 +33,7 @@ static std::string commentPrefix(const std::string &path) {
     for (auto &c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (ext == ".py" || ext == ".sh" || ext == ".cmake" || ext == ".yml" || ext == ".yaml") return "#";
     if (ext == ".lua" || ext == ".sql") return "--";
-    for (const auto *value : {".c", ".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl", ".cs", ".rs", ".java", ".js", ".ts", ".tsx", ".jsx", ".glsl", ".vert", ".frag", ".comp", ".hlsl", ".hlsli"}) if (ext == value) return "//";
+    for (const auto *value : {".c", ".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl", ".cs", ".rs", ".java", ".js", ".ts", ".tsx", ".jsx", ".glsl", ".vert", ".frag", ".comp", ".hlsl", ".hlsli", ".zig", ".zon"}) if (ext == value) return "//";
     return "";
 }
 void Application::shortcuts() {

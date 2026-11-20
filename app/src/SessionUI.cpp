@@ -111,11 +111,13 @@ Json Application::workspaceSessionSnapshot() const {
         if (tab->pendingSession.is_object()) {
             auto item = tab->pendingSession;
             item["path"] = tab->path;item["windowKey"] = tab->windowKey;
+            item["syntaxLanguage"] = tab->syntaxLanguageId;
             add(std::move(item));continue;
         }
         const auto cursor = tab->image ? TextEditor::DocPos{} : tab->editor.GetMainCursorPosition();
         Json item = {{"path", tab->path},
              {"windowKey", tab->windowKey},
+             {"syntaxLanguage", tab->syntaxLanguageId},
              {"line", std::min<size_t>(cursor.line, 10000000)},
              {"column", std::min<size_t>(cursor.index, 1000000)},
              {"scroll", std::min<size_t>(tab->image ? 0 : tab->editor.GetFirstVisibleRow(), 10000000)}};
